@@ -24,6 +24,17 @@
 # Go workspace file
 go.work
 
+# Env
+.env*
+!.env.example
+
+# Proto generated files
+*.pb.go
+*_grpc.pb.go
+
+# Swagger generated files
+services/api-gateway/docs/
+
 ### macOS ###
 # General
 .DS_Store
