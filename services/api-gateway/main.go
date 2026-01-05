@@ -39,7 +39,14 @@ func main() {
 	}
 	defer authClient.Close()
 
+	userClient, err := client.NewUserClient(cfg.User.Host, cfg.User.Port)
+	if err != nil {
+		log.Fatalf("Failed to connect to User Service: %v", err)
+	}
+	defer userClient.Close()
+
 	authHandler := handlers.NewAuthHandler(authClient)
+	userHandler := handlers.NewUserHandler(userClient)
 
 	if os.Getenv("GIN_MODE") == "" {
 		gin.SetMode(gin.ReleaseMode)
@@ -72,6 +79,27 @@ func main() {
 	authProtected.Use(middleware.JWTAuth(authClient))
 	{
 		authProtected.POST("/logout", authHandler.Logout)
+	}
+
+	usersGroup := router.Group("/users")
+	usersGroup.Use(middleware.JWTAuth(authClient))
+	{
+		usersGroup.POST("/register", userHandler.Register)
+		usersGroup.GET("/me", userHandler.GetProfile)
+		usersGroup.PUT("/me", userHandler.UpdateProfile)
+		usersGroup.POST("/me/avatar", userHandler.UploadAvatar)
+		usersGroup.GET("/me/notifications", userHandler.GetNotificationSettings)
+		usersGroup.PUT("/me/notifications", userHandler.UpdateNotificationSettings)
+	}
+
+	groupsGroup := router.Group("/groups")
+	groupsGroup.Use(middleware.JWTAuth(authClient))
+	{
+		groupsGroup.POST("", userHandler.CreateGroup)
+		groupsGroup.GET("", userHandler.GetGroups)
+		groupsGroup.GET("/:id", userHandler.GetGroup)
+		groupsGroup.PUT("/:id", userHandler.UpdateGroup)
+		groupsGroup.DELETE("/:id", userHandler.DeleteGroup)
 	}
 
 	addr := cfg.GetServerAddress()

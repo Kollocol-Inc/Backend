@@ -94,13 +94,11 @@ func main() {
 		}
 	}()
 
-	grpcServer := grpc.NewServer()
-
 	authService := service.NewAuthService(redisClient, pgClient.GetDB(), rabbitClient, cfg.JWT.Secret)
+
+	grpcServer := grpc.NewServer()
 	pb.RegisterAuthServiceServer(grpcServer, authService)
-
 	reflection.Register(grpcServer)
-
 	log.Printf("Auth Service gRPC server starting on port %s...", cfg.Server.GRPCPort)
 
 	go func() {

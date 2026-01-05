@@ -16,7 +16,7 @@ import (
 const (
 	CodeTTL       = 5 * time.Minute
 	BlacklistTTL  = jwt.AccessTokenDuration
-	MaxAttempts   = 3
+	MaxAttempts   = 5
 )
 
 type AuthCode struct {

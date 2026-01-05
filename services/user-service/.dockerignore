@@ -28,6 +28,9 @@ testdata/
 *.test
 *.out
 
+# Compiled binary
+user-service
+
 # Dependency directories
 vendor/
 

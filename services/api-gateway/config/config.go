@@ -7,6 +7,7 @@ import (
 type Config struct {
 	Server ServerConfig
 	Auth   AuthServiceConfig
+	User   UserServiceConfig
 	JWT    JWTConfig
 }
 
@@ -16,6 +17,11 @@ type ServerConfig struct {
 }
 
 type AuthServiceConfig struct {
+	Host string
+	Port string
+}
+
+type UserServiceConfig struct {
 	Host string
 	Port string
 }
@@ -33,6 +39,10 @@ func Load() *Config {
 		Auth: AuthServiceConfig{
 			Host: getEnv("AUTH_SERVICE_HOST", "localhost"),
 			Port: getEnv("AUTH_SERVICE_PORT", "50051"),
+		},
+		User: UserServiceConfig{
+			Host: getEnv("USER_SERVICE_HOST", "localhost"),
+			Port: getEnv("USER_SERVICE_PORT", "50051"),
 		},
 		JWT: JWTConfig{
 			Secret: getEnv("JWT_SECRET", "test-secret-key"),

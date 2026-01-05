@@ -1,0 +1,182 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "user-service/proto";
+
+service UserService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+  rpc GetProfileByEmail(GetProfileByEmailRequest) returns (GetProfileByEmailResponse);
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+
+  rpc GetNotificationSettings(GetNotificationSettingsRequest) returns (GetNotificationSettingsResponse);
+  rpc UpdateNotificationSettings(UpdateNotificationSettingsRequest) returns (UpdateNotificationSettingsResponse);
+
+  rpc CreateGroup(CreateGroupRequest) returns (CreateGroupResponse);
+  rpc GetGroups(GetGroupsRequest) returns (GetGroupsResponse);
+  rpc GetGroup(GetGroupRequest) returns (GetGroupResponse);
+  rpc UpdateGroup(UpdateGroupRequest) returns (UpdateGroupResponse);
+  rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse);
+}
+
+message User {
+  string id = 1;
+  string email = 2;
+  string first_name = 3;
+  string last_name = 4;
+  string avatar_url = 5;
+  bool is_registered = 6;
+  int64 created_at = 7; // Unix timestamp
+}
+
+message NotificationSettings {
+  string user_id = 1;
+  bool new_quizzes = 2;
+  bool quiz_results = 3;
+  bool group_invites = 4;
+  string deadline_reminder = 5; // "1h", "24h", "never"
+  int64 updated_at = 6; // Unix timestamp
+}
+
+message Group {
+  string id = 1;
+  string name = 2;
+  string owner_id = 3;
+  int64 created_at = 4; // Unix timestamp
+  int32 member_count = 5;
+}
+
+message GroupWithMembers {
+  Group group = 1;
+  repeated User members = 2;
+}
+
+message RegisterRequest {
+  string user_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  bytes avatar_data = 4; // Optional
+  string avatar_filename = 5; // Optional
+}
+
+message RegisterResponse {
+  bool success = 1;
+  User user = 2;
+  string message = 3;
+}
+
+message GetProfileRequest {
+  string user_id = 1;
+}
+
+message GetProfileResponse {
+  bool success = 1;
+  User user = 2;
+  string message = 3;
+}
+
+message GetProfileByEmailRequest {
+  string email = 1;
+}
+
+message GetProfileByEmailResponse {
+  bool success = 1;
+  User user = 2;
+  string message = 3;
+}
+
+message UpdateProfileRequest {
+  string user_id = 1;
+  string first_name = 2; // Optional
+  string last_name = 3; // Optional
+  bytes avatar_data = 4; // Optional
+  string avatar_filename = 5; // Optional
+}
+
+message UpdateProfileResponse {
+  bool success = 1;
+  User user = 2;
+  string message = 3;
+}
+
+message GetNotificationSettingsRequest {
+  string user_id = 1;
+}
+
+message GetNotificationSettingsResponse {
+  bool success = 1;
+  NotificationSettings settings = 2;
+  string message = 3;
+}
+
+message UpdateNotificationSettingsRequest {
+  string user_id = 1;
+  optional bool new_quizzes = 2;
+  optional bool quiz_results = 3;
+  optional bool group_invites = 4;
+  optional string deadline_reminder = 5;
+}
+
+message UpdateNotificationSettingsResponse {
+  bool success = 1;
+  NotificationSettings settings = 2;
+  string message = 3;
+}
+
+message CreateGroupRequest {
+  string owner_id = 1;
+  string name = 2;
+  repeated string member_emails = 3;
+}
+
+message CreateGroupResponse {
+  bool success = 1;
+  Group group = 2;
+  string message = 3;
+}
+
+message GetGroupsRequest {
+  string user_id = 1;
+  string filter = 2; // "my", "created"
+}
+
+message GetGroupsResponse {
+  bool success = 1;
+  repeated Group groups = 2;
+  string message = 3;
+}
+
+message GetGroupRequest {
+  string group_id = 1;
+  string user_id = 2;
+}
+
+message GetGroupResponse {
+  bool success = 1;
+  GroupWithMembers group = 2;
+  string message = 3;
+}
+
+message UpdateGroupRequest {
+  string group_id = 1;
+  string user_id = 2;
+  string name = 3; // Optional
+  repeated string member_emails = 4; // Optional
+}
+
+message UpdateGroupResponse {
+  bool success = 1;
+  Group group = 2;
+  string message = 3;
+}
+
+message DeleteGroupRequest {
+  string group_id = 1;
+  string user_id = 2;
+}
+
+message DeleteGroupResponse {
+  bool success = 1;
+  string message = 2;
+}
