@@ -117,6 +117,8 @@ services:
       - AUTH_SERVICE_PORT=50051
       - USER_SERVICE_HOST=user-service
       - USER_SERVICE_PORT=50051
+      - QUIZ_SERVICE_HOST=quiz-service
+      - QUIZ_SERVICE_PORT=50051
       - JWT_SECRET=${JWT_SECRET}
     depends_on:
       auth-service:
@@ -204,6 +206,38 @@ services:
       rabbitmq:
         condition: service_healthy
       minio:
+        condition: service_healthy
+    networks:
+      - kollocol-network
+
+  quiz-service:
+    build:
+      context: ./services/quiz-service
+      dockerfile: Dockerfile
+    container_name: quiz-service
+    ports:
+      - "${QUIZ_SERVICE_PORT}:50051"
+      - "${QUIZ_SERVICE_HTTP_PORT}:8080"
+    environment:
+      - ENV=${ENV}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_SSLMODE=${DB_SSLMODE}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_DB=${REDIS_DB}
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+      - USER_SERVICE_ADDR=user-service:50051
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - kollocol-network

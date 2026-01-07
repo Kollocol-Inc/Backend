@@ -467,6 +467,43 @@ func (s *UserService) DeleteGroup(ctx context.Context, req *pb.DeleteGroupReques
 	}, nil
 }
 
+func (s *UserService) CheckGroupMembership(ctx context.Context, req *pb.CheckGroupMembershipRequest) (*pb.CheckGroupMembershipResponse, error) {
+	isMember, err := s.groupRepo.IsMember(ctx, req.GroupId, req.UserId)
+	if err != nil {
+		log.Printf("Failed to check group membership: %v", err)
+		return &pb.CheckGroupMembershipResponse{
+			IsMember: false,
+			Role:     "",
+		}, nil
+	}
+
+	if !isMember {
+		return &pb.CheckGroupMembershipResponse{
+			IsMember: false,
+			Role:     "",
+		}, nil
+	}
+
+	group, err := s.groupRepo.GetGroupByID(ctx, req.GroupId)
+	if err != nil {
+		log.Printf("Failed to get group: %v", err)
+		return &pb.CheckGroupMembershipResponse{
+			IsMember: true,
+			Role:     "member",
+		}, nil
+	}
+
+	role := "member"
+	if group.OwnerID == req.UserId {
+		role = "owner"
+	}
+
+	return &pb.CheckGroupMembershipResponse{
+		IsMember: true,
+		Role:     role,
+	}, nil
+}
+
 func (s *UserService) userToProto(user *repository.User) *pb.User {
 	return &pb.User{
 		Id:           user.ID,

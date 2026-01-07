@@ -118,7 +118,7 @@ func main() {
 	grpcServer := grpc.NewServer()
 	pb.RegisterUserServiceServer(grpcServer, userService)
 	reflection.Register(grpcServer)
-	log.Printf("Auth Service gRPC server starting on port %s...", cfg.Server.GRPCPort)
+	log.Printf("User Service gRPC server starting on port %s...", cfg.Server.GRPCPort)
 
 	go func() {
 		lis, err := net.Listen("tcp", ":"+cfg.Server.GRPCPort)

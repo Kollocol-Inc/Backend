@@ -8,6 +8,7 @@ type Config struct {
 	Server ServerConfig
 	Auth   AuthServiceConfig
 	User   UserServiceConfig
+	Quiz   QuizServiceConfig
 	JWT    JWTConfig
 }
 
@@ -22,6 +23,11 @@ type AuthServiceConfig struct {
 }
 
 type UserServiceConfig struct {
+	Host string
+	Port string
+}
+
+type QuizServiceConfig struct {
 	Host string
 	Port string
 }
@@ -43,6 +49,10 @@ func Load() *Config {
 		User: UserServiceConfig{
 			Host: getEnv("USER_SERVICE_HOST", "localhost"),
 			Port: getEnv("USER_SERVICE_PORT", "50051"),
+		},
+		Quiz: QuizServiceConfig{
+			Host: getEnv("QUIZ_SERVICE_HOST", "localhost"),
+			Port: getEnv("QUIZ_SERVICE_PORT", "50051"),
 		},
 		JWT: JWTConfig{
 			Secret: getEnv("JWT_SECRET", "test-secret-key"),

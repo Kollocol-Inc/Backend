@@ -45,8 +45,15 @@ func main() {
 	}
 	defer userClient.Close()
 
+	quizClient, err := client.NewQuizClient(cfg.Quiz.Host, cfg.Quiz.Port)
+	if err != nil {
+		log.Fatalf("Failed to connect to Quiz Service: %v", err)
+	}
+	defer quizClient.Close()
+
 	authHandler := handlers.NewAuthHandler(authClient)
 	userHandler := handlers.NewUserHandler(userClient)
+	quizHandler := handlers.NewQuizHandler(quizClient)
 
 	if os.Getenv("GIN_MODE") == "" {
 		gin.SetMode(gin.ReleaseMode)
@@ -100,6 +107,20 @@ func main() {
 		groupsGroup.GET("/:id", userHandler.GetGroup)
 		groupsGroup.PUT("/:id", userHandler.UpdateGroup)
 		groupsGroup.DELETE("/:id", userHandler.DeleteGroup)
+	}
+
+	quizzesGroup := router.Group("/quizzes")
+	quizzesGroup.Use(middleware.JWTAuth(authClient))
+	{
+		quizzesGroup.POST("/templates", quizHandler.CreateTemplate)
+		quizzesGroup.GET("/templates", quizHandler.GetTemplates)
+		quizzesGroup.GET("/templates/:id", quizHandler.GetTemplate)
+		quizzesGroup.PUT("/templates/:id", quizHandler.UpdateTemplate)
+		quizzesGroup.DELETE("/templates/:id", quizHandler.DeleteTemplate)
+
+		quizzesGroup.POST("/instances", quizHandler.CreateInstance)
+		quizzesGroup.GET("/instances/hosting", quizHandler.GetHostingInstances)
+		quizzesGroup.GET("/instances/:id", quizHandler.GetInstance)
 	}
 
 	addr := cfg.GetServerAddress()

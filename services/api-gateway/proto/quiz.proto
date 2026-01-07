@@ -1,0 +1,179 @@
+syntax = "proto3";
+
+package quiz;
+
+option go_package = "quiz-service/proto";
+
+import "google/protobuf/timestamp.proto";
+
+service QuizService {
+  rpc CreateTemplate(CreateTemplateRequest) returns (CreateTemplateResponse);
+  rpc GetTemplate(GetTemplateRequest) returns (GetTemplateResponse);
+  rpc GetTemplates(GetTemplatesRequest) returns (GetTemplatesResponse);
+  rpc UpdateTemplate(UpdateTemplateRequest) returns (UpdateTemplateResponse);
+  rpc DeleteTemplate(DeleteTemplateRequest) returns (DeleteTemplateResponse);
+
+  rpc CreateInstance(CreateInstanceRequest) returns (CreateInstanceResponse);
+  rpc GetInstance(GetInstanceRequest) returns (GetInstanceResponse);
+  rpc GetHostingInstances(GetHostingInstancesRequest) returns (GetHostingInstancesResponse);
+}
+
+message QuizTemplate {
+  string id = 1;
+  string owner_id = 2;
+  string title = 3;
+  string description = 4;
+  string quiz_type = 5; // "sync" or "async"
+  QuizSettings settings = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message QuizSettings {
+  bool random_order = 1;
+  int32 time_limit_total = 2; // seconds, 0 = no limit
+  bool show_correct_answers = 3;
+  bool allow_review = 4;
+}
+
+message Question {
+  string id = 1;
+  string template_id = 2;
+  string text = 3;
+  string type = 4; // "open" or "multiple_choice"
+  repeated string options = 5; // for multiple_choice
+  string correct_answer = 6; // JSON string
+  int32 order_index = 7;
+  int32 max_score = 8;
+  int32 time_limit_sec = 9; // 0 = no limit
+  string ai_answer = 10; // JSON string
+}
+
+message QuizInstance {
+  string id = 1;
+  string template_id = 2;
+  string title = 3;
+  string access_code = 4; // 6-digit code
+  string status = 5; // "waiting", "active", "finished"
+  string group_id = 6;
+  string created_by = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp start_time = 9;
+  google.protobuf.Timestamp deadline = 10;
+  string quiz_type = 11;
+  QuizSettings settings = 12;
+}
+
+message CreateTemplateRequest {
+  string user_id = 1;
+  string title = 2;
+  string description = 3;
+  string quiz_type = 4;
+  QuizSettings settings = 5;
+  repeated QuestionInput questions = 6;
+}
+
+message QuestionInput {
+  string id = 1;
+  string text = 2;
+  string type = 3;
+  repeated string options = 4;
+  string correct_answer = 5;
+  int32 order_index = 6;
+  int32 max_score = 7;
+  int32 time_limit_sec = 8;
+}
+
+message CreateTemplateResponse {
+  QuizTemplate template = 1;
+  repeated Question questions = 2;
+}
+
+message GetTemplateRequest {
+  string template_id = 1;
+  string user_id = 2;
+}
+
+message GetTemplateResponse {
+  QuizTemplate template = 1;
+  repeated Question questions = 2;
+}
+
+message GetTemplatesRequest {
+  string user_id = 1;
+}
+
+message TemplateWithQuestions {
+  QuizTemplate template = 1;
+  repeated Question questions = 2;
+}
+
+message GetTemplatesResponse {
+  repeated TemplateWithQuestions templates = 1;
+}
+
+message UpdateTemplateRequest {
+  string template_id = 1;
+  string user_id = 2;
+  string title = 3;
+  string description = 4;
+  QuizSettings settings = 5;
+  repeated QuestionInput questions = 6;
+  string quiz_type = 7;
+}
+
+message UpdateTemplateResponse {
+  QuizTemplate template = 1;
+  repeated Question questions = 2;
+}
+
+message DeleteTemplateRequest {
+  string template_id = 1;
+  string user_id = 2;
+}
+
+message DeleteTemplateResponse {
+  bool success = 1;
+}
+
+message CreateInstanceRequest {
+  string user_id = 1;
+  string template_id = 2;
+  string title = 3;
+  string group_id = 4;
+  google.protobuf.Timestamp deadline = 5;
+}
+
+message CreateInstanceResponse {
+  QuizInstance instance = 1;
+}
+
+message GetInstanceRequest {
+  string instance_id = 1;
+  string user_id = 2;
+}
+
+message GetInstanceResponse {
+  QuizInstance instance = 1;
+  repeated Question questions = 2;
+}
+
+message GetInstanceByAccessCodeRequest {
+  string access_code = 1;
+  string user_id = 2;
+}
+
+message GetInstanceByAccessCodeResponse {
+  QuizInstance instance = 1;
+  bool has_access = 2;
+  string error_message = 3;
+}
+
+message GetHostingInstancesRequest {
+  string user_id = 1;
+  string status = 2; // "active", "pending_review", "reviewed", "" = all
+}
+
+message GetHostingInstancesResponse {
+  repeated QuizInstance instances = 1;
+}

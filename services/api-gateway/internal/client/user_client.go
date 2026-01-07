@@ -24,10 +24,10 @@ func NewUserClient(host, port string) (*UserClient, error) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create auth client for %s: %w", address, err)
+		return nil, fmt.Errorf("failed to create user client for %s: %w", address, err)
 	}
 
-	log.Printf("Auth Service client initialized for %s", address)
+	log.Printf("User Service client initialized for %s", address)
 
 	return &UserClient{
 		client: pb.NewUserServiceClient(conn),
