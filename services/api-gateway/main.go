@@ -51,9 +51,16 @@ func main() {
 	}
 	defer quizClient.Close()
 
+	notificationClient, err := client.NewNotificationClient(cfg.Notification.Host, cfg.Notification.Port)
+	if err != nil {
+		log.Fatalf("Failed to connect to Notification Service: %v", err)
+	}
+	defer notificationClient.Close()
+
 	authHandler := handlers.NewAuthHandler(authClient)
 	userHandler := handlers.NewUserHandler(userClient)
 	quizHandler := handlers.NewQuizHandler(quizClient)
+	notificationHandler := handlers.NewNotificationHandler(notificationClient)
 
 	if os.Getenv("GIN_MODE") == "" {
 		gin.SetMode(gin.ReleaseMode)
@@ -121,6 +128,14 @@ func main() {
 		quizzesGroup.POST("/instances", quizHandler.CreateInstance)
 		quizzesGroup.GET("/instances/hosting", quizHandler.GetHostingInstances)
 		quizzesGroup.GET("/instances/:id", quizHandler.GetInstance)
+	}
+
+	notificationsGroup := router.Group("/notifications")
+	notificationsGroup.Use(middleware.JWTAuth(authClient))
+	{
+		notificationsGroup.GET("", notificationHandler.GetNotifications)
+		notificationsGroup.PUT("/:id/read", notificationHandler.MarkAsRead)
+		notificationsGroup.DELETE("/:id", notificationHandler.DeleteNotification)
 	}
 
 	addr := cfg.GetServerAddress()

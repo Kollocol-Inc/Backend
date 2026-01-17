@@ -5,11 +5,12 @@ import (
 )
 
 type Config struct {
-	Server ServerConfig
-	Auth   AuthServiceConfig
-	User   UserServiceConfig
-	Quiz   QuizServiceConfig
-	JWT    JWTConfig
+	Server       ServerConfig
+	Auth         AuthServiceConfig
+	User         UserServiceConfig
+	Quiz         QuizServiceConfig
+	Notification NotificationServiceConfig
+	JWT          JWTConfig
 }
 
 type ServerConfig struct {
@@ -28,6 +29,11 @@ type UserServiceConfig struct {
 }
 
 type QuizServiceConfig struct {
+	Host string
+	Port string
+}
+
+type NotificationServiceConfig struct {
 	Host string
 	Port string
 }
@@ -53,6 +59,10 @@ func Load() *Config {
 		Quiz: QuizServiceConfig{
 			Host: getEnv("QUIZ_SERVICE_HOST", "localhost"),
 			Port: getEnv("QUIZ_SERVICE_PORT", "50051"),
+		},
+		Notification: NotificationServiceConfig{
+			Host: getEnv("NOTIFICATION_SERVICE_HOST", "localhost"),
+			Port: getEnv("NOTIFICATION_SERVICE_PORT", "50051"),
 		},
 		JWT: JWTConfig{
 			Secret: getEnv("JWT_SECRET", "test-secret-key"),
