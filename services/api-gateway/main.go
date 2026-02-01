@@ -61,6 +61,7 @@ func main() {
 	userHandler := handlers.NewUserHandler(userClient)
 	quizHandler := handlers.NewQuizHandler(quizClient)
 	notificationHandler := handlers.NewNotificationHandler(notificationClient)
+	gameHandler := handlers.NewGameHandler(cfg.Game.Host, cfg.Game.Port)
 
 	if os.Getenv("GIN_MODE") == "" {
 		gin.SetMode(gin.ReleaseMode)
@@ -137,6 +138,8 @@ func main() {
 		notificationsGroup.PUT("/:id/read", notificationHandler.MarkAsRead)
 		notificationsGroup.DELETE("/:id", notificationHandler.DeleteNotification)
 	}
+
+	router.GET("/ws", middleware.JWTAuthWS(authClient), gameHandler.ProxyWebSocket)
 
 	addr := cfg.GetServerAddress()
 	log.Printf("API Gateway starting on %s", addr)

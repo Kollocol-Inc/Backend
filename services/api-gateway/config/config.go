@@ -9,6 +9,7 @@ type Config struct {
 	Auth         AuthServiceConfig
 	User         UserServiceConfig
 	Quiz         QuizServiceConfig
+	Game         GameServiceConfig
 	Notification NotificationServiceConfig
 	JWT          JWTConfig
 }
@@ -29,6 +30,11 @@ type UserServiceConfig struct {
 }
 
 type QuizServiceConfig struct {
+	Host string
+	Port string
+}
+
+type GameServiceConfig struct {
 	Host string
 	Port string
 }
@@ -59,6 +65,10 @@ func Load() *Config {
 		Quiz: QuizServiceConfig{
 			Host: getEnv("QUIZ_SERVICE_HOST", "localhost"),
 			Port: getEnv("QUIZ_SERVICE_PORT", "50051"),
+		},
+		Game: GameServiceConfig{
+			Host: getEnv("GAME_SERVICE_HOST", "localhost"),
+			Port: getEnv("GAME_SERVICE_PORT", "8081"),
 		},
 		Notification: NotificationServiceConfig{
 			Host: getEnv("NOTIFICATION_SERVICE_HOST", "localhost"),

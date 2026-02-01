@@ -284,3 +284,36 @@ func (r *InstanceRepository) generateUniqueAccessCode(ctx context.Context) (stri
 
 	return "", fmt.Errorf("failed to generate unique access code after %d attempts", maxAttempts)
 }
+
+func (r *InstanceRepository) GetInstanceByAccessCode(ctx context.Context, accessCode string) (*Instance, error) {
+	query := `
+		SELECT id, template_id, title, access_code, status, group_id, created_by, created_at, start_time, deadline, quiz_type, settings
+		FROM quiz_instances
+		WHERE access_code = $1
+	`
+
+	instance := &Instance{}
+	err := r.db.QueryRowContext(ctx, query, accessCode).Scan(
+		&instance.ID,
+		&instance.TemplateID,
+		&instance.Title,
+		&instance.AccessCode,
+		&instance.Status,
+		&instance.GroupID,
+		&instance.CreatedBy,
+		&instance.CreatedAt,
+		&instance.StartTime,
+		&instance.Deadline,
+		&instance.QuizType,
+		&instance.Settings,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("instance not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return instance, nil
+}

@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package quiz;
+
+option go_package = "game-service/proto";
+
+import "google/protobuf/timestamp.proto";
+
+service QuizService {
+  rpc GetInstance(GetInstanceRequest) returns (GetInstanceResponse);
+  rpc GetInstanceByAccessCode(GetInstanceByAccessCodeRequest) returns (GetInstanceByAccessCodeResponse);
+}
+
+message QuizSettings {
+  bool random_order = 1;
+  int32 time_limit_total = 2;
+  bool show_correct_answers = 3;
+  bool allow_review = 4;
+}
+
+message Question {
+  string id = 1;
+  string template_id = 2;
+  string text = 3;
+  string type = 4;
+  repeated string options = 5;
+  string correct_answer = 6;
+  int32 order_index = 7;
+  int32 max_score = 8;
+  int32 time_limit_sec = 9;
+  string ai_answer = 10;
+}
+
+message QuizInstance {
+  string id = 1;
+  string template_id = 2;
+  string title = 3;
+  string access_code = 4;
+  string status = 5;
+  string group_id = 6;
+  string created_by = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp start_time = 9;
+  google.protobuf.Timestamp deadline = 10;
+  string quiz_type = 11;
+  QuizSettings settings = 12;
+}
+
+message GetInstanceRequest {
+  string instance_id = 1;
+  string user_id = 2;
+}
+
+message GetInstanceResponse {
+  QuizInstance instance = 1;
+  repeated Question questions = 2;
+}
+
+message GetInstanceByAccessCodeRequest {
+  string access_code = 1;
+  string user_id = 2;
+}
+
+message GetInstanceByAccessCodeResponse {
+  QuizInstance instance = 1;
+  bool has_access = 2;
+  string error_message = 3;
+}

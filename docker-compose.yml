@@ -130,11 +130,15 @@ services:
       - QUIZ_SERVICE_PORT=50051
       - NOTIFICATION_SERVICE_HOST=notification-service
       - NOTIFICATION_SERVICE_PORT=50051
+      - GAME_SERVICE_HOST=game-service
+      - GAME_SERVICE_PORT=8080
       - JWT_SECRET=${JWT_SECRET}
     depends_on:
       auth-service:
         condition: service_healthy
       user-service:
+        condition: service_healthy
+      game-service:
         condition: service_healthy
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "-O", "-", "http://localhost:8080/health" ]
@@ -250,6 +254,44 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      - kollocol-network
+
+  game-service:
+    build:
+      context: ./services/game-service
+      dockerfile: Dockerfile
+    container_name: game-service
+    ports:
+      - "${GAME_SERVICE_HTTP_PORT}:8080"
+    environment:
+      - ENV=${ENV}
+      - HTTP_PORT=8080
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_SSLMODE=${DB_SSLMODE}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_DB=${REDIS_DB}
+      - QUIZ_SERVICE_HOST=quiz-service
+      - QUIZ_SERVICE_PORT=50051
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      quiz-service:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "-O", "-", "http://localhost:8080/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     networks:
       - kollocol-network
 

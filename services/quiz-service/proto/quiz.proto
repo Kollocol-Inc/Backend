@@ -15,6 +15,7 @@ service QuizService {
 
   rpc CreateInstance(CreateInstanceRequest) returns (CreateInstanceResponse);
   rpc GetInstance(GetInstanceRequest) returns (GetInstanceResponse);
+  rpc GetInstanceByAccessCode(GetInstanceByAccessCodeRequest) returns (GetInstanceByAccessCodeResponse);
   rpc GetHostingInstances(GetHostingInstancesRequest) returns (GetHostingInstancesResponse);
 }
 

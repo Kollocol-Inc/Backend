@@ -316,6 +316,34 @@ func (s *QuizService) GetInstance(ctx context.Context, req *pb.GetInstanceReques
 	return resp, nil
 }
 
+func (s *QuizService) GetInstanceByAccessCode(ctx context.Context, req *pb.GetInstanceByAccessCodeRequest) (*pb.GetInstanceByAccessCodeResponse, error) {
+	instance, err := s.instanceRepo.GetInstanceByAccessCode(ctx, req.AccessCode)
+	if err != nil {
+		return &pb.GetInstanceByAccessCodeResponse{
+			Instance:     nil,
+			HasAccess:    false,
+			ErrorMessage: "Quiz not found",
+		}, nil
+	}
+
+	hasAccess := instance.CreatedBy == req.UserId
+	if !hasAccess && instance.GroupID.Valid {
+		isMember, _, err := s.userClient.CheckGroupMembership(ctx, instance.GroupID.String, req.UserId)
+		if err == nil && isMember {
+			hasAccess = true
+		}
+	}
+
+	if !instance.GroupID.Valid {
+		hasAccess = true
+	}
+
+	return &pb.GetInstanceByAccessCodeResponse{
+		Instance:  s.instanceToProto(instance),
+		HasAccess: hasAccess,
+	}, nil
+}
+
 func (s *QuizService) GetHostingInstances(ctx context.Context, req *pb.GetHostingInstancesRequest) (*pb.GetHostingInstancesResponse, error) {
 	instances, err := s.instanceRepo.GetHostingInstances(ctx, req.UserId, req.Status)
 	if err != nil {
