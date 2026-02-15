@@ -127,6 +127,7 @@ func main() {
 
 		quizzesGroup.POST("/instances", quizHandler.CreateInstance)
 		quizzesGroup.GET("/instances/hosting", quizHandler.GetHostingInstances)
+		quizzesGroup.GET("/instances/participating", quizHandler.GetParticipatingInstances)
 		quizzesGroup.GET("/instances/:id", quizHandler.GetInstance)
 	}
 

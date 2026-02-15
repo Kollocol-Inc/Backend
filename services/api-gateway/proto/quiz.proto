@@ -16,6 +16,7 @@ service QuizService {
   rpc CreateInstance(CreateInstanceRequest) returns (CreateInstanceResponse);
   rpc GetInstance(GetInstanceRequest) returns (GetInstanceResponse);
   rpc GetHostingInstances(GetHostingInstancesRequest) returns (GetHostingInstancesResponse);
+  rpc GetParticipatingInstances(GetParticipatingInstancesRequest) returns (GetParticipatingInstancesResponse);
 }
 
 message QuizTemplate {
@@ -176,4 +177,18 @@ message GetHostingInstancesRequest {
 
 message GetHostingInstancesResponse {
   repeated QuizInstance instances = 1;
+}
+
+message GetParticipatingInstancesRequest {
+  string user_id = 1;
+  string session_status = 2; // "not_started", "joined", "in_progress", "finished", "" = all
+}
+
+message ParticipatingInstance {
+  QuizInstance instance = 1;
+  string session_status = 2; // "not_started", "joined", "in_progress", "finished"
+}
+
+message GetParticipatingInstancesResponse {
+  repeated ParticipatingInstance instances = 1;
 }

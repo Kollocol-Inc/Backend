@@ -7,6 +7,7 @@ const (
 )
 
 const (
+	SessionStatusNotStarted = "not_started" // User is in group but hasn't joined the quiz yet
 	SessionStatusJoined     = "joined"      // User has joined but quiz hasn't started
 	SessionStatusInProgress = "in_progress" // User is actively playing
 	SessionStatusFinished   = "finished"    // User has completed the quiz
@@ -15,9 +16,4 @@ const (
 const (
 	QuizTypeSync  = "sync"
 	QuizTypeAsync = "async"
-)
-
-const (
-	ActionJoined = "joined"
-	ActionLeft   = "left"
 )

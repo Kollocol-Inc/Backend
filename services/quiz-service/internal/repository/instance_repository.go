@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math/big"
+	"quiz-service/internal/constants"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,10 +40,20 @@ type InstanceWithQuestions struct {
 	Questions []*Question
 }
 
+type ParticipatingInstance struct {
+	Instance      *Instance
+	SessionStatus string
+}
+
 func (r *InstanceRepository) CreateInstance(ctx context.Context, instance *Instance) error {
 	instance.ID = uuid.New().String()
 	instance.CreatedAt = time.Now()
-	instance.Status = "waiting"
+
+	if instance.QuizType == constants.QuizTypeAsync {
+		instance.Status = constants.InstanceStatusActive
+	} else {
+		instance.Status = constants.InstanceStatusWaiting
+	}
 
 	var err error
 	instance.AccessCode, err = r.generateUniqueAccessCode(ctx)
@@ -283,6 +294,69 @@ func (r *InstanceRepository) generateUniqueAccessCode(ctx context.Context) (stri
 	}
 
 	return "", fmt.Errorf("failed to generate unique access code after %d attempts", maxAttempts)
+}
+
+func (r *InstanceRepository) GetParticipatingInstances(ctx context.Context, userID, sessionStatus string) ([]*ParticipatingInstance, error) {
+	query := `
+		SELECT * FROM (
+			SELECT
+				i.id, i.template_id, i.title, i.access_code, i.status, i.group_id, i.created_by, i.created_at, i.start_time, i.deadline, i.quiz_type, i.settings,
+				COALESCE(gs.status, 'not_started') as session_status
+			FROM quiz_instances i
+			LEFT JOIN game_sessions gs ON i.id = gs.instance_id AND gs.user_id = $1
+			WHERE i.created_by != $1
+			  AND (
+			    gs.user_id IS NOT NULL
+			    OR EXISTS (
+			      SELECT 1 FROM group_members gm
+			      WHERE gm.group_id = i.group_id AND gm.user_id = $1
+			    )
+			  )
+		) AS participating
+	`
+
+	args := []any{userID}
+
+	if sessionStatus != "" {
+		query += " WHERE session_status = $2"
+		args = append(args, sessionStatus)
+	}
+
+	query += " ORDER BY created_at DESC"
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []*ParticipatingInstance
+	for rows.Next() {
+		instance := &Instance{}
+		result := &ParticipatingInstance{Instance: instance}
+
+		err := rows.Scan(
+			&instance.ID,
+			&instance.TemplateID,
+			&instance.Title,
+			&instance.AccessCode,
+			&instance.Status,
+			&instance.GroupID,
+			&instance.CreatedBy,
+			&instance.CreatedAt,
+			&instance.StartTime,
+			&instance.Deadline,
+			&instance.QuizType,
+			&instance.Settings,
+			&result.SessionStatus,
+		)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, result)
+	}
+
+	return results, rows.Err()
 }
 
 func (r *InstanceRepository) GetInstanceByAccessCode(ctx context.Context, accessCode string) (*Instance, error) {

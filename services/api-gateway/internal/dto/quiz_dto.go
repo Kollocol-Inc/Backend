@@ -100,8 +100,13 @@ type GetInstanceResponse struct {
 	Questions []QuestionDTO `json:"questions"`
 }
 
+type ParticipatingInstanceDTO struct {
+	Instance      InstanceDTO `json:"instance"`
+	SessionStatus string      `json:"session_status"` // "not_started", "joined", "in_progress", "finished"
+}
+
 type GetParticipatingInstancesResponse struct {
-	Instances []InstanceDTO `json:"instances"`
+	Instances []ParticipatingInstanceDTO `json:"instances"`
 }
 
 type GetHostingInstancesResponse struct {

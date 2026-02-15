@@ -73,3 +73,7 @@ func (c *QuizClient) GetInstance(ctx context.Context, req *pb.GetInstanceRequest
 func (c *QuizClient) GetHostingInstances(ctx context.Context, req *pb.GetHostingInstancesRequest) (*pb.GetHostingInstancesResponse, error) {
 	return c.client.GetHostingInstances(ctx, req)
 }
+
+func (c *QuizClient) GetParticipatingInstances(ctx context.Context, req *pb.GetParticipatingInstancesRequest) (*pb.GetParticipatingInstancesResponse, error) {
+	return c.client.GetParticipatingInstances(ctx, req)
+}

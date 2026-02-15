@@ -449,3 +449,59 @@ func (h *QuizHandler) GetHostingInstances(c *gin.Context) {
 		Instances: instances,
 	})
 }
+
+// GetParticipatingInstances godoc
+// @Summary Get quizzes where user is a participant
+// @Tags Quiz
+// @Produce json
+// @Security BearerAuth
+// @Param session_status query string false "Session status filter (not_started, joined, in_progress, finished)"
+// @Success 200 {object} dto.GetParticipatingInstancesResponse
+// @Router /quizzes/instances/participating [get]
+func (h *QuizHandler) GetParticipatingInstances(c *gin.Context) {
+	userID := c.GetString("user_id")
+	sessionStatus := c.Query("session_status")
+
+	resp, err := h.quizClient.GetParticipatingInstances(c.Request.Context(), &pb.GetParticipatingInstancesRequest{
+		UserId:        userID,
+		SessionStatus: sessionStatus,
+	})
+
+	if err != nil {
+		dto.JsonError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	instances := make([]dto.ParticipatingInstanceDTO, len(resp.Instances))
+	for i, pi := range resp.Instances {
+		inst := pi.Instance
+		instances[i] = dto.ParticipatingInstanceDTO{
+			Instance: dto.InstanceDTO{
+				ID:         inst.Id,
+				TemplateID: inst.TemplateId,
+				HostUserID: inst.CreatedBy,
+				Title:      inst.Title,
+				AccessCode: inst.AccessCode,
+				GroupID:    inst.GroupId,
+				Status:     inst.Status,
+				QuizType:   inst.QuizType,
+				Settings: dto.QuizSettings{
+					RandomOrder:        inst.Settings.RandomOrder,
+					TimeLimitTotal:     inst.Settings.TimeLimitTotal,
+					ShowCorrectAnswers: inst.Settings.ShowCorrectAnswers,
+					AllowReview:        inst.Settings.AllowReview,
+				},
+				CreatedAt: inst.CreatedAt.AsTime().Format(time.RFC3339),
+			},
+			SessionStatus: pi.SessionStatus,
+		}
+
+		if inst.Deadline != nil {
+			instances[i].Instance.Deadline = inst.Deadline.AsTime().Format(time.RFC3339)
+		}
+	}
+
+	c.JSON(http.StatusOK, dto.GetParticipatingInstancesResponse{
+		Instances: instances,
+	})
+}

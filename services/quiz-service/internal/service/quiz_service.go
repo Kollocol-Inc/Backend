@@ -360,6 +360,25 @@ func (s *QuizService) GetHostingInstances(ctx context.Context, req *pb.GetHostin
 	}, nil
 }
 
+func (s *QuizService) GetParticipatingInstances(ctx context.Context, req *pb.GetParticipatingInstancesRequest) (*pb.GetParticipatingInstancesResponse, error) {
+	instances, err := s.instanceRepo.GetParticipatingInstances(ctx, req.UserId, req.SessionStatus)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get participating instances: %w", err)
+	}
+
+	var protoInstances []*pb.ParticipatingInstance
+	for _, inst := range instances {
+		protoInstances = append(protoInstances, &pb.ParticipatingInstance{
+			Instance:      s.instanceToProto(inst.Instance),
+			SessionStatus: inst.SessionStatus,
+		})
+	}
+
+	return &pb.GetParticipatingInstancesResponse{
+		Instances: protoInstances,
+	}, nil
+}
+
 func (s *QuizService) templateToProto(t *repository.Template) *pb.QuizTemplate {
 	var settings pb.QuizSettings
 	json.Unmarshal([]byte(t.Settings), &settings)
