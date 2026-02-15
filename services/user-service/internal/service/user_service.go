@@ -8,6 +8,7 @@ import (
 	"log"
 	"path/filepath"
 
+	"user-service/constants"
 	"user-service/internal/repository"
 	"user-service/pkg/messaging"
 	"user-service/pkg/storage"
@@ -575,10 +576,10 @@ func (s *UserService) uploadAvatar(ctx context.Context, userID, filename string,
 	}
 
 	reader := bytes.NewReader(data)
-	err := s.s3Client.UploadFile(ctx, "user-avatars", objectName, reader, int64(len(data)), contentType)
+	err := s.s3Client.UploadFile(ctx, constants.AvatarBucketName, objectName, reader, int64(len(data)), contentType)
 	if err != nil {
 		return "", err
 	}
 
-	return "/avatars/" + objectName, nil
+	return s.s3Client.GetPublicURL(constants.AvatarBucketName, objectName), nil
 }

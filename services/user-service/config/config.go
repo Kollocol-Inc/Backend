@@ -42,10 +42,11 @@ type RabbitMQConfig struct {
 }
 
 type S3Config struct {
-	Endpoint  string
-	AccessKey string
-	SecretKey string
-	UseSSL    bool
+	Endpoint       string
+	PublicEndpoint string
+	AccessKey      string
+	SecretKey      string
+	UseSSL         bool
 }
 
 func Load() *Config {
@@ -75,10 +76,11 @@ func Load() *Config {
 			Password: getEnv("RABBITMQ_PASSWORD", "admin"),
 		},
 		S3: S3Config{
-			Endpoint:  getEnv("S3_ENDPOINT", "minio:9000"),
-			AccessKey: getEnv("S3_ACCESS_KEY", "minioadmin"),
-			SecretKey: getEnv("S3_SECRET_KEY", "minioadmin"),
-			UseSSL:    getEnv("S3_USE_SSL", "false") == "true",
+			Endpoint:       getEnv("S3_ENDPOINT", "minio:9000"),
+			PublicEndpoint: getEnv("S3_PUBLIC_ENDPOINT", "http://localhost:9000"),
+			AccessKey:      getEnv("S3_ACCESS_KEY", "minioadmin"),
+			SecretKey:      getEnv("S3_SECRET_KEY", "minioadmin"),
+			UseSSL:         getEnv("S3_USE_SSL", "false") == "true",
 		},
 	}
 }

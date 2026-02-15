@@ -79,3 +79,7 @@ func (c *S3Client) DeleteFile(ctx context.Context, bucketName, objectName string
 func (c *S3Client) GetClient() *minio.Client {
 	return c.client
 }
+
+func (c *S3Client) GetPublicURL(bucketName, objectName string) string {
+	return c.config.PublicEndpoint + "/" + bucketName + "/" + objectName
+}
