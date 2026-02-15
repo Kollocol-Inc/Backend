@@ -61,12 +61,6 @@ func (c *AuthClient) RefreshToken(ctx context.Context, refreshToken string) (*pb
 	})
 }
 
-func (c *AuthClient) ResendCode(ctx context.Context, email string) (*pb.ResendCodeResponse, error) {
-	return c.client.ResendCode(ctx, &pb.ResendCodeRequest{
-		Email: email,
-	})
-}
-
 func (c *AuthClient) Logout(ctx context.Context, accessToken, refreshToken string) (*pb.LogoutResponse, error) {
 	return c.client.Logout(ctx, &pb.LogoutRequest{
 		AccessToken:  accessToken,

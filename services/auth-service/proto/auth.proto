@@ -11,8 +11,6 @@ service AuthService {
 
   rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
 
-  rpc ResendCode(ResendCodeRequest) returns (ResendCodeResponse);
-
   rpc Logout(LogoutRequest) returns (LogoutResponse);
 
   rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
@@ -50,15 +48,6 @@ message RefreshTokenResponse {
   string access_token = 2;
   string refresh_token = 3;
   string message = 4;
-}
-
-message ResendCodeRequest {
-  string email = 1;
-}
-
-message ResendCodeResponse {
-  bool success = 1;
-  string message = 2;
 }
 
 message LogoutRequest {

@@ -146,45 +146,6 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	})
 }
 
-// ResendCode godoc
-// @Summary Resend verification code
-// @Description Resend the verification code to email
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param request body dto.LoginRequest true "Resend code request"
-// @Success 200 {object} dto.LoginResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 429 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Router /auth/resend-code [post]
-func (h *AuthHandler) ResendCode(c *gin.Context) {
-	var req dto.LoginRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.JsonError(c, http.StatusBadRequest, "Invalid request body")
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	resp, err := h.authClient.ResendCode(ctx, req.Email)
-	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to resend code")
-		return
-	}
-
-	if !resp.Success {
-		dto.JsonError(c, http.StatusInternalServerError, resp.Message)
-		return
-	}
-
-	c.JSON(http.StatusOK, dto.LoginResponse{
-		Success: resp.Success,
-		Message: resp.Message,
-	})
-}
-
 // Logout godoc
 // @Summary Logout user
 // @Description Revoke access and refresh tokens

@@ -87,7 +87,6 @@ func main() {
 		authGroup.POST("/login", authHandler.Login)
 		authGroup.POST("/verify", authHandler.VerifyCode)
 		authGroup.POST("/refresh", authHandler.RefreshToken)
-		authGroup.POST("/resend-code", authHandler.ResendCode)
 	}
 
 	authProtected := router.Group("/auth")

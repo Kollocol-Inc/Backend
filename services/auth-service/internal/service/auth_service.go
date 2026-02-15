@@ -207,50 +207,6 @@ func (s *AuthService) RefreshToken(ctx context.Context, req *pb.RefreshTokenRequ
 	}, nil
 }
 
-func (s *AuthService) ResendCode(ctx context.Context, req *pb.ResendCodeRequest) (*pb.ResendCodeResponse, error) {
-	email := validator.NormalizeEmail(req.Email)
-	if err := validator.ValidateEmail(email); err != nil {
-		return &pb.ResendCodeResponse{
-			Success: false,
-			Message: "Invalid email address",
-		}, nil
-	}
-
-	code, err := generateCode(4)
-	if err != nil {
-		log.Printf("Failed to generate code: %v", err)
-		return &pb.ResendCodeResponse{
-			Success: false,
-			Message: "Failed to generate verification code",
-		}, nil
-	}
-
-	log.Printf("Generated code %s for %s", code, email)
-
-	if err := s.authRepo.SaveAuthCode(ctx, email, code); err != nil {
-		log.Printf("Failed to save auth code: %v", err)
-		return &pb.ResendCodeResponse{
-			Success: false,
-			Message: "Failed to save verification code",
-		}, nil
-	}
-
-	event := map[string]string{
-		"email": email,
-		"code":  code,
-	}
-	eventData, _ := json.Marshal(event)
-
-	if err := s.rabbitMQ.Publish(ctx, "auth.send_code", eventData); err != nil {
-		log.Printf("Failed to publish send_auth_code event: %v", err)
-	}
-
-	return &pb.ResendCodeResponse{
-		Success: true,
-		Message: "Verification code resent to your email",
-	}, nil
-}
-
 func (s *AuthService) Logout(ctx context.Context, req *pb.LogoutRequest) (*pb.LogoutResponse, error) {
 	jti, err := jwt.ExtractJTI(req.AccessToken)
 	if err != nil {
