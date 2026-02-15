@@ -156,7 +156,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /users/me/avatar [post]
+// @Router /users/me/avatar/upload [post]
 func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -203,6 +203,41 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, convertUserToDTO(resp.User))
+}
+
+// DeleteAvatar godoc
+// @Summary Delete avatar
+// @Description Delete current user's avatar
+// @Tags users
+// @Produce json
+// @Security BearerAuth
+// @Success 204
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /users/me/avatar/delete [delete]
+func (h *UserHandler) DeleteAvatar(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.userClient.DeleteAvatar(ctx, userID.(string))
+	if err != nil {
+		dto.JsonError(c, http.StatusInternalServerError, "Failed to delete avatar")
+		return
+	}
+
+	if !resp.Success {
+		dto.JsonError(c, http.StatusBadRequest, resp.Message)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
 
 // GetNotificationSettings godoc

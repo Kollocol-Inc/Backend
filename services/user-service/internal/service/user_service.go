@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log"
 	"path/filepath"
+	"strings"
 
 	"user-service/constants"
 	"user-service/internal/repository"
@@ -57,7 +58,7 @@ func (s *UserService) Register(ctx context.Context, req *pb.RegisterRequest) (*p
 	user.IsRegistered = true
 
 	if len(req.AvatarData) > 0 && req.AvatarFilename != "" {
-		avatarURL, err := s.uploadAvatar(ctx, req.UserId, req.AvatarFilename, req.AvatarData)
+		avatarURL, err := s.uploadAvatar(ctx, req.UserId, req.AvatarFilename, req.AvatarData, user.AvatarURL)
 		if err != nil {
 			log.Printf("Failed to upload avatar: %v", err)
 			return &pb.RegisterResponse{
@@ -139,7 +140,7 @@ func (s *UserService) UpdateProfile(ctx context.Context, req *pb.UpdateProfileRe
 	}
 
 	if len(req.AvatarData) > 0 && req.AvatarFilename != "" {
-		avatarURL, err := s.uploadAvatar(ctx, req.UserId, req.AvatarFilename, req.AvatarData)
+		avatarURL, err := s.uploadAvatar(ctx, req.UserId, req.AvatarFilename, req.AvatarData, user.AvatarURL)
 		if err != nil {
 			log.Printf("Failed to upload avatar: %v", err)
 			return &pb.UpdateProfileResponse{
@@ -563,7 +564,52 @@ func (s *UserService) publishGroupInvite(ctx context.Context, groupID, groupName
 	}
 }
 
-func (s *UserService) uploadAvatar(ctx context.Context, userID, filename string, data []byte) (string, error) {
+func (s *UserService) DeleteAvatar(ctx context.Context, req *pb.DeleteAvatarRequest) (*pb.DeleteAvatarResponse, error) {
+	user, err := s.userRepo.GetUserByID(ctx, req.UserId)
+	if err != nil {
+		return &pb.DeleteAvatarResponse{
+			Success: false,
+			Message: "User not found",
+		}, nil
+	}
+
+	if user.AvatarURL == "" {
+		return &pb.DeleteAvatarResponse{
+			Success: false,
+			Message: "User has no avatar",
+		}, nil
+	}
+
+	if err := s.deleteAvatarFile(ctx, user.AvatarURL); err != nil {
+		log.Printf("Failed to delete avatar file: %v", err)
+		return &pb.DeleteAvatarResponse{
+			Success: false,
+			Message: "Failed to delete avatar",
+		}, nil
+	}
+
+	user.AvatarURL = ""
+	if err := s.userRepo.UpdateUser(ctx, user); err != nil {
+		log.Printf("Failed to update user: %v", err)
+		return &pb.DeleteAvatarResponse{
+			Success: false,
+			Message: "Failed to update profile",
+		}, nil
+	}
+
+	return &pb.DeleteAvatarResponse{
+		Success: true,
+		Message: "Avatar deleted successfully",
+	}, nil
+}
+
+func (s *UserService) uploadAvatar(ctx context.Context, userID, filename string, data []byte, oldAvatarURL string) (string, error) {
+	if oldAvatarURL != "" {
+		if err := s.deleteAvatarFile(ctx, oldAvatarURL); err != nil {
+			log.Printf("Failed to delete old avatar (continuing with upload): %v", err)
+		}
+	}
+
 	objectName := userID + "/" + filename
 
 	contentType := "application/octet-stream"
@@ -582,4 +628,15 @@ func (s *UserService) uploadAvatar(ctx context.Context, userID, filename string,
 	}
 
 	return s.s3Client.GetPublicURL(constants.AvatarBucketName, objectName), nil
+}
+
+func (s *UserService) deleteAvatarFile(ctx context.Context, avatarURL string) error {
+	bucketPrefix := "/" + constants.AvatarBucketName + "/"
+	_, after, ok := strings.Cut(avatarURL, bucketPrefix)
+	if !ok {
+		return nil
+	}
+	objectName := after
+
+	return s.s3Client.DeleteFile(ctx, constants.AvatarBucketName, objectName)
 }

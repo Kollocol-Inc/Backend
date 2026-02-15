@@ -58,10 +58,9 @@ func (c *UserClient) GetProfile(ctx context.Context, userID string) (*pb.GetProf
 	})
 }
 
-func (c *UserClient) GetProfileByEmail(ctx context.Context, email, requesterID string) (*pb.GetProfileByEmailResponse, error) {
+func (c *UserClient) GetProfileByEmail(ctx context.Context, email string) (*pb.GetProfileByEmailResponse, error) {
 	return c.client.GetProfileByEmail(ctx, &pb.GetProfileByEmailRequest{
-		Email:       email,
-		RequesterId: requesterID,
+		Email: email,
 	})
 }
 
@@ -120,5 +119,11 @@ func (c *UserClient) DeleteGroup(ctx context.Context, groupID, userID string) (*
 	return c.client.DeleteGroup(ctx, &pb.DeleteGroupRequest{
 		GroupId: groupID,
 		UserId:  userID,
+	})
+}
+
+func (c *UserClient) DeleteAvatar(ctx context.Context, userID string) (*pb.DeleteAvatarResponse, error) {
+	return c.client.DeleteAvatar(ctx, &pb.DeleteAvatarRequest{
+		UserId: userID,
 	})
 }
