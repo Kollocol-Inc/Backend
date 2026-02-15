@@ -50,6 +50,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	if !resp.Success {
+		dto.JsonError(c, http.StatusInternalServerError, resp.Message)
+		return
+	}
+
 	c.JSON(http.StatusOK, dto.LoginResponse{
 		Success: resp.Success,
 		Message: resp.Message,
@@ -81,12 +86,12 @@ func (h *AuthHandler) VerifyCode(c *gin.Context) {
 
 	resp, err := h.authClient.VerifyCode(ctx, req.Email, req.Code)
 	if err != nil {
-		dto.JsonError(c, http.StatusUnauthorized, "Invalid verification code")
+		dto.JsonError(c, http.StatusBadRequest, "Invalid verification code")
 		return
 	}
 
 	if !resp.Success {
-		dto.JsonError(c, http.StatusUnauthorized, resp.Message)
+		dto.JsonError(c, http.StatusInternalServerError, resp.Message)
 		return
 	}
 
@@ -124,12 +129,12 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 
 	resp, err := h.authClient.RefreshToken(ctx, req.RefreshToken)
 	if err != nil {
-		dto.JsonError(c, http.StatusUnauthorized, "Invalid refresh token")
+		dto.JsonError(c, http.StatusBadRequest, "Invalid refresh token")
 		return
 	}
 
 	if !resp.Success {
-		dto.JsonError(c, http.StatusUnauthorized, resp.Message)
+		dto.JsonError(c, http.StatusInternalServerError, resp.Message)
 		return
 	}
 
@@ -166,6 +171,11 @@ func (h *AuthHandler) ResendCode(c *gin.Context) {
 	resp, err := h.authClient.ResendCode(ctx, req.Email)
 	if err != nil {
 		dto.JsonError(c, http.StatusInternalServerError, "Failed to resend code")
+		return
+	}
+
+	if !resp.Success {
+		dto.JsonError(c, http.StatusInternalServerError, resp.Message)
 		return
 	}
 
@@ -212,6 +222,11 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	resp, err := h.authClient.Logout(ctx, accessToken, req.RefreshToken)
 	if err != nil {
 		dto.JsonError(c, http.StatusInternalServerError, "Failed to logout")
+		return
+	}
+
+	if !resp.Success {
+		dto.JsonError(c, http.StatusInternalServerError, resp.Message)
 		return
 	}
 
