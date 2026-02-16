@@ -101,6 +101,8 @@ func (c *PostgresClient) InitSchema(ctx context.Context) error {
 			deadline TIMESTAMP,
 			quiz_type VARCHAR(50) NOT NULL DEFAULT 'sync',
 			settings JSONB NOT NULL DEFAULT '{}',
+			total_time INTEGER NOT NULL,
+			total_questions INTEGER NOT NULL,
 			FOREIGN KEY (template_id) REFERENCES quiz_templates(id) ON DELETE SET NULL
 		);
 		CREATE INDEX IF NOT EXISTS idx_quiz_instances_template_id ON quiz_instances(template_id);

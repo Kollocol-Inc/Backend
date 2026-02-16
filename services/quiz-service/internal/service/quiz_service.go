@@ -275,12 +275,23 @@ func (s *QuizService) CreateInstance(ctx context.Context, req *pb.CreateInstance
 		return nil, fmt.Errorf("unauthorized: user is not the template owner")
 	}
 
+	var totalTime uint64 = 0
+	questions, err := s.templateRepo.GetQuestionsByTemplateID(ctx, req.TemplateId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get template questions: %w", err)
+	}
+	for _, question := range questions {
+		totalTime += uint64(question.TimeLimitSec)
+	}
+
 	instance := &repository.Instance{
-		TemplateID: sql.NullString{String: req.TemplateId, Valid: true},
-		Title:      req.Title,
-		CreatedBy:  req.UserId,
-		QuizType:   template.QuizType,
-		Settings:   template.Settings,
+		TemplateID:     sql.NullString{String: req.TemplateId, Valid: true},
+		Title:          req.Title,
+		CreatedBy:      req.UserId,
+		QuizType:       template.QuizType,
+		Settings:       template.Settings,
+		TotalTime:      uint64(totalTime),
+		TotalQuestions: uint64(len(questions)),
 	}
 
 	if req.GroupId != "" {
@@ -425,14 +436,16 @@ func (s *QuizService) instanceToProto(i *repository.Instance) *pb.QuizInstance {
 	json.Unmarshal([]byte(i.Settings), &settings)
 
 	instance := &pb.QuizInstance{
-		Id:         i.ID,
-		Title:      i.Title,
-		AccessCode: i.AccessCode,
-		Status:     i.Status,
-		CreatedBy:  i.CreatedBy,
-		CreatedAt:  timestamppb.New(i.CreatedAt),
-		QuizType:   i.QuizType,
-		Settings:   &settings,
+		Id:             i.ID,
+		Title:          i.Title,
+		AccessCode:     i.AccessCode,
+		Status:         i.Status,
+		CreatedBy:      i.CreatedBy,
+		CreatedAt:      timestamppb.New(i.CreatedAt),
+		QuizType:       i.QuizType,
+		Settings:       &settings,
+		TotalTime:      i.TotalTime,
+		TotalQuestions: i.TotalQuestions,
 	}
 
 	if i.TemplateID.Valid {

@@ -372,6 +372,8 @@ func (h *QuizHandler) GetInstance(c *gin.Context) {
 			AllowReview:        inst.Settings.AllowReview,
 		},
 		CreatedAt: inst.CreatedAt.AsTime().Format(time.RFC3339),
+		TotalTime: inst.TotalTime,
+		TotalQuestions: inst.TotalQuestions,
 	}
 
 	if inst.Deadline != nil {
@@ -438,6 +440,8 @@ func (h *QuizHandler) GetHostingInstances(c *gin.Context) {
 				AllowReview:        inst.Settings.AllowReview,
 			},
 			CreatedAt: inst.CreatedAt.AsTime().Format(time.RFC3339),
+			TotalTime: inst.TotalTime,
+			TotalQuestions: inst.TotalQuestions,
 		}
 
 		if inst.Deadline != nil {
@@ -492,6 +496,8 @@ func (h *QuizHandler) GetParticipatingInstances(c *gin.Context) {
 					AllowReview:        inst.Settings.AllowReview,
 				},
 				CreatedAt: inst.CreatedAt.AsTime().Format(time.RFC3339),
+				TotalTime: inst.TotalTime,
+				TotalQuestions: inst.TotalQuestions,
 			},
 			SessionStatus: pi.SessionStatus,
 		}

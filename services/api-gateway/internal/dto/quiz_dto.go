@@ -87,6 +87,8 @@ type InstanceDTO struct {
 	Settings   QuizSettings `json:"settings"`
 	CreatedAt  string       `json:"created_at"`
 	Deadline   string       `json:"deadline,omitempty"`
+	TotalTime  uint64		`json:"total_time"`
+	TotalQuestions uint64	`json:"total_questions"`
 }
 
 type CreateInstanceResponse struct {

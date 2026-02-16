@@ -64,6 +64,8 @@ message QuizInstance {
   google.protobuf.Timestamp deadline = 10;
   string quiz_type = 11;
   QuizSettings settings = 12;
+  uint64 total_time = 13;
+  uint64 total_questions = 14;
 }
 
 message CreateTemplateRequest {

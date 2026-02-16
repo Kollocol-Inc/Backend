@@ -21,18 +21,20 @@ func NewInstanceRepository(db *sql.DB) *InstanceRepository {
 }
 
 type Instance struct {
-	ID         string
-	TemplateID sql.NullString
-	Title      string
-	AccessCode string
-	Status     string
-	GroupID    sql.NullString
-	CreatedBy  string
-	CreatedAt  time.Time
-	StartTime  sql.NullTime
-	Deadline   sql.NullTime
-	QuizType   string
-	Settings   string // JSON
+	ID             string
+	TemplateID     sql.NullString
+	Title          string
+	AccessCode     string
+	Status         string
+	GroupID        sql.NullString
+	CreatedBy      string
+	CreatedAt      time.Time
+	StartTime      sql.NullTime
+	Deadline       sql.NullTime
+	QuizType       string
+	Settings       string // JSON
+	TotalTime      uint64
+	TotalQuestions uint64
 }
 
 type InstanceWithQuestions struct {
@@ -68,8 +70,8 @@ func (r *InstanceRepository) CreateInstance(ctx context.Context, instance *Insta
 	defer tx.Rollback()
 
 	query := `
-		INSERT INTO quiz_instances (id, template_id, title, access_code, status, group_id, created_by, created_at, start_time, deadline, quiz_type, settings)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		INSERT INTO quiz_instances (id, template_id, title, access_code, status, group_id, created_by, created_at, start_time, deadline, quiz_type, settings, total_time, total_questions)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 	`
 
 	_, err = tx.ExecContext(ctx, query,
@@ -85,6 +87,8 @@ func (r *InstanceRepository) CreateInstance(ctx context.Context, instance *Insta
 		instance.Deadline,
 		instance.QuizType,
 		instance.Settings,
+		instance.TotalTime,
+		instance.TotalQuestions,
 	)
 	if err != nil {
 		return err
@@ -108,7 +112,7 @@ func (r *InstanceRepository) CreateInstance(ctx context.Context, instance *Insta
 
 func (r *InstanceRepository) GetInstanceByID(ctx context.Context, instanceID string) (*Instance, error) {
 	query := `
-		SELECT id, template_id, title, access_code, status, group_id, created_by, created_at, start_time, deadline, quiz_type, settings
+		SELECT id, template_id, title, access_code, status, group_id, created_by, created_at, start_time, deadline, quiz_type, settings, total_time, total_questions
 		FROM quiz_instances
 		WHERE id = $1
 	`
@@ -127,6 +131,8 @@ func (r *InstanceRepository) GetInstanceByID(ctx context.Context, instanceID str
 		&instance.Deadline,
 		&instance.QuizType,
 		&instance.Settings,
+		&instance.TotalTime,
+		&instance.TotalQuestions,
 	)
 
 	if err == sql.ErrNoRows {
@@ -141,7 +147,7 @@ func (r *InstanceRepository) GetInstanceByID(ctx context.Context, instanceID str
 
 func (r *InstanceRepository) GetHostingInstances(ctx context.Context, userID, status string) ([]*Instance, error) {
 	query := `
-		SELECT id, template_id, title, access_code, status, group_id, created_by, created_at, start_time, deadline, quiz_type, settings
+		SELECT id, template_id, title, access_code, status, group_id, created_by, created_at, start_time, deadline, quiz_type, settings, total_time, total_questions
 		FROM quiz_instances
 		WHERE created_by = $1
 	`
@@ -177,6 +183,8 @@ func (r *InstanceRepository) GetHostingInstances(ctx context.Context, userID, st
 			&instance.Deadline,
 			&instance.QuizType,
 			&instance.Settings,
+			&instance.TotalTime,
+			&instance.TotalQuestions,
 		)
 		if err != nil {
 			return nil, err
@@ -190,7 +198,7 @@ func (r *InstanceRepository) GetHostingInstances(ctx context.Context, userID, st
 func (r *InstanceRepository) GetInstanceWithQuestions(ctx context.Context, instanceID string) (*InstanceWithQuestions, error) {
 	query := `
 		SELECT
-			i.id, i.template_id, i.title, i.access_code, i.status, i.group_id, i.created_by, i.created_at, i.start_time, i.deadline, i.quiz_type, i.settings,
+			i.id, i.template_id, i.title, i.access_code, i.status, i.group_id, i.created_by, i.created_at, i.start_time, i.deadline, i.quiz_type, i.settings, i.total_time, i.total_questions,
 			q.id, q.text, q.type, q.options, q.correct_answer, iq.order_index, q.max_score, q.time_limit_sec, q.ai_answer
 		FROM quiz_instances i
 		LEFT JOIN instance_questions iq ON i.id = iq.instance_id
@@ -233,6 +241,8 @@ func (r *InstanceRepository) GetInstanceWithQuestions(ctx context.Context, insta
 			&result.Instance.Deadline,
 			&result.Instance.QuizType,
 			&result.Instance.Settings,
+			&result.Instance.TotalTime,
+			&result.Instance.TotalQuestions,
 			&qID,
 			&qText,
 			&qType,
@@ -300,7 +310,7 @@ func (r *InstanceRepository) GetParticipatingInstances(ctx context.Context, user
 	query := `
 		SELECT * FROM (
 			SELECT
-				i.id, i.template_id, i.title, i.access_code, i.status, i.group_id, i.created_by, i.created_at, i.start_time, i.deadline, i.quiz_type, i.settings,
+				i.id, i.template_id, i.title, i.access_code, i.status, i.group_id, i.created_by, i.created_at, i.start_time, i.deadline, i.quiz_type, i.settings, i.total_time, i.total_questions,
 				COALESCE(gs.status, 'not_started') as session_status
 			FROM quiz_instances i
 			LEFT JOIN game_sessions gs ON i.id = gs.instance_id AND gs.user_id = $1
@@ -321,7 +331,7 @@ func (r *InstanceRepository) GetParticipatingInstances(ctx context.Context, user
 		query += " WHERE session_status = $2"
 		args = append(args, sessionStatus)
 	} else {
-		query += " WHERE session_status != \"finished\""
+		query += " WHERE session_status != 'finished'"
 	}
 
 	query += " ORDER BY created_at DESC"
@@ -350,6 +360,8 @@ func (r *InstanceRepository) GetParticipatingInstances(ctx context.Context, user
 			&instance.Deadline,
 			&instance.QuizType,
 			&instance.Settings,
+			&instance.TotalTime,
+			&instance.TotalQuestions,
 			&result.SessionStatus,
 		)
 		if err != nil {
@@ -363,7 +375,7 @@ func (r *InstanceRepository) GetParticipatingInstances(ctx context.Context, user
 
 func (r *InstanceRepository) GetInstanceByAccessCode(ctx context.Context, accessCode string) (*Instance, error) {
 	query := `
-		SELECT id, template_id, title, access_code, status, group_id, created_by, created_at, start_time, deadline, quiz_type, settings
+		SELECT id, template_id, title, access_code, status, group_id, created_by, created_at, start_time, deadline, quiz_type, settings, total_time, total_questions
 		FROM quiz_instances
 		WHERE access_code = $1
 	`
@@ -382,6 +394,8 @@ func (r *InstanceRepository) GetInstanceByAccessCode(ctx context.Context, access
 		&instance.Deadline,
 		&instance.QuizType,
 		&instance.Settings,
+		&instance.TotalTime,
+		&instance.TotalQuestions,
 	)
 
 	if err == sql.ErrNoRows {
