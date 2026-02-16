@@ -320,6 +320,8 @@ func (r *InstanceRepository) GetParticipatingInstances(ctx context.Context, user
 	if sessionStatus != "" {
 		query += " WHERE session_status = $2"
 		args = append(args, sessionStatus)
+	} else {
+		query += " WHERE session_status != \"finished\""
 	}
 
 	query += " ORDER BY created_at DESC"

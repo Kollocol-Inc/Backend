@@ -181,7 +181,7 @@ message GetHostingInstancesResponse {
 
 message GetParticipatingInstancesRequest {
   string user_id = 1;
-  string session_status = 2; // "not_started", "joined", "in_progress", "finished", "" = all
+  string session_status = 2; // "not_started", "joined", "in_progress", "finished", "" = all except finished
 }
 
 message ParticipatingInstance {
