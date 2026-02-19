@@ -171,7 +171,7 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	}
 
 	if file.Size > 5*1024*1024 {
-		dto.JsonError(c, http.StatusBadRequest, "File size exceeds 5MB limit")
+		dto.JsonError(c, http.StatusRequestEntityTooLarge, "File size exceeds 5MB limit")
 		return
 	}
 
