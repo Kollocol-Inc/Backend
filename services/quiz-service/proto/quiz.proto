@@ -137,7 +137,6 @@ message DeleteTemplateRequest {
 }
 
 message DeleteTemplateResponse {
-  bool success = 1;
 }
 
 message CreateInstanceRequest {
@@ -170,7 +169,6 @@ message GetInstanceByAccessCodeRequest {
 message GetInstanceByAccessCodeResponse {
   QuizInstance instance = 1;
   bool has_access = 2;
-  string error_message = 3;
 }
 
 message GetHostingInstancesRequest {

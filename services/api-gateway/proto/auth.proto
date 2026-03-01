@@ -21,8 +21,6 @@ message LoginRequest {
 }
 
 message LoginResponse {
-  bool success = 1;
-  string message = 2;
 }
 
 message VerifyCodeRequest {
@@ -31,12 +29,10 @@ message VerifyCodeRequest {
 }
 
 message VerifyCodeResponse {
-  bool success = 1;
-  string access_token = 2;
-  string refresh_token = 3;
-  bool is_registered = 4;
-  string user_id = 5;
-  string message = 6;
+  string access_token = 1;
+  string refresh_token = 2;
+  bool is_registered = 3;
+  string user_id = 4;
 }
 
 message RefreshTokenRequest {
@@ -44,10 +40,8 @@ message RefreshTokenRequest {
 }
 
 message RefreshTokenResponse {
-  bool success = 1;
-  string access_token = 2;
-  string refresh_token = 3;
-  string message = 4;
+  string access_token = 1;
+  string refresh_token = 2;
 }
 
 message LogoutRequest {
@@ -56,8 +50,6 @@ message LogoutRequest {
 }
 
 message LogoutResponse {
-  bool success = 1;
-  string message = 2;
 }
 
 message ValidateTokenRequest {
@@ -65,8 +57,6 @@ message ValidateTokenRequest {
 }
 
 message ValidateTokenResponse {
-  bool valid = 1;
-  string user_id = 2;
-  string email = 3;
-  string message = 4;
+  string user_id = 1;
+  string email = 2;
 }

@@ -3,9 +3,10 @@ package middleware
 import (
 	"api-gateway/internal/dto"
 	"log"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func ErrorHandler() gin.HandlerFunc {
@@ -13,7 +14,8 @@ func ErrorHandler() gin.HandlerFunc {
 		defer func() {
 			if err := recover(); err != nil {
 				log.Printf("Panic recovered: %v", err)
-				dto.JsonError(c, http.StatusInternalServerError)
+				grpcErr := status.Error(codes.Internal, "Internal server error")
+				dto.JsonError(c, grpcErr)
 				c.Abort()
 			}
 		}()
@@ -21,15 +23,14 @@ func ErrorHandler() gin.HandlerFunc {
 		c.Next()
 
 		if len(c.Errors) > 0 {
-			err := c.Errors.Last()
-			log.Printf("Request error: %v", err.Err)
+			err := c.Errors.Last().Err
+			log.Printf("Request error: %v", err)
 
-			statusCode := c.Writer.Status()
-			if statusCode == http.StatusOK {
-				statusCode = http.StatusInternalServerError
+			if _, ok := status.FromError(err); !ok {
+				err = status.Error(codes.Internal, err.Error())
 			}
 
-			dto.JsonError(c, statusCode)
+			dto.JsonError(c, err)
 		}
 	}
 }

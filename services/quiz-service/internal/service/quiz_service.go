@@ -4,13 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"time"
 
 	"quiz-service/internal/repository"
+	"quiz-service/pkg/errors"
 	pb "quiz-service/proto"
 
+	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -46,7 +47,7 @@ func NewQuizService(
 func (s *QuizService) CreateTemplate(ctx context.Context, req *pb.CreateTemplateRequest) (*pb.CreateTemplateResponse, error) {
 	settingsJSON, err := json.Marshal(req.Settings)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal settings: %w", err)
+		return nil, errors.New(codes.Internal, errors.ReasonSettingsMarshalFailed, "Failed to marshal settings", nil)
 	}
 
 	template := &repository.Template{
@@ -58,19 +59,19 @@ func (s *QuizService) CreateTemplate(ctx context.Context, req *pb.CreateTemplate
 	}
 
 	if err := s.templateRepo.CreateTemplate(ctx, template); err != nil {
-		return nil, fmt.Errorf("failed to create template: %w", err)
+		return nil, errors.New(codes.Internal, errors.ReasonTemplateCreateFailed, "Failed to create template", map[string]string{"user_id": req.UserId})
 	}
 
 	var questions []*repository.Question
 	for _, q := range req.Questions {
 		optionsJSON, err := json.Marshal(q.Options)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal options: %w", err)
+			return nil, errors.New(codes.Internal, errors.ReasonOptionsMarshalFailed, "Failed to marshal options", map[string]string{"template_id": template.ID})
 		}
 
 		correctAnswerJSON, err := repository.CorrectAnswerToJSON(q.CorrectAnswer)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal correct_answer: %w", err)
+			return nil, errors.New(codes.Internal, errors.ReasonAnswerMarshalFailed, "Failed to marshal correct answer", map[string]string{"template_id": template.ID})
 		}
 
 		question := &repository.Question{
@@ -85,7 +86,7 @@ func (s *QuizService) CreateTemplate(ctx context.Context, req *pb.CreateTemplate
 		}
 
 		if err := s.templateRepo.CreateQuestion(ctx, question); err != nil {
-			return nil, fmt.Errorf("failed to create question: %w", err)
+			return nil, errors.New(codes.Internal, errors.ReasonQuestionCreateFailed, "Failed to create question", map[string]string{"template_id": template.ID})
 		}
 		questions = append(questions, question)
 	}
@@ -101,16 +102,16 @@ func (s *QuizService) CreateTemplate(ctx context.Context, req *pb.CreateTemplate
 func (s *QuizService) GetTemplate(ctx context.Context, req *pb.GetTemplateRequest) (*pb.GetTemplateResponse, error) {
 	template, err := s.templateRepo.GetTemplateByID(ctx, req.TemplateId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get template: %w", err)
+		return nil, errors.New(codes.NotFound, errors.ReasonTemplateNotFound, "Template not found", map[string]string{"template_id": req.TemplateId})
 	}
 
 	if template.OwnerID != req.UserId {
-		return nil, fmt.Errorf("unauthorized: user is not the owner")
+		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "User is not the template owner", map[string]string{"template_id": req.TemplateId, "user_id": req.UserId, "owner_id": template.OwnerID})
 	}
 
 	questions, err := s.templateRepo.GetQuestionsByTemplateID(ctx, req.TemplateId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get questions: %w", err)
+		return nil, errors.New(codes.Internal, errors.ReasonTemplateNotFound, "Failed to get questions", map[string]string{"template_id": req.TemplateId})
 	}
 
 	return &pb.GetTemplateResponse{
@@ -122,7 +123,7 @@ func (s *QuizService) GetTemplate(ctx context.Context, req *pb.GetTemplateReques
 func (s *QuizService) GetTemplates(ctx context.Context, req *pb.GetTemplatesRequest) (*pb.GetTemplatesResponse, error) {
 	templates, err := s.templateRepo.GetTemplatesByOwner(ctx, req.UserId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get templates: %w", err)
+		return nil, errors.New(codes.Internal, errors.ReasonTemplateNotFound, "Failed to get templates", map[string]string{"user_id": req.UserId})
 	}
 
 	var responses []*pb.TemplateWithQuestions
@@ -147,16 +148,16 @@ func (s *QuizService) GetTemplates(ctx context.Context, req *pb.GetTemplatesRequ
 func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplateRequest) (*pb.UpdateTemplateResponse, error) {
 	existing, err := s.templateRepo.GetTemplateByID(ctx, req.TemplateId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get template: %w", err)
+		return nil, errors.New(codes.NotFound, errors.ReasonTemplateNotFound, "Template not found", map[string]string{"template_id": req.TemplateId})
 	}
 
 	if existing.OwnerID != req.UserId {
-		return nil, fmt.Errorf("unauthorized: user is not the owner")
+		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "User is not the template owner", map[string]string{"template_id": req.TemplateId, "user_id": req.UserId, "owner_id": existing.OwnerID})
 	}
 
 	settingsJSON, err := json.Marshal(req.Settings)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal settings: %w", err)
+		return nil, errors.New(codes.Internal, errors.ReasonSettingsMarshalFailed, "Failed to marshal settings", map[string]string{"template_id": req.TemplateId})
 	}
 
 	template := &repository.Template{
@@ -168,12 +169,12 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 	}
 
 	if err := s.templateRepo.UpdateTemplate(ctx, template); err != nil {
-		return nil, fmt.Errorf("failed to update template: %w", err)
+		return nil, errors.New(codes.Internal, errors.ReasonTemplateUpdateFailed, "Failed to update template", map[string]string{"template_id": req.TemplateId})
 	}
 
 	existingQuestions, err := s.templateRepo.GetQuestionsByTemplateID(ctx, req.TemplateId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get existing questions: %w", err)
+		return nil, errors.New(codes.Internal, errors.ReasonTemplateNotFound, "Failed to get existing questions", map[string]string{"template_id": req.TemplateId})
 	}
 
 	existingQuestionsMap := make(map[string]*repository.Question)
@@ -182,19 +183,19 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 	}
 
 	if err := s.templateRepo.DeleteQuestionsByTemplateID(ctx, req.TemplateId); err != nil {
-		return nil, fmt.Errorf("failed to unlink old questions: %w", err)
+		return nil, errors.New(codes.Internal, errors.ReasonQuestionDeleteFailed, "Failed to unlink old questions", map[string]string{"template_id": req.TemplateId})
 	}
 
 	var questions []*repository.Question
 	for _, q := range req.Questions {
 		optionsJSON, err := json.Marshal(q.Options)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal options: %w", err)
+			return nil, errors.New(codes.Internal, errors.ReasonOptionsMarshalFailed, "Failed to marshal options", map[string]string{"template_id": req.TemplateId})
 		}
 
 		correctAnswerJSON, err := repository.CorrectAnswerToJSON(q.CorrectAnswer)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal correct_answer: %w", err)
+			return nil, errors.New(codes.Internal, errors.ReasonAnswerMarshalFailed, "Failed to marshal correct answer", map[string]string{"template_id": req.TemplateId})
 		}
 
 		var questionIDToLink string
@@ -218,7 +219,7 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 
 		if questionIDToLink != "" {
 			if err := s.templateRepo.LinkQuestionToTemplate(ctx, req.TemplateId, questionIDToLink, int(q.OrderIndex)); err != nil {
-				return nil, fmt.Errorf("failed to link existing question: %w", err)
+				return nil, errors.New(codes.Internal, errors.ReasonQuestionCreateFailed, "Failed to link existing question", map[string]string{"template_id": req.TemplateId})
 			}
 		} else {
 			question = &repository.Question{
@@ -232,7 +233,7 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 				TimeLimitSec:  int(q.TimeLimitSec),
 			}
 			if err := s.templateRepo.CreateQuestion(ctx, question); err != nil {
-				return nil, fmt.Errorf("failed to create question: %w", err)
+				return nil, errors.New(codes.Internal, errors.ReasonQuestionCreateFailed, "Failed to create question", map[string]string{"template_id": req.TemplateId})
 			}
 		}
 		questions = append(questions, question)
@@ -242,7 +243,7 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 
 	updatedTemplate, err := s.templateRepo.GetTemplateByID(ctx, req.TemplateId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get updated template: %w", err)
+		return nil, errors.New(codes.Internal, errors.ReasonTemplateNotFound, "Failed to get updated template", map[string]string{"template_id": req.TemplateId})
 	}
 
 	return &pb.UpdateTemplateResponse{
@@ -253,11 +254,11 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 
 func (s *QuizService) DeleteTemplate(ctx context.Context, req *pb.DeleteTemplateRequest) (*pb.DeleteTemplateResponse, error) {
 	if err := s.templateRepo.DeleteQuestionsByTemplateID(ctx, req.TemplateId); err != nil {
-		return nil, fmt.Errorf("failed to delete questions: %w", err)
+		return nil, errors.New(codes.Internal, errors.ReasonQuestionDeleteFailed, "Failed to delete questions", map[string]string{"template_id": req.TemplateId})
 	}
 
 	if err := s.templateRepo.DeleteTemplate(ctx, req.TemplateId, req.UserId); err != nil {
-		return nil, fmt.Errorf("failed to delete template: %w", err)
+		return nil, errors.New(codes.Internal, errors.ReasonTemplateDeleteFailed, "Failed to delete template", map[string]string{"template_id": req.TemplateId})
 	}
 
 	return &pb.DeleteTemplateResponse{
@@ -268,17 +269,17 @@ func (s *QuizService) DeleteTemplate(ctx context.Context, req *pb.DeleteTemplate
 func (s *QuizService) CreateInstance(ctx context.Context, req *pb.CreateInstanceRequest) (*pb.CreateInstanceResponse, error) {
 	template, err := s.templateRepo.GetTemplateByID(ctx, req.TemplateId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get template: %w", err)
+		return nil, errors.New(codes.NotFound, errors.ReasonTemplateNotFound, "Template not found", map[string]string{"template_id": req.TemplateId})
 	}
 
 	if template.OwnerID != req.UserId {
-		return nil, fmt.Errorf("unauthorized: user is not the template owner")
+		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "User is not the template owner", map[string]string{"template_id": req.TemplateId, "user_id": req.UserId, "owner_id": template.OwnerID})
 	}
 
 	var totalTime uint64 = 0
 	questions, err := s.templateRepo.GetQuestionsByTemplateID(ctx, req.TemplateId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get template questions: %w", err)
+		return nil, errors.New(codes.Internal, errors.ReasonTemplateNotFound, "Failed to get template questions", map[string]string{"template_id": req.TemplateId})
 	}
 	for _, question := range questions {
 		totalTime += uint64(question.TimeLimitSec)
@@ -303,7 +304,7 @@ func (s *QuizService) CreateInstance(ctx context.Context, req *pb.CreateInstance
 	}
 
 	if err := s.instanceRepo.CreateInstance(ctx, instance); err != nil {
-		return nil, fmt.Errorf("failed to create instance: %w", err)
+		return nil, errors.New(codes.Internal, errors.ReasonInstanceCreateFailed, "Failed to create instance", map[string]string{"template_id": req.TemplateId})
 	}
 
 	s.publishQuizCreated(ctx, instance)
@@ -316,7 +317,7 @@ func (s *QuizService) CreateInstance(ctx context.Context, req *pb.CreateInstance
 func (s *QuizService) GetInstance(ctx context.Context, req *pb.GetInstanceRequest) (*pb.GetInstanceResponse, error) {
 	instanceWithQuestions, err := s.instanceRepo.GetInstanceWithQuestions(ctx, req.InstanceId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get instance: %w", err)
+		return nil, errors.New(codes.NotFound, errors.ReasonInstanceNotFound, "Instance not found", map[string]string{"instance_id": req.InstanceId})
 	}
 
 	resp := &pb.GetInstanceResponse{
@@ -358,7 +359,7 @@ func (s *QuizService) GetInstanceByAccessCode(ctx context.Context, req *pb.GetIn
 func (s *QuizService) GetHostingInstances(ctx context.Context, req *pb.GetHostingInstancesRequest) (*pb.GetHostingInstancesResponse, error) {
 	instances, err := s.instanceRepo.GetHostingInstances(ctx, req.UserId, req.Status)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get hosting instances: %w", err)
+		return nil, errors.New(codes.Internal, errors.ReasonInstanceNotFound, "Failed to get hosting instances", map[string]string{"user_id": req.UserId})
 	}
 
 	var protoInstances []*pb.QuizInstance
@@ -374,7 +375,7 @@ func (s *QuizService) GetHostingInstances(ctx context.Context, req *pb.GetHostin
 func (s *QuizService) GetParticipatingInstances(ctx context.Context, req *pb.GetParticipatingInstancesRequest) (*pb.GetParticipatingInstancesResponse, error) {
 	instances, err := s.instanceRepo.GetParticipatingInstances(ctx, req.UserId, req.SessionStatus)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get participating instances: %w", err)
+		return nil, errors.New(codes.Internal, errors.ReasonInstanceNotFound, "Failed to get participating instances", map[string]string{"user_id": req.UserId})
 	}
 
 	var protoInstances []*pb.ParticipatingInstance

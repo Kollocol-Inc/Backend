@@ -6,6 +6,7 @@ import (
 
 	"api-gateway/internal/client"
 	"api-gateway/internal/dto"
+	"api-gateway/pkg/errors"
 	pb "api-gateway/proto"
 
 	"github.com/gin-gonic/gin"
@@ -36,7 +37,7 @@ func (h *QuizHandler) CreateTemplate(c *gin.Context) {
 
 	var req dto.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.JsonError(c, http.StatusBadRequest, "Invalid request body")
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
 		return
 	}
 
@@ -68,13 +69,12 @@ func (h *QuizHandler) CreateTemplate(c *gin.Context) {
 	})
 
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, err.Error())
+		dto.JsonError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, dto.CreateTemplateResponse{
 		TemplateID: resp.Template.Id,
-		Message:    "Template created successfully",
 	})
 }
 
@@ -93,7 +93,7 @@ func (h *QuizHandler) GetTemplates(c *gin.Context) {
 	})
 
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, err.Error())
+		dto.JsonError(c, err)
 		return
 	}
 
@@ -156,7 +156,7 @@ func (h *QuizHandler) GetTemplate(c *gin.Context) {
 	})
 
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, err.Error())
+		dto.JsonError(c, err)
 		return
 	}
 
@@ -213,7 +213,7 @@ func (h *QuizHandler) UpdateTemplate(c *gin.Context) {
 
 	var req dto.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.JsonError(c, http.StatusBadRequest, "Invalid request body")
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
 		return
 	}
 
@@ -247,13 +247,12 @@ func (h *QuizHandler) UpdateTemplate(c *gin.Context) {
 	})
 
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, err.Error())
+		dto.JsonError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, dto.CreateTemplateResponse{
 		TemplateID: resp.Template.Id,
-		Message:    "Template updated successfully",
 	})
 }
 
@@ -269,20 +268,17 @@ func (h *QuizHandler) DeleteTemplate(c *gin.Context) {
 	userID := c.GetString("user_id")
 	templateID := c.Param("id")
 
-	resp, err := h.quizClient.DeleteTemplate(c.Request.Context(), &pb.DeleteTemplateRequest{
+	_, err := h.quizClient.DeleteTemplate(c.Request.Context(), &pb.DeleteTemplateRequest{
 		TemplateId: templateID,
 		UserId:     userID,
 	})
 
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, err.Error())
+		dto.JsonError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.DeleteTemplateResponse{
-		Success: resp.Success,
-		Message: "Template deleted successfully",
-	})
+	c.Status(http.StatusNoContent)
 }
 
 // CreateInstance godoc
@@ -299,7 +295,7 @@ func (h *QuizHandler) CreateInstance(c *gin.Context) {
 
 	var req dto.CreateInstanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.JsonError(c, http.StatusBadRequest, "Invalid request body")
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
 		return
 	}
 
@@ -313,7 +309,7 @@ func (h *QuizHandler) CreateInstance(c *gin.Context) {
 	if req.Deadline != "" {
 		deadline, err := time.Parse(time.RFC3339, req.Deadline)
 		if err != nil {
-			dto.JsonError(c, http.StatusBadRequest, "Invalid request body")
+			dto.JsonError(c, errors.ErrInvalidRequestBody)
 			return
 		}
 		protoReq.Deadline = timestamppb.New(deadline)
@@ -322,14 +318,13 @@ func (h *QuizHandler) CreateInstance(c *gin.Context) {
 	resp, err := h.quizClient.CreateInstance(c.Request.Context(), protoReq)
 
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, err.Error())
+		dto.JsonError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, dto.CreateInstanceResponse{
 		InstanceID: resp.Instance.Id,
 		AccessCode: resp.Instance.AccessCode,
-		Message:    "Instance created successfully",
 	})
 }
 
@@ -351,7 +346,7 @@ func (h *QuizHandler) GetInstance(c *gin.Context) {
 	})
 
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, err.Error())
+		dto.JsonError(c, err)
 		return
 	}
 
@@ -418,7 +413,7 @@ func (h *QuizHandler) GetHostingInstances(c *gin.Context) {
 	})
 
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, err.Error())
+		dto.JsonError(c, err)
 		return
 	}
 
@@ -472,7 +467,7 @@ func (h *QuizHandler) GetParticipatingInstances(c *gin.Context) {
 	})
 
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, err.Error())
+		dto.JsonError(c, err)
 		return
 	}
 

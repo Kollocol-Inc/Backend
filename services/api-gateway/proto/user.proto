@@ -19,6 +19,7 @@ service UserService {
   rpc GetGroup(GetGroupRequest) returns (GetGroupResponse);
   rpc UpdateGroup(UpdateGroupRequest) returns (UpdateGroupResponse);
   rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse);
+  rpc CheckGroupMembership(CheckGroupMembershipRequest) returns (CheckGroupMembershipResponse);
 }
 
 message User {
@@ -62,9 +63,7 @@ message RegisterRequest {
 }
 
 message RegisterResponse {
-  bool success = 1;
-  User user = 2;
-  string message = 3;
+  User user = 1;
 }
 
 message GetProfileRequest {
@@ -72,9 +71,7 @@ message GetProfileRequest {
 }
 
 message GetProfileResponse {
-  bool success = 1;
-  User user = 2;
-  string message = 3;
+  User user = 1;
 }
 
 message GetProfileByEmailRequest {
@@ -82,9 +79,7 @@ message GetProfileByEmailRequest {
 }
 
 message GetProfileByEmailResponse {
-  bool success = 1;
-  User user = 2;
-  string message = 3;
+  User user = 1;
 }
 
 message UpdateProfileRequest {
@@ -96,9 +91,7 @@ message UpdateProfileRequest {
 }
 
 message UpdateProfileResponse {
-  bool success = 1;
-  User user = 2;
-  string message = 3;
+  User user = 1;
 }
 
 message DeleteAvatarRequest {
@@ -106,8 +99,6 @@ message DeleteAvatarRequest {
 }
 
 message DeleteAvatarResponse {
-  bool success = 1;
-  string message = 2;
 }
 
 message GetNotificationSettingsRequest {
@@ -115,9 +106,7 @@ message GetNotificationSettingsRequest {
 }
 
 message GetNotificationSettingsResponse {
-  bool success = 1;
-  NotificationSettings settings = 2;
-  string message = 3;
+  NotificationSettings settings = 1;
 }
 
 message UpdateNotificationSettingsRequest {
@@ -129,9 +118,7 @@ message UpdateNotificationSettingsRequest {
 }
 
 message UpdateNotificationSettingsResponse {
-  bool success = 1;
-  NotificationSettings settings = 2;
-  string message = 3;
+  NotificationSettings settings = 1;
 }
 
 message CreateGroupRequest {
@@ -141,9 +128,7 @@ message CreateGroupRequest {
 }
 
 message CreateGroupResponse {
-  bool success = 1;
-  Group group = 2;
-  string message = 3;
+  Group group = 1;
 }
 
 message GetGroupsRequest {
@@ -152,9 +137,7 @@ message GetGroupsRequest {
 }
 
 message GetGroupsResponse {
-  bool success = 1;
-  repeated Group groups = 2;
-  string message = 3;
+  repeated Group groups = 1;
 }
 
 message GetGroupRequest {
@@ -163,9 +146,7 @@ message GetGroupRequest {
 }
 
 message GetGroupResponse {
-  bool success = 1;
-  GroupWithMembers group = 2;
-  string message = 3;
+  GroupWithMembers group = 1;
 }
 
 message UpdateGroupRequest {
@@ -176,9 +157,7 @@ message UpdateGroupRequest {
 }
 
 message UpdateGroupResponse {
-  bool success = 1;
-  Group group = 2;
-  string message = 3;
+  Group group = 1;
 }
 
 message DeleteGroupRequest {
@@ -187,6 +166,14 @@ message DeleteGroupRequest {
 }
 
 message DeleteGroupResponse {
-  bool success = 1;
-  string message = 2;
+}
+
+message CheckGroupMembershipRequest {
+  string group_id = 1;
+  string user_id = 2;
+}
+
+message CheckGroupMembershipResponse {
+  bool is_member = 1;
+  string role = 2; // "owner", "admin", "member", or empty if not a member
 }

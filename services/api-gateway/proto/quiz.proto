@@ -15,6 +15,7 @@ service QuizService {
 
   rpc CreateInstance(CreateInstanceRequest) returns (CreateInstanceResponse);
   rpc GetInstance(GetInstanceRequest) returns (GetInstanceResponse);
+  rpc GetInstanceByAccessCode(GetInstanceByAccessCodeRequest) returns (GetInstanceByAccessCodeResponse);
   rpc GetHostingInstances(GetHostingInstancesRequest) returns (GetHostingInstancesResponse);
   rpc GetParticipatingInstances(GetParticipatingInstancesRequest) returns (GetParticipatingInstancesResponse);
 }
@@ -136,7 +137,6 @@ message DeleteTemplateRequest {
 }
 
 message DeleteTemplateResponse {
-  bool success = 1;
 }
 
 message CreateInstanceRequest {
@@ -169,7 +169,6 @@ message GetInstanceByAccessCodeRequest {
 message GetInstanceByAccessCodeResponse {
   QuizInstance instance = 1;
   bool has_access = 2;
-  string error_message = 3;
 }
 
 message GetHostingInstancesRequest {
@@ -183,7 +182,7 @@ message GetHostingInstancesResponse {
 
 message GetParticipatingInstancesRequest {
   string user_id = 1;
-  string session_status = 2; // "not_started", "joined", "in_progress", "finished", "" = all except finished
+  string session_status = 2; // "not_started", "joined", "in_progress", "finished", "" = all
 }
 
 message ParticipatingInstance {

@@ -52,7 +52,6 @@ type TemplateDTO struct {
 
 type CreateTemplateResponse struct {
 	TemplateID string `json:"template_id"`
-	Message    string `json:"message"`
 }
 
 type GetTemplatesResponse struct {
@@ -64,8 +63,6 @@ type GetTemplateResponse struct {
 }
 
 type DeleteTemplateResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
 }
 
 type CreateInstanceRequest struct {
@@ -94,7 +91,6 @@ type InstanceDTO struct {
 type CreateInstanceResponse struct {
 	InstanceID string `json:"instance_id"`
 	AccessCode string `json:"access_code"`
-	Message    string `json:"message"`
 }
 
 type GetInstanceResponse struct {
@@ -147,11 +143,7 @@ type GradeAnswerRequest struct {
 }
 
 type GradeAnswerResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
 }
 
 type PublishResultsResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
 }

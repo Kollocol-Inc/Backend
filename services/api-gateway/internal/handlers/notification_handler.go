@@ -8,6 +8,7 @@ import (
 
 	"api-gateway/internal/client"
 	"api-gateway/internal/dto"
+	"api-gateway/pkg/errors"
 	pb "api-gateway/proto"
 
 	"github.com/gin-gonic/gin"
@@ -38,7 +39,7 @@ func NewNotificationHandler(notificationClient *client.NotificationClient) *Noti
 func (h *NotificationHandler) GetNotifications(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		dto.JsonError(c, errors.ErrUserIDNotFound)
 		return
 	}
 
@@ -50,7 +51,7 @@ func (h *NotificationHandler) GetNotifications(c *gin.Context) {
 
 	resp, err := h.notificationClient.GetNotifications(ctx, userID.(string), int32(limit), int32(offset))
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to get notifications")
+		dto.JsonError(c, err)
 		return
 	}
 
@@ -80,34 +81,25 @@ func (h *NotificationHandler) GetNotifications(c *gin.Context) {
 func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		dto.JsonError(c, errors.ErrUserIDNotFound)
 		return
 	}
 
 	notificationID := c.Param("id")
 	if notificationID == "" {
-		dto.JsonError(c, http.StatusBadRequest, "Notification ID is required")
+		dto.JsonError(c, errors.ErrNotificationIDRequired)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
-	resp, err := h.notificationClient.MarkAsRead(ctx, notificationID, userID.(string))
+	_, err := h.notificationClient.MarkAsRead(ctx, notificationID, userID.(string))
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to mark notification as read")
+		dto.JsonError(c, err)
 		return
 	}
 
-	if !resp.Success {
-		dto.JsonError(c, http.StatusBadRequest, resp.Message)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": resp.Message,
-	})
+	c.Status(http.StatusNoContent)
 }
 
 // DeleteNotification godoc
@@ -125,29 +117,25 @@ func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 func (h *NotificationHandler) DeleteNotification(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		dto.JsonError(c, errors.ErrUserIDNotFound)
 		return
 	}
 
 	notificationID := c.Param("id")
 	if notificationID == "" {
-		dto.JsonError(c, http.StatusBadRequest, "Notification ID is required")
+		dto.JsonError(c, errors.ErrNotificationIDRequired)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := h.notificationClient.DeleteNotification(ctx, notificationID, userID.(string))
+	_, err := h.notificationClient.DeleteNotification(ctx, notificationID, userID.(string))
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to delete notification")
+		dto.JsonError(c, err)
 		return
 	}
 
-	if !resp.Success {
-		dto.JsonError(c, http.StatusBadRequest, resp.Message)
-		return
-	}
 
 	c.Status(http.StatusNoContent)
 }

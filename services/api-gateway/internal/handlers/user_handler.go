@@ -8,6 +8,7 @@ import (
 
 	"api-gateway/internal/client"
 	"api-gateway/internal/dto"
+	"api-gateway/pkg/errors"
 	pb "api-gateway/proto"
 
 	"github.com/gin-gonic/gin"
@@ -39,13 +40,13 @@ func NewUserHandler(userClient *client.UserClient) *UserHandler {
 func (h *UserHandler) Register(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		dto.JsonError(c, errors.ErrUserIDNotFound)
 		return
 	}
 
 	var req dto.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.JsonError(c, http.StatusBadRequest, "Invalid request body")
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
 		return
 	}
 
@@ -54,12 +55,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 
 	resp, err := h.userClient.Register(ctx, userID.(string), req.FirstName, req.LastName, nil, "")
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to register user")
-		return
-	}
-
-	if !resp.Success {
-		dto.JsonError(c, http.StatusBadRequest, resp.Message)
+		dto.JsonError(c, err)
 		return
 	}
 
@@ -80,7 +76,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 func (h *UserHandler) GetProfile(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		dto.JsonError(c, errors.ErrUserIDNotFound)
 		return
 	}
 
@@ -89,12 +85,7 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 
 	resp, err := h.userClient.GetProfile(ctx, userID.(string))
 	if err != nil {
-		dto.JsonError(c, http.StatusNotFound, "User profile not found")
-		return
-	}
-
-	if !resp.Success {
-		dto.JsonError(c, http.StatusNotFound, resp.Message)
+		dto.JsonError(c, err)
 		return
 	}
 
@@ -117,13 +108,13 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		dto.JsonError(c, errors.ErrUserIDNotFound)
 		return
 	}
 
 	var req dto.UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.JsonError(c, http.StatusBadRequest, "Invalid request body")
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
 		return
 	}
 
@@ -132,12 +123,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 
 	resp, err := h.userClient.UpdateProfile(ctx, userID.(string), req.FirstName, req.LastName, nil, "")
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to update profile")
-		return
-	}
-
-	if !resp.Success {
-		dto.JsonError(c, http.StatusBadRequest, resp.Message)
+		dto.JsonError(c, err)
 		return
 	}
 
@@ -160,31 +146,31 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		dto.JsonError(c, errors.ErrUserIDNotFound)
 		return
 	}
 
 	file, err := c.FormFile("avatar")
 	if err != nil {
-		dto.JsonError(c, http.StatusBadRequest, "Avatar file is required")
+		dto.JsonError(c, err)
 		return
 	}
 
 	if file.Size > 5*1024*1024 {
-		dto.JsonError(c, http.StatusRequestEntityTooLarge, "File size exceeds 5MB limit")
+		dto.JsonError(c, err)
 		return
 	}
 
 	src, err := file.Open()
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to read file")
+		dto.JsonError(c, err)
 		return
 	}
 	defer src.Close()
 
 	avatarData, err := io.ReadAll(src)
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to read file content")
+		dto.JsonError(c, err)
 		return
 	}
 
@@ -193,12 +179,7 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 
 	resp, err := h.userClient.UpdateProfile(ctx, userID.(string), "", "", avatarData, file.Filename)
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to upload avatar")
-		return
-	}
-
-	if !resp.Success {
-		dto.JsonError(c, http.StatusBadRequest, resp.Message)
+		dto.JsonError(c, err)
 		return
 	}
 
@@ -219,21 +200,16 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 func (h *UserHandler) DeleteAvatar(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		dto.JsonError(c, errors.ErrUserIDNotFound)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := h.userClient.DeleteAvatar(ctx, userID.(string))
+	_, err := h.userClient.DeleteAvatar(ctx, userID.(string))
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to delete avatar")
-		return
-	}
-
-	if !resp.Success {
-		dto.JsonError(c, http.StatusBadRequest, resp.Message)
+		dto.JsonError(c, err)
 		return
 	}
 
@@ -253,7 +229,7 @@ func (h *UserHandler) DeleteAvatar(c *gin.Context) {
 func (h *UserHandler) GetNotificationSettings(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		dto.JsonError(c, errors.ErrUserIDNotFound)
 		return
 	}
 
@@ -262,14 +238,11 @@ func (h *UserHandler) GetNotificationSettings(c *gin.Context) {
 
 	resp, err := h.userClient.GetNotificationSettings(ctx, userID.(string))
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to get notification settings")
+		dto.JsonError(c, err)
 		return
 	}
 
-	if !resp.Success {
-		dto.JsonError(c, http.StatusInternalServerError, resp.Message)
-		return
-	}
+
 
 	c.JSON(http.StatusOK, convertNotificationSettingsToDTO(resp.Settings))
 }
@@ -290,13 +263,13 @@ func (h *UserHandler) GetNotificationSettings(c *gin.Context) {
 func (h *UserHandler) UpdateNotificationSettings(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		dto.JsonError(c, errors.ErrUserIDNotFound)
 		return
 	}
 
 	var req dto.UpdateNotificationSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.JsonError(c, http.StatusBadRequest, "Invalid request body")
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
 		return
 	}
 
@@ -313,14 +286,11 @@ func (h *UserHandler) UpdateNotificationSettings(c *gin.Context) {
 
 	resp, err := h.userClient.UpdateNotificationSettings(ctx, updateReq)
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to update notification settings")
+		dto.JsonError(c, err)
 		return
 	}
 
-	if !resp.Success {
-		dto.JsonError(c, http.StatusBadRequest, resp.Message)
-		return
-	}
+
 
 	c.JSON(http.StatusOK, convertNotificationSettingsToDTO(resp.Settings))
 }
@@ -341,13 +311,13 @@ func (h *UserHandler) UpdateNotificationSettings(c *gin.Context) {
 func (h *UserHandler) CreateGroup(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		dto.JsonError(c, errors.ErrUserIDNotFound)
 		return
 	}
 
 	var req dto.CreateGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.JsonError(c, http.StatusBadRequest, "Invalid request body")
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
 		return
 	}
 
@@ -356,14 +326,11 @@ func (h *UserHandler) CreateGroup(c *gin.Context) {
 
 	resp, err := h.userClient.CreateGroup(ctx, userID.(string), req.Name, req.MemberEmails)
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to create group")
+		dto.JsonError(c, err)
 		return
 	}
 
-	if !resp.Success {
-		dto.JsonError(c, http.StatusBadRequest, resp.Message)
-		return
-	}
+
 
 	c.JSON(http.StatusCreated, convertGroupToDTO(resp.Group))
 }
@@ -382,7 +349,7 @@ func (h *UserHandler) CreateGroup(c *gin.Context) {
 func (h *UserHandler) GetGroups(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		dto.JsonError(c, errors.ErrUserIDNotFound)
 		return
 	}
 
@@ -393,14 +360,11 @@ func (h *UserHandler) GetGroups(c *gin.Context) {
 
 	resp, err := h.userClient.GetGroups(ctx, userID.(string), filter)
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to get groups")
+		dto.JsonError(c, err)
 		return
 	}
 
-	if !resp.Success {
-		dto.JsonError(c, http.StatusInternalServerError, resp.Message)
-		return
-	}
+
 
 	groups := make([]dto.GroupDTO, len(resp.Groups))
 	for i, g := range resp.Groups {
@@ -425,13 +389,13 @@ func (h *UserHandler) GetGroups(c *gin.Context) {
 func (h *UserHandler) GetGroup(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		dto.JsonError(c, errors.ErrUserIDNotFound)
 		return
 	}
 
 	groupID := c.Param("id")
 	if groupID == "" {
-		dto.JsonError(c, http.StatusBadRequest, "Group ID is required")
+		dto.JsonError(c, errors.ErrGroupIDRequired)
 		return
 	}
 
@@ -440,14 +404,11 @@ func (h *UserHandler) GetGroup(c *gin.Context) {
 
 	resp, err := h.userClient.GetGroup(ctx, groupID, userID.(string))
 	if err != nil {
-		dto.JsonError(c, http.StatusNotFound, "Group not found or access denied")
+		dto.JsonError(c, err)
 		return
 	}
 
-	if !resp.Success {
-		dto.JsonError(c, http.StatusNotFound, resp.Message)
-		return
-	}
+
 
 	c.JSON(http.StatusOK, convertGroupWithMembersToDTO(resp.Group))
 }
@@ -471,19 +432,19 @@ func (h *UserHandler) GetGroup(c *gin.Context) {
 func (h *UserHandler) UpdateGroup(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		dto.JsonError(c, errors.ErrUserIDNotFound)
 		return
 	}
 
 	groupID := c.Param("id")
 	if groupID == "" {
-		dto.JsonError(c, http.StatusBadRequest, "Group ID is required")
+		dto.JsonError(c, errors.ErrGroupIDRequired)
 		return
 	}
 
 	var req dto.UpdateGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.JsonError(c, http.StatusBadRequest, "Invalid request body")
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
 		return
 	}
 
@@ -492,14 +453,11 @@ func (h *UserHandler) UpdateGroup(c *gin.Context) {
 
 	resp, err := h.userClient.UpdateGroup(ctx, groupID, userID.(string), req.Name, req.MemberEmails)
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to update group")
+		dto.JsonError(c, err)
 		return
 	}
 
-	if !resp.Success {
-		dto.JsonError(c, http.StatusBadRequest, resp.Message)
-		return
-	}
+
 
 	c.JSON(http.StatusOK, convertGroupToDTO(resp.Group))
 }
@@ -520,29 +478,25 @@ func (h *UserHandler) UpdateGroup(c *gin.Context) {
 func (h *UserHandler) DeleteGroup(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.JsonError(c, http.StatusUnauthorized, "User ID not found in context")
+		dto.JsonError(c, errors.ErrUserIDNotFound)
 		return
 	}
 
 	groupID := c.Param("id")
 	if groupID == "" {
-		dto.JsonError(c, http.StatusBadRequest, "Group ID is required")
+		dto.JsonError(c, errors.ErrGroupIDRequired)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := h.userClient.DeleteGroup(ctx, groupID, userID.(string))
+	_, err := h.userClient.DeleteGroup(ctx, groupID, userID.(string))
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to delete group")
+		dto.JsonError(c, err)
 		return
 	}
 
-	if !resp.Success {
-		dto.JsonError(c, http.StatusBadRequest, resp.Message)
-		return
-	}
 
 	c.Status(http.StatusNoContent)
 }

@@ -8,6 +8,7 @@ import (
 
 	"api-gateway/internal/client"
 	"api-gateway/internal/dto"
+	"api-gateway/pkg/errors"
 
 	"github.com/gin-gonic/gin"
 )
@@ -37,28 +38,20 @@ func NewAuthHandler(authClient *client.AuthClient) *AuthHandler {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req dto.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.JsonError(c, http.StatusBadRequest, "Invalid request body")
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := h.authClient.Login(ctx, req.Email)
+	_, err := h.authClient.Login(ctx, req.Email)
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to process login request")
+		dto.JsonError(c, err)
 		return
 	}
 
-	if !resp.Success {
-		dto.JsonError(c, http.StatusInternalServerError, resp.Message)
-		return
-	}
-
-	c.JSON(http.StatusOK, dto.LoginResponse{
-		Success: resp.Success,
-		Message: resp.Message,
-	})
+	c.JSON(http.StatusOK, dto.LoginResponse{})
 }
 
 // VerifyCode godoc
@@ -77,7 +70,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 func (h *AuthHandler) VerifyCode(c *gin.Context) {
 	var req dto.VerifyCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.JsonError(c, http.StatusBadRequest, "Invalid request body")
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
 		return
 	}
 
@@ -86,22 +79,15 @@ func (h *AuthHandler) VerifyCode(c *gin.Context) {
 
 	resp, err := h.authClient.VerifyCode(ctx, req.Email, req.Code)
 	if err != nil {
-		dto.JsonError(c, http.StatusBadRequest, "Invalid verification code")
-		return
-	}
-
-	if !resp.Success {
-		dto.JsonError(c, http.StatusInternalServerError, resp.Message)
+		dto.JsonError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, dto.VerifyCodeResponse{
-		Success:      resp.Success,
 		AccessToken:  resp.AccessToken,
 		RefreshToken: resp.RefreshToken,
 		IsRegistered: resp.IsRegistered,
 		UserID:       resp.UserId,
-		Message:      resp.Message,
 	})
 }
 
@@ -120,7 +106,7 @@ func (h *AuthHandler) VerifyCode(c *gin.Context) {
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var req dto.RefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.JsonError(c, http.StatusBadRequest, "Invalid request body")
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
 		return
 	}
 
@@ -129,20 +115,13 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 
 	resp, err := h.authClient.RefreshToken(ctx, req.RefreshToken)
 	if err != nil {
-		dto.JsonError(c, http.StatusBadRequest, "Invalid refresh token")
-		return
-	}
-
-	if !resp.Success {
-		dto.JsonError(c, http.StatusInternalServerError, resp.Message)
+		dto.JsonError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, dto.RefreshTokenResponse{
-		Success:      resp.Success,
 		AccessToken:  resp.AccessToken,
 		RefreshToken: resp.RefreshToken,
-		Message:      resp.Message,
 	})
 }
 
@@ -160,13 +139,13 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 func (h *AuthHandler) Logout(c *gin.Context) {
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
-		dto.JsonError(c, http.StatusUnauthorized, "Authorization header is required")
+		dto.JsonError(c, errors.ErrAuthHeaderRequired)
 		return
 	}
 
 	parts := strings.SplitN(authHeader, " ", 2)
 	if len(parts) != 2 || parts[0] != "Bearer" {
-		dto.JsonError(c, http.StatusUnauthorized, "Invalid authorization header format")
+		dto.JsonError(c, errors.ErrInvalidAuthHeaderFormat)
 		return
 	}
 
@@ -180,19 +159,11 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := h.authClient.Logout(ctx, accessToken, req.RefreshToken)
+	_, err := h.authClient.Logout(ctx, accessToken, req.RefreshToken)
 	if err != nil {
-		dto.JsonError(c, http.StatusInternalServerError, "Failed to logout")
+		dto.JsonError(c, err)
 		return
 	}
 
-	if !resp.Success {
-		dto.JsonError(c, http.StatusInternalServerError, resp.Message)
-		return
-	}
-
-	c.JSON(http.StatusOK, dto.LogoutResponse{
-		Success: resp.Success,
-		Message: resp.Message,
-	})
+	c.JSON(http.StatusOK, dto.LogoutResponse{})
 }

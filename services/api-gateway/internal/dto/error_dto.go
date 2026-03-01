@@ -1,24 +1,73 @@
 package dto
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type ErrorResponse struct {
-	Error   string `json:"error"`
-	Message string `json:"message,omitempty"`
+	Reason   string            `json:"reason"`
+	Metadata map[string]string `json:"metadata,omitempty"`
 }
 
-func JsonError(c *gin.Context, status int, message ...string) {
-	msg := ""
-	if len(message) > 0 {
-		msg = message[0]
+func GrpcErrorToHTTP(err error) (int, *ErrorResponse) {
+	st, ok := status.FromError(err)
+	if !ok {
+		return 500, &ErrorResponse{
+			Reason:   "INTERNAL_ERROR",
+			Metadata: map[string]string{"message": "Internal server error"},
+		}
 	}
 
-	c.JSON(status, ErrorResponse{
-		Error:   http.StatusText(status),
-		Message: msg,
-	})
+	for _, detail := range st.Details() {
+		if errInfo, ok := detail.(*errdetails.ErrorInfo); ok {
+			return grpcCodeToHTTP(st.Code()), &ErrorResponse{
+				Reason:   errInfo.Reason,
+				Metadata: errInfo.Metadata,
+			}
+		}
+	}
+
+	return grpcCodeToHTTP(st.Code()), &ErrorResponse{
+		Reason:   "UNKNOWN_ERROR",
+		Metadata: map[string]string{"message": st.Message()},
+	}
+}
+
+func grpcCodeToHTTP(code codes.Code) int {
+	switch code {
+	case codes.OK:
+		return 200
+	case codes.InvalidArgument, codes.FailedPrecondition, codes.OutOfRange:
+		return 400
+	case codes.Unauthenticated:
+		return 401
+	case codes.PermissionDenied:
+		return 403
+	case codes.NotFound:
+		return 404
+	case codes.AlreadyExists, codes.Aborted:
+		return 409
+	case codes.ResourceExhausted:
+		return 429
+	case codes.Canceled:
+		return 499
+	case codes.Internal, codes.Unknown, codes.DataLoss:
+		return 500
+	case codes.Unimplemented:
+		return 501
+	case codes.Unavailable:
+		return 503
+	case codes.DeadlineExceeded:
+		return 504
+	default:
+		return 500
+	}
+}
+
+func JsonError(c *gin.Context, err error) {
+	statusCode, errResp := GrpcErrorToHTTP(err)
+	c.JSON(statusCode, errResp)
 }

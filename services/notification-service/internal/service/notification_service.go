@@ -9,7 +9,9 @@ import (
 
 	"notification-service/internal/repository"
 	"notification-service/pkg/email"
+	"notification-service/pkg/errors"
 	pb "notification-service/proto"
+	"google.golang.org/grpc/codes"
 )
 
 type NotificationService struct {
@@ -60,10 +62,7 @@ func (s *NotificationService) GetNotifications(ctx context.Context, req *pb.GetN
 func (s *NotificationService) MarkAsRead(ctx context.Context, req *pb.MarkAsReadRequest) (*pb.MarkAsReadResponse, error) {
 	if err := s.repo.MarkAsRead(ctx, req.NotificationId, req.UserId); err != nil {
 		log.Printf("Failed to mark notification as read: %v", err)
-		return &pb.MarkAsReadResponse{
-			Success: false,
-			Message: "Failed to mark notification as read",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonNotificationMarkFailed, "Failed to mark notification as read", map[string]string{"notification_id": req.NotificationId})
 	}
 
 	return &pb.MarkAsReadResponse{
@@ -75,10 +74,7 @@ func (s *NotificationService) MarkAsRead(ctx context.Context, req *pb.MarkAsRead
 func (s *NotificationService) DeleteNotification(ctx context.Context, req *pb.DeleteNotificationRequest) (*pb.DeleteNotificationResponse, error) {
 	if err := s.repo.DeleteNotification(ctx, req.NotificationId, req.UserId); err != nil {
 		log.Printf("Failed to delete notification: %v", err)
-		return &pb.DeleteNotificationResponse{
-			Success: false,
-			Message: "Failed to delete notification",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonNotificationDeleteFailed, "Failed to delete notification", map[string]string{"notification_id": req.NotificationId})
 	}
 
 	return &pb.DeleteNotificationResponse{

@@ -12,9 +12,11 @@ import (
 	pb "auth-service/proto"
 	"auth-service/internal/repository"
 	"auth-service/pkg/cache"
+	"auth-service/pkg/errors"
 	"auth-service/pkg/jwt"
 	"auth-service/pkg/messaging"
 	"auth-service/pkg/validator"
+	"google.golang.org/grpc/codes"
 )
 
 type AuthService struct {
@@ -37,29 +39,20 @@ func NewAuthService(redis *cache.RedisClient, db *sql.DB, rabbitMQ *messaging.Ra
 func (s *AuthService) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
 	email := validator.NormalizeEmail(req.Email)
 	if err := validator.ValidateEmail(email); err != nil {
-		return &pb.LoginResponse{
-			Success: false,
-			Message: "Invalid email address",
-		}, nil
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonInvalidEmail, "Invalid email address", map[string]string{"email": email})
 	}
 
 	code, err := generateCode(4)
 	if err != nil {
 		log.Printf("Failed to generate code: %v", err)
-		return &pb.LoginResponse{
-			Success: false,
-			Message: "Failed to generate verification code",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonCodeGenerationFailed, "Failed to generate verification code", nil)
 	}
 
 	log.Printf("Generated code %s for %s", code, email)
 
 	if err := s.authRepo.SaveAuthCode(ctx, email, code); err != nil {
 		log.Printf("Failed to save auth code: %v", err)
-		return &pb.LoginResponse{
-			Success: false,
-			Message: "Failed to save verification code",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonCodeSaveFailed, "Failed to save verification code", nil)
 	}
 
 	event := map[string]string{
@@ -83,61 +76,40 @@ func (s *AuthService) VerifyCode(ctx context.Context, req *pb.VerifyCodeRequest)
 
 	authCode, err := s.authRepo.GetAuthCode(ctx, email)
 	if err != nil {
-		return &pb.VerifyCodeResponse{
-			Success: false,
-			Message: "Verification code not found or expired",
-		}, nil
+		return nil, errors.New(codes.NotFound, errors.ReasonCodeNotFound, "Verification code not found or expired", map[string]string{"email": email})
 	}
 
 	if authCode.Attempts >= repository.MaxAttempts {
 		s.authRepo.DeleteAuthCode(ctx, email)
-		return &pb.VerifyCodeResponse{
-			Success: false,
-			Message: "Too many failed attempts. Please request a new code",
-		}, nil
+		return nil, errors.New(codes.FailedPrecondition, errors.ReasonTooManyAttempts, "Too many failed attempts. Please request a new code", map[string]string{"email": email})
 	}
 
 	if authCode.Code != req.Code {
 		s.authRepo.IncrementAuthCodeAttempts(ctx, email)
-		return &pb.VerifyCodeResponse{
-			Success: false,
-			Message: "Invalid verification code",
-		}, nil
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonInvalidCode, "Invalid verification code", map[string]string{"email": email})
 	}
 
 	if time.Now().After(authCode.ExpiresAt) {
 		s.authRepo.DeleteAuthCode(ctx, email)
-		return &pb.VerifyCodeResponse{
-			Success: false,
-			Message: "Verification code expired",
-		}, nil
+		return nil, errors.New(codes.DeadlineExceeded, errors.ReasonCodeExpired, "Verification code expired", map[string]string{"email": email})
 	}
 
 	user, err := s.userRepo.GetOrCreateUser(ctx, email)
 	if err != nil {
 		log.Printf("Failed to get or create user: %v", err)
-		return &pb.VerifyCodeResponse{
-			Success: false,
-			Message: "Failed to process user",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonUserProcessFailed, "Failed to process user", map[string]string{"email": email})
 	}
 
 	tokens, err := jwt.GenerateTokenPair(user.ID, user.Email, s.jwtSecret)
 	if err != nil {
 		log.Printf("Failed to generate tokens: %v", err)
-		return &pb.VerifyCodeResponse{
-			Success: false,
-			Message: "Failed to generate tokens",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonTokenGenerationFailed, "Failed to generate tokens", map[string]string{"email": email, "user_id": user.ID})
 	}
 
 	refreshToken := repository.NewRefreshToken(tokens.RefreshToken, user.ID, time.Now().Add(jwt.RefreshTokenDuration), time.Now())
 	if err := s.authRepo.SaveRefreshToken(ctx, refreshToken); err != nil {
 		log.Printf("Failed to save refresh token: %v", err)
-		return &pb.VerifyCodeResponse{
-			Success: false,
-			Message: "Failed to save refresh token",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonTokenSaveFailed, "Failed to save refresh token", map[string]string{"email": email, "user_id": user.ID})
 	}
 
 	s.authRepo.DeleteAuthCode(ctx, email)
@@ -155,35 +127,23 @@ func (s *AuthService) VerifyCode(ctx context.Context, req *pb.VerifyCodeRequest)
 func (s *AuthService) RefreshToken(ctx context.Context, req *pb.RefreshTokenRequest) (*pb.RefreshTokenResponse, error) {
 	claims, err := jwt.ValidateRefreshToken(req.RefreshToken, s.jwtSecret)
 	if err != nil {
-		return &pb.RefreshTokenResponse{
-			Success: false,
-			Message: "Invalid refresh token",
-		}, nil
+		return nil, errors.New(codes.Unauthenticated, errors.ReasonInvalidToken, "Invalid refresh token", nil)
 	}
 
 	storedToken, err := s.authRepo.GetRefreshToken(ctx, req.RefreshToken)
 	if err != nil {
-		return &pb.RefreshTokenResponse{
-			Success: false,
-			Message: "Refresh token not found",
-		}, nil
+		return nil, errors.New(codes.NotFound, errors.ReasonTokenNotFound, "Refresh token not found", nil)
 	}
 
 	if time.Now().After(storedToken.ExpiresAt) {
 		s.authRepo.DeleteRefreshToken(ctx, req.RefreshToken)
-		return &pb.RefreshTokenResponse{
-			Success: false,
-			Message: "Refresh token expired",
-		}, nil
+		return nil, errors.New(codes.Unauthenticated, errors.ReasonTokenExpired, "Refresh token expired", nil)
 	}
 
 	newTokens, err := jwt.GenerateTokenPair(claims.UserID, claims.Email, s.jwtSecret)
 	if err != nil {
 		log.Printf("Failed to generate new tokens: %v", err)
-		return &pb.RefreshTokenResponse{
-			Success: false,
-			Message: "Failed to generate new tokens",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonTokenGenerationFailed, "Failed to generate new tokens", map[string]string{"email": claims.Email, "user_id": claims.UserID})
 	}
 
 	if err := s.authRepo.DeleteRefreshToken(ctx, req.RefreshToken); err != nil {
@@ -193,10 +153,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, req *pb.RefreshTokenRequ
 	newRefreshToken := repository.NewRefreshToken(newTokens.RefreshToken, claims.UserID, time.Now().Add(jwt.RefreshTokenDuration), time.Now())
 	if err := s.authRepo.SaveRefreshToken(ctx, newRefreshToken); err != nil {
 		log.Printf("Failed to save new refresh token: %v", err)
-		return &pb.RefreshTokenResponse{
-			Success: false,
-			Message: "Failed to save new refresh token",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonTokenSaveFailed, "Failed to save new refresh token", map[string]string{"email": claims.Email, "user_id": claims.UserID})
 	}
 
 	return &pb.RefreshTokenResponse{
@@ -211,14 +168,12 @@ func (s *AuthService) Logout(ctx context.Context, req *pb.LogoutRequest) (*pb.Lo
 	jti, err := jwt.ExtractJTI(req.AccessToken)
 	if err != nil {
 		log.Printf("Failed to extract JTI: %v", err)
-		return &pb.LogoutResponse{
-			Success: false,
-			Message: "Invalid access token",
-		}, nil
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonInvalidToken, "Invalid access token", nil)
 	}
 
 	if err := s.authRepo.AddToBlacklist(ctx, jti); err != nil {
 		log.Printf("Failed to add token to blacklist: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonBlacklistAddFailed, "Failed to blacklist token", nil)
 	}
 
 	if req.RefreshToken != "" {
@@ -236,26 +191,17 @@ func (s *AuthService) Logout(ctx context.Context, req *pb.LogoutRequest) (*pb.Lo
 func (s *AuthService) ValidateToken(ctx context.Context, req *pb.ValidateTokenRequest) (*pb.ValidateTokenResponse, error) {
 	claims, err := jwt.ValidateAccessToken(req.AccessToken, s.jwtSecret)
 	if err != nil {
-		return &pb.ValidateTokenResponse{
-			Valid:   false,
-			Message: "Invalid token",
-		}, nil
+		return nil, errors.New(codes.Unauthenticated, errors.ReasonInvalidToken, "Invalid token", nil)
 	}
 
 	isBlacklisted, err := s.authRepo.IsBlacklisted(ctx, claims.JTI)
 	if err != nil {
 		log.Printf("Failed to check blacklist: %v", err)
-		return &pb.ValidateTokenResponse{
-			Valid:   false,
-			Message: "Failed to validate token",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonTokenValidationFailed, "Failed to validate token", nil)
 	}
 
 	if isBlacklisted {
-		return &pb.ValidateTokenResponse{
-			Valid:   false,
-			Message: "Token has been revoked",
-		}, nil
+		return nil, errors.New(codes.Unauthenticated, errors.ReasonTokenRevoked, "Token has been revoked", nil)
 	}
 
 	return &pb.ValidateTokenResponse{

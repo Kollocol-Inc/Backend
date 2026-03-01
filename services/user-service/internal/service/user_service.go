@@ -11,9 +11,11 @@ import (
 
 	"user-service/constants"
 	"user-service/internal/repository"
+	"user-service/pkg/errors"
 	"user-service/pkg/messaging"
 	"user-service/pkg/storage"
 	pb "user-service/proto"
+	"google.golang.org/grpc/codes"
 )
 
 type UserService struct {
@@ -45,10 +47,7 @@ func (s *UserService) Register(ctx context.Context, req *pb.RegisterRequest) (*p
 	user, err := s.userRepo.GetUserByID(ctx, req.UserId)
 	if err != nil {
 		log.Printf("Failed to get user by ID %s: %v", req.UserId, err)
-		return &pb.RegisterResponse{
-			Success: false,
-			Message: "User not found",
-		}, nil
+		return nil, errors.New(codes.NotFound, errors.ReasonUserNotFound, "User not found", map[string]string{"user_id": req.UserId})
 	}
 
 	log.Printf("Found user: %s (email: %s, is_registered: %v)", user.ID, user.Email, user.IsRegistered)
@@ -61,20 +60,14 @@ func (s *UserService) Register(ctx context.Context, req *pb.RegisterRequest) (*p
 		avatarURL, err := s.uploadAvatar(ctx, req.UserId, req.AvatarFilename, req.AvatarData, user.AvatarURL)
 		if err != nil {
 			log.Printf("Failed to upload avatar: %v", err)
-			return &pb.RegisterResponse{
-				Success: false,
-				Message: "Failed to upload avatar",
-			}, nil
+			return nil, errors.New(codes.Internal, errors.ReasonAvatarUploadFailed, "Failed to upload avatar", map[string]string{"user_id": req.UserId})
 		}
 		user.AvatarURL = avatarURL
 	}
 
 	if err := s.userRepo.UpdateUser(ctx, user); err != nil {
 		log.Printf("Failed to update user: %v", err)
-		return &pb.RegisterResponse{
-			Success: false,
-			Message: "Failed to update profile",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonUserUpdateFailed, "Failed to update profile", map[string]string{"user_id": req.UserId})
 	}
 
 	log.Printf("User %s registered successfully", user.ID)
@@ -94,10 +87,7 @@ func (s *UserService) Register(ctx context.Context, req *pb.RegisterRequest) (*p
 func (s *UserService) GetProfile(ctx context.Context, req *pb.GetProfileRequest) (*pb.GetProfileResponse, error) {
 	user, err := s.userRepo.GetUserByID(ctx, req.UserId)
 	if err != nil {
-		return &pb.GetProfileResponse{
-			Success: false,
-			Message: "User not found",
-		}, nil
+		return nil, errors.New(codes.NotFound, errors.ReasonUserNotFound, "User not found", map[string]string{"user_id": req.UserId})
 	}
 
 	return &pb.GetProfileResponse{
@@ -110,10 +100,7 @@ func (s *UserService) GetProfile(ctx context.Context, req *pb.GetProfileRequest)
 func (s *UserService) GetProfileByEmail(ctx context.Context, req *pb.GetProfileByEmailRequest) (*pb.GetProfileByEmailResponse, error) {
 	user, err := s.userRepo.GetUserByEmail(ctx, req.Email)
 	if err != nil {
-		return &pb.GetProfileByEmailResponse{
-			Success: false,
-			Message: "User not found",
-		}, nil
+		return nil, errors.New(codes.NotFound, errors.ReasonUserNotFound, "User not found", map[string]string{"email": req.Email})
 	}
 
 	return &pb.GetProfileByEmailResponse{
@@ -126,10 +113,7 @@ func (s *UserService) GetProfileByEmail(ctx context.Context, req *pb.GetProfileB
 func (s *UserService) UpdateProfile(ctx context.Context, req *pb.UpdateProfileRequest) (*pb.UpdateProfileResponse, error) {
 	user, err := s.userRepo.GetUserByID(ctx, req.UserId)
 	if err != nil {
-		return &pb.UpdateProfileResponse{
-			Success: false,
-			Message: "User not found",
-		}, nil
+		return nil, errors.New(codes.NotFound, errors.ReasonUserNotFound, "User not found", map[string]string{"user_id": req.UserId})
 	}
 
 	if req.FirstName != "" {
@@ -143,20 +127,14 @@ func (s *UserService) UpdateProfile(ctx context.Context, req *pb.UpdateProfileRe
 		avatarURL, err := s.uploadAvatar(ctx, req.UserId, req.AvatarFilename, req.AvatarData, user.AvatarURL)
 		if err != nil {
 			log.Printf("Failed to upload avatar: %v", err)
-			return &pb.UpdateProfileResponse{
-				Success: false,
-				Message: "Failed to upload avatar",
-			}, nil
+			return nil, errors.New(codes.Internal, errors.ReasonAvatarUploadFailed, "Failed to upload avatar", map[string]string{"user_id": req.UserId})
 		}
 		user.AvatarURL = avatarURL
 	}
 
 	if err := s.userRepo.UpdateUser(ctx, user); err != nil {
 		log.Printf("Failed to update user: %v", err)
-		return &pb.UpdateProfileResponse{
-			Success: false,
-			Message: "Failed to update profile",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonUserUpdateFailed, "Failed to update profile", map[string]string{"user_id": req.UserId})
 	}
 
 	return &pb.UpdateProfileResponse{
@@ -170,10 +148,7 @@ func (s *UserService) GetNotificationSettings(ctx context.Context, req *pb.GetNo
 	settings, err := s.settingsRepo.GetOrCreateSettings(ctx, req.UserId)
 	if err != nil {
 		log.Printf("Failed to get notification settings: %v", err)
-		return &pb.GetNotificationSettingsResponse{
-			Success: false,
-			Message: "Failed to retrieve settings",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonSettingsNotFound, "Failed to retrieve settings", map[string]string{"user_id": req.UserId})
 	}
 
 	return &pb.GetNotificationSettingsResponse{
@@ -190,10 +165,7 @@ func (s *UserService) UpdateNotificationSettings(ctx context.Context, req *pb.Up
 	settings, err := s.settingsRepo.GetOrCreateSettings(ctx, req.UserId)
 	if err != nil {
 		log.Printf("Failed to get notification settings: %v", err)
-		return &pb.UpdateNotificationSettingsResponse{
-			Success: false,
-			Message: "Failed to retrieve settings",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonSettingsNotFound, "Failed to retrieve settings", map[string]string{"user_id": req.UserId})
 	}
 
 	log.Printf("Current settings: NewQuizzes=%v, QuizResults=%v, GroupInvites=%v, DeadlineReminder=%s",
@@ -221,10 +193,7 @@ func (s *UserService) UpdateNotificationSettings(ctx context.Context, req *pb.Up
 
 	if err := s.settingsRepo.UpdateSettings(ctx, settings); err != nil {
 		log.Printf("Failed to update settings: %v", err)
-		return &pb.UpdateNotificationSettingsResponse{
-			Success: false,
-			Message: "Failed to update settings",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonSettingsUpdateFailed, "Failed to update settings", map[string]string{"user_id": req.UserId})
 	}
 
 	log.Printf("Settings saved successfully")
@@ -240,10 +209,7 @@ func (s *UserService) CreateGroup(ctx context.Context, req *pb.CreateGroupReques
 	group, err := s.groupRepo.CreateGroup(ctx, req.Name, req.OwnerId)
 	if err != nil {
 		log.Printf("Failed to create group: %v", err)
-		return &pb.CreateGroupResponse{
-			Success: false,
-			Message: "Failed to create group",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonGroupCreateFailed, "Failed to create group", map[string]string{"owner_id": req.OwnerId})
 	}
 
 	usersMap, err := s.userRepo.GetUsersByEmailsMap(ctx, req.MemberEmails)
@@ -291,18 +257,12 @@ func (s *UserService) GetGroups(ctx context.Context, req *pb.GetGroupsRequest) (
 	case "my":
 		groups, err = s.groupRepo.GetUserGroups(ctx, req.UserId)
 	default:
-		return &pb.GetGroupsResponse{
-			Success: false,
-			Message: "Invalid filter",
-		}, nil
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonInvalidFilter, "Invalid filter", map[string]string{"filter": req.Filter})
 	}
 
 	if err != nil {
 		log.Printf("Failed to get groups: %v", err)
-		return &pb.GetGroupsResponse{
-			Success: false,
-			Message: "Failed to retrieve groups",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonGroupNotFound, "Failed to retrieve groups", map[string]string{"user_id": req.UserId})
 	}
 
 	protoGroups := make([]*pb.Group, len(groups))
@@ -320,27 +280,18 @@ func (s *UserService) GetGroups(ctx context.Context, req *pb.GetGroupsRequest) (
 func (s *UserService) GetGroup(ctx context.Context, req *pb.GetGroupRequest) (*pb.GetGroupResponse, error) {
 	group, err := s.groupRepo.GetGroupByID(ctx, req.GroupId)
 	if err != nil {
-		return &pb.GetGroupResponse{
-			Success: false,
-			Message: "Group not found",
-		}, nil
+		return nil, errors.New(codes.NotFound, errors.ReasonGroupNotFound, "Group not found", map[string]string{"group_id": req.GroupId})
 	}
 
 	isMember, err := s.groupRepo.IsMember(ctx, req.GroupId, req.UserId)
 	if err != nil || (!isMember && group.OwnerID != req.UserId) {
-		return &pb.GetGroupResponse{
-			Success: false,
-			Message: "Access denied",
-		}, nil
+		return nil, errors.New(codes.PermissionDenied, errors.ReasonAccessDenied, "Access denied", map[string]string{"group_id": req.GroupId, "user_id": req.UserId})
 	}
 
 	users, err := s.groupRepo.GetGroupUsers(ctx, req.GroupId)
 	if err != nil {
 		log.Printf("Failed to get group users: %v", err)
-		return &pb.GetGroupResponse{
-			Success: false,
-			Message: "Failed to retrieve members",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonMembersRetrieveFailed, "Failed to retrieve members", map[string]string{"group_id": req.GroupId})
 	}
 
 	members := make([]*pb.User, 0, len(users))
@@ -361,27 +312,18 @@ func (s *UserService) GetGroup(ctx context.Context, req *pb.GetGroupRequest) (*p
 func (s *UserService) UpdateGroup(ctx context.Context, req *pb.UpdateGroupRequest) (*pb.UpdateGroupResponse, error) {
 	group, err := s.groupRepo.GetGroupByID(ctx, req.GroupId)
 	if err != nil {
-		return &pb.UpdateGroupResponse{
-			Success: false,
-			Message: "Group not found",
-		}, nil
+		return nil, errors.New(codes.NotFound, errors.ReasonGroupNotFound, "Group not found", map[string]string{"group_id": req.GroupId})
 	}
 
 	if group.OwnerID != req.UserId {
-		return &pb.UpdateGroupResponse{
-			Success: false,
-			Message: "Only group owner can update group",
-		}, nil
+		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only group owner can update group", map[string]string{"group_id": req.GroupId, "user_id": req.UserId})
 	}
 
 	if req.Name != "" {
 		group.Name = req.Name
 		if err := s.groupRepo.UpdateGroup(ctx, group); err != nil {
 			log.Printf("Failed to update group: %v", err)
-			return &pb.UpdateGroupResponse{
-				Success: false,
-				Message: "Failed to update group",
-			}, nil
+			return nil, errors.New(codes.Internal, errors.ReasonGroupUpdateFailed, "Failed to update group", map[string]string{"group_id": req.GroupId})
 		}
 	}
 
@@ -442,25 +384,16 @@ func (s *UserService) UpdateGroup(ctx context.Context, req *pb.UpdateGroupReques
 func (s *UserService) DeleteGroup(ctx context.Context, req *pb.DeleteGroupRequest) (*pb.DeleteGroupResponse, error) {
 	group, err := s.groupRepo.GetGroupByID(ctx, req.GroupId)
 	if err != nil {
-		return &pb.DeleteGroupResponse{
-			Success: false,
-			Message: "Group not found",
-		}, nil
+		return nil, errors.New(codes.NotFound, errors.ReasonGroupNotFound, "Group not found", map[string]string{"group_id": req.GroupId})
 	}
 
 	if group.OwnerID != req.UserId {
-		return &pb.DeleteGroupResponse{
-			Success: false,
-			Message: "Only group owner can delete group",
-		}, nil
+		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only group owner can delete group", map[string]string{"group_id": req.GroupId, "user_id": req.UserId})
 	}
 
 	if err := s.groupRepo.DeleteGroup(ctx, req.GroupId); err != nil {
 		log.Printf("Failed to delete group: %v", err)
-		return &pb.DeleteGroupResponse{
-			Success: false,
-			Message: "Failed to delete group",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonGroupDeleteFailed, "Failed to delete group", map[string]string{"group_id": req.GroupId})
 	}
 
 	return &pb.DeleteGroupResponse{
@@ -567,34 +500,22 @@ func (s *UserService) publishGroupInvite(ctx context.Context, groupID, groupName
 func (s *UserService) DeleteAvatar(ctx context.Context, req *pb.DeleteAvatarRequest) (*pb.DeleteAvatarResponse, error) {
 	user, err := s.userRepo.GetUserByID(ctx, req.UserId)
 	if err != nil {
-		return &pb.DeleteAvatarResponse{
-			Success: false,
-			Message: "User not found",
-		}, nil
+		return nil, errors.New(codes.NotFound, errors.ReasonUserNotFound, "User not found", map[string]string{"user_id": req.UserId})
 	}
 
 	if user.AvatarURL == "" {
-		return &pb.DeleteAvatarResponse{
-			Success: false,
-			Message: "User has no avatar",
-		}, nil
+		return nil, errors.New(codes.FailedPrecondition, errors.ReasonNoAvatar, "User has no avatar", map[string]string{"user_id": req.UserId})
 	}
 
 	if err := s.deleteAvatarFile(ctx, user.AvatarURL); err != nil {
 		log.Printf("Failed to delete avatar file: %v", err)
-		return &pb.DeleteAvatarResponse{
-			Success: false,
-			Message: "Failed to delete avatar",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonAvatarDeleteFailed, "Failed to delete avatar", map[string]string{"user_id": req.UserId})
 	}
 
 	user.AvatarURL = ""
 	if err := s.userRepo.UpdateUser(ctx, user); err != nil {
 		log.Printf("Failed to update user: %v", err)
-		return &pb.DeleteAvatarResponse{
-			Success: false,
-			Message: "Failed to update profile",
-		}, nil
+		return nil, errors.New(codes.Internal, errors.ReasonUserUpdateFailed, "Failed to update profile", map[string]string{"user_id": req.UserId})
 	}
 
 	return &pb.DeleteAvatarResponse{

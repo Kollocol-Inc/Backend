@@ -37,8 +37,6 @@ message MarkAsReadRequest {
 }
 
 message MarkAsReadResponse {
-  bool success = 1;
-  string message = 2;
 }
 
 message DeleteNotificationRequest {
@@ -47,6 +45,4 @@ message DeleteNotificationRequest {
 }
 
 message DeleteNotificationResponse {
-  bool success = 1;
-  string message = 2;
 }
