@@ -34,8 +34,7 @@ type Question struct {
 	TemplateID    string
 	Text          string
 	Type          string
-	Options       string // JSON array
-	CorrectAnswer string // JSON
+	CorrectAnswer string
 	OrderIndex    int
 	MaxScore      int
 	TimeLimitSec  int
@@ -192,15 +191,14 @@ func (r *TemplateRepository) CreateQuestion(ctx context.Context, question *Quest
 	defer tx.Rollback()
 
 	queryQuestion := `
-		INSERT INTO questions (id, text, type, options, correct_answer, max_score, time_limit_sec)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO questions (id, text, type, correct_answer, max_score, time_limit_sec)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
 	_, err = tx.ExecContext(ctx, queryQuestion,
 		question.ID,
 		question.Text,
 		question.Type,
-		question.Options,
 		question.CorrectAnswer,
 		question.MaxScore,
 		question.TimeLimitSec,
@@ -237,7 +235,7 @@ func (r *TemplateRepository) LinkQuestionToTemplate(ctx context.Context, templat
 
 func (r *TemplateRepository) GetQuestionsByTemplateID(ctx context.Context, templateID string) ([]*Question, error) {
 	query := `
-		SELECT q.id, tq.template_id, q.text, q.type, q.options, q.correct_answer, tq.order_index, q.max_score, q.time_limit_sec, q.ai_answer
+		SELECT q.id, tq.template_id, q.text, q.type, q.correct_answer, tq.order_index, q.max_score, q.time_limit_sec, q.ai_answer
 		FROM questions q
 		JOIN template_questions tq ON q.id = tq.question_id
 		WHERE tq.template_id = $1
@@ -258,7 +256,6 @@ func (r *TemplateRepository) GetQuestionsByTemplateID(ctx context.Context, templ
 			&question.TemplateID,
 			&question.Text,
 			&question.Type,
-			&question.Options,
 			&question.CorrectAnswer,
 			&question.OrderIndex,
 			&question.MaxScore,
@@ -281,10 +278,24 @@ func (r *TemplateRepository) DeleteQuestionsByTemplateID(ctx context.Context, te
 	return err
 }
 
-func CorrectAnswerToJSON(answer interface{}) (string, error) {
-	data, err := json.Marshal(answer)
+type SingleChoiceData struct {
+	Options       []string `json:"options"`
+	CorrectOption int32    `json:"correct_option"`
+}
+
+type MultipleChoiceData struct {
+	Options        []string `json:"options"`
+	CorrectOptions []int32  `json:"correct_options"`
+}
+
+type OpenAnswerData struct {
+	CorrectText string `json:"correct_text"`
+}
+
+func MarshalAnswerJSON(data any) (string, error) {
+	b, err := json.Marshal(data)
 	if err != nil {
 		return "", err
 	}
-	return string(data), nil
+	return string(b), nil
 }

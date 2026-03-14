@@ -38,17 +38,33 @@ message QuizSettings {
   bool allow_review = 4;
 }
 
+message SingleChoice {
+  repeated string options = 1;
+  int32 correct_option = 2;
+}
+
+message MultipleChoice {
+  repeated string options = 1;
+  repeated int32 correct_options = 2;
+}
+
+message OpenAnswer {
+  string correct_text = 1;
+}
+
 message Question {
   string id = 1;
   string template_id = 2;
   string text = 3;
-  string type = 4; // "open" or "multiple_choice"
-  repeated string options = 5; // for multiple_choice
-  string correct_answer = 6; // JSON string
   int32 order_index = 7;
   int32 max_score = 8;
   int32 time_limit_sec = 9; // 0 = no limit
-  string ai_answer = 10; // JSON string
+  string ai_answer = 10;
+  oneof answer {
+    SingleChoice single_choice = 11;
+    MultipleChoice multiple_choice = 12;
+    OpenAnswer open_answer = 13;
+  }
 }
 
 message QuizInstance {
@@ -80,12 +96,14 @@ message CreateTemplateRequest {
 message QuestionInput {
   string id = 1;
   string text = 2;
-  string type = 3;
-  repeated string options = 4;
-  string correct_answer = 5;
   int32 order_index = 6;
   int32 max_score = 7;
   int32 time_limit_sec = 8;
+  oneof answer {
+    SingleChoice single_choice = 9;
+    MultipleChoice multiple_choice = 10;
+    OpenAnswer open_answer = 11;
+  }
 }
 
 message CreateTemplateResponse {

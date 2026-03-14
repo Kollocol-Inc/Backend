@@ -161,7 +161,7 @@ func (h *Hub) handleJoin(client *Client) {
 	}
 	log.Printf("Successfully retrieved quiz instance %s", client.InstanceID)
 
-	if quizResp.Instance.Status == constants.InstanceStatusFinished {
+	if quizResp.Instance.Status == constants.InstanceStatusPendingReview {
 		log.Printf("Quiz %s is finished, rejecting connection for user %s", client.InstanceID, client.UserID)
 		client.SendError("Quiz has already finished")
 
@@ -236,12 +236,31 @@ func (h *Hub) handleJoin(client *Client) {
 func (h *Hub) convertToQuizData(resp *pb.GetInstanceResponse) *models.QuizData {
 	questions := make([]models.Question, len(resp.Questions))
 	for i, q := range resp.Questions {
+		var questionType string
+		var options []string
+		var correctAnswer string
+
+		switch a := q.Answer.(type) {
+		case *pb.Question_SingleChoice:
+			questionType = constants.QuestionTypeSingle
+			options = a.SingleChoice.Options
+			correctAnswer = fmt.Sprintf("%d", a.SingleChoice.CorrectOption)
+		case *pb.Question_MultipleChoice:
+			questionType = constants.QuestionTypeMultiple
+			options = a.MultipleChoice.Options
+			b, _ := json.Marshal(a.MultipleChoice.CorrectOptions)
+			correctAnswer = string(b)
+		case *pb.Question_OpenAnswer:
+			questionType = constants.QuestionTypeOpen
+			correctAnswer = a.OpenAnswer.CorrectText
+		}
+
 		questions[i] = models.Question{
 			ID:            q.Id,
 			Text:          q.Text,
-			Type:          q.Type,
-			Options:       q.Options,
-			CorrectAnswer: q.CorrectAnswer,
+			Type:          questionType,
+			Options:       options,
+			CorrectAnswer: correctAnswer,
 			OrderIndex:    int(q.OrderIndex),
 			MaxScore:      int(q.MaxScore),
 			TimeLimitSec:  int(q.TimeLimitSec),
@@ -338,14 +357,44 @@ func (h *Hub) cancelAllTimersForInstance(instanceID string) {
 	}
 }
 
-func (h *Hub) validateAnswer(answer, correctAnswerJSON string) bool {
-	var correctAnswer any
+func (h *Hub) validateAnswer(answer, correctAnswerJSON, questionType string) bool {
+	var correctAnswer string
 	if err := json.Unmarshal([]byte(correctAnswerJSON), &correctAnswer); err != nil {
-		return strings.TrimSpace(strings.ToLower(answer)) == strings.TrimSpace(strings.ToLower(correctAnswerJSON))
+		correctAnswer = correctAnswerJSON
 	}
 
-	correctAnswerStr := fmt.Sprintf("%v", correctAnswer)
-	return strings.TrimSpace(strings.ToLower(answer)) == strings.TrimSpace(strings.ToLower(correctAnswerStr))
+	switch questionType {
+	case constants.QuestionTypeSingle:
+		return strings.TrimSpace(answer) == strings.TrimSpace(correctAnswer)
+
+	case constants.QuestionTypeMultiple:
+		var userIndices, correctIndices []int
+		if err := json.Unmarshal([]byte(answer), &userIndices); err != nil {
+			return false
+		}
+		if err := json.Unmarshal([]byte(correctAnswer), &correctIndices); err != nil {
+			return false
+		}
+		if len(userIndices) != len(correctIndices) {
+			return false
+		}
+		correctSet := make(map[int]struct{}, len(correctIndices))
+		for _, idx := range correctIndices {
+			correctSet[idx] = struct{}{}
+		}
+		for _, idx := range userIndices {
+			if _, ok := correctSet[idx]; !ok {
+				return false
+			}
+		}
+		return true
+
+	case constants.QuestionTypeOpen:
+		return strings.TrimSpace(strings.ToLower(answer)) == strings.TrimSpace(strings.ToLower(correctAnswer))
+
+	default:
+		return strings.TrimSpace(strings.ToLower(answer)) == strings.TrimSpace(strings.ToLower(correctAnswer))
+	}
 }
 
 func (h *Hub) calculateScore(maxScore int, timeSpentMs, timeLimitMs int64) int {

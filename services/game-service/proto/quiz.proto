@@ -18,17 +18,33 @@ message QuizSettings {
   bool allow_review = 4;
 }
 
+message SingleChoice {
+  repeated string options = 1;
+  int32 correct_option = 2;
+}
+
+message MultipleChoice {
+  repeated string options = 1;
+  repeated int32 correct_options = 2;
+}
+
+message OpenAnswer {
+  string correct_text = 1;
+}
+
 message Question {
   string id = 1;
   string template_id = 2;
   string text = 3;
-  string type = 4;
-  repeated string options = 5;
-  string correct_answer = 6;
   int32 order_index = 7;
   int32 max_score = 8;
   int32 time_limit_sec = 9;
   string ai_answer = 10;
+  oneof answer {
+    SingleChoice single_choice = 11;
+    MultipleChoice multiple_choice = 12;
+    OpenAnswer open_answer = 13;
+  }
 }
 
 message QuizInstance {

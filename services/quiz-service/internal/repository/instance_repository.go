@@ -199,7 +199,7 @@ func (r *InstanceRepository) GetInstanceWithQuestions(ctx context.Context, insta
 	query := `
 		SELECT
 			i.id, i.template_id, i.title, i.access_code, i.status, i.group_id, i.created_by, i.created_at, i.start_time, i.deadline, i.quiz_type, i.settings, i.total_time, i.total_questions,
-			q.id, q.text, q.type, q.options, q.correct_answer, iq.order_index, q.max_score, q.time_limit_sec, q.ai_answer
+			q.id, q.text, q.type, q.correct_answer, iq.order_index, q.max_score, q.time_limit_sec, q.ai_answer
 		FROM quiz_instances i
 		LEFT JOIN instance_questions iq ON i.id = iq.instance_id
 		LEFT JOIN questions q ON iq.question_id = q.id
@@ -224,7 +224,7 @@ func (r *InstanceRepository) GetInstanceWithQuestions(ctx context.Context, insta
 		}
 
 		var qID sql.NullString
-		var qText, qType, qOptions, qCorrectAnswer sql.NullString
+		var qText, qType, qCorrectAnswer sql.NullString
 		var qOrderIndex, qMaxScore, qTimeLimitSec sql.NullInt32
 		var qAIAnswer sql.NullString
 
@@ -246,7 +246,6 @@ func (r *InstanceRepository) GetInstanceWithQuestions(ctx context.Context, insta
 			&qID,
 			&qText,
 			&qType,
-			&qOptions,
 			&qCorrectAnswer,
 			&qOrderIndex,
 			&qMaxScore,
@@ -263,7 +262,6 @@ func (r *InstanceRepository) GetInstanceWithQuestions(ctx context.Context, insta
 				TemplateID:    result.Instance.ID,
 				Text:          qText.String,
 				Type:          qType.String,
-				Options:       qOptions.String,
 				CorrectAnswer: qCorrectAnswer.String,
 				OrderIndex:    int(qOrderIndex.Int32),
 				MaxScore:      int(qMaxScore.Int32),

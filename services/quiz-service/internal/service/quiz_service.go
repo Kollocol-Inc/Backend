@@ -64,21 +64,15 @@ func (s *QuizService) CreateTemplate(ctx context.Context, req *pb.CreateTemplate
 
 	var questions []*repository.Question
 	for _, q := range req.Questions {
-		optionsJSON, err := json.Marshal(q.Options)
+		questionType, correctAnswerJSON, err := s.questionInputToDB(q)
 		if err != nil {
-			return nil, errors.New(codes.Internal, errors.ReasonOptionsMarshalFailed, "Failed to marshal options", map[string]string{"template_id": template.ID})
-		}
-
-		correctAnswerJSON, err := repository.CorrectAnswerToJSON(q.CorrectAnswer)
-		if err != nil {
-			return nil, errors.New(codes.Internal, errors.ReasonAnswerMarshalFailed, "Failed to marshal correct answer", map[string]string{"template_id": template.ID})
+			return nil, errors.New(codes.Internal, errors.ReasonAnswerMarshalFailed, "Failed to marshal answer", map[string]string{"template_id": template.ID})
 		}
 
 		question := &repository.Question{
 			TemplateID:    template.ID,
 			Text:          q.Text,
-			Type:          q.Type,
-			Options:       string(optionsJSON),
+			Type:          questionType,
 			CorrectAnswer: correctAnswerJSON,
 			OrderIndex:    int(q.OrderIndex),
 			MaxScore:      int(q.MaxScore),
@@ -188,14 +182,9 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 
 	var questions []*repository.Question
 	for _, q := range req.Questions {
-		optionsJSON, err := json.Marshal(q.Options)
+		questionType, correctAnswerJSON, err := s.questionInputToDB(q)
 		if err != nil {
-			return nil, errors.New(codes.Internal, errors.ReasonOptionsMarshalFailed, "Failed to marshal options", map[string]string{"template_id": req.TemplateId})
-		}
-
-		correctAnswerJSON, err := repository.CorrectAnswerToJSON(q.CorrectAnswer)
-		if err != nil {
-			return nil, errors.New(codes.Internal, errors.ReasonAnswerMarshalFailed, "Failed to marshal correct answer", map[string]string{"template_id": req.TemplateId})
+			return nil, errors.New(codes.Internal, errors.ReasonAnswerMarshalFailed, "Failed to marshal answer", map[string]string{"template_id": req.TemplateId})
 		}
 
 		var questionIDToLink string
@@ -204,8 +193,7 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 		if q.Id != "" {
 			if existingQ, ok := existingQuestionsMap[q.Id]; ok {
 				if existingQ.Text == q.Text &&
-					existingQ.Type == q.Type &&
-					existingQ.Options == string(optionsJSON) &&
+					existingQ.Type == questionType &&
 					existingQ.CorrectAnswer == correctAnswerJSON &&
 					existingQ.MaxScore == int(q.MaxScore) &&
 					existingQ.TimeLimitSec == int(q.TimeLimitSec) {
@@ -225,8 +213,7 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 			question = &repository.Question{
 				TemplateID:    req.TemplateId,
 				Text:          q.Text,
-				Type:          q.Type,
-				Options:       string(optionsJSON),
+				Type:          questionType,
 				CorrectAnswer: correctAnswerJSON,
 				OrderIndex:    int(q.OrderIndex),
 				MaxScore:      int(q.MaxScore),
@@ -261,9 +248,7 @@ func (s *QuizService) DeleteTemplate(ctx context.Context, req *pb.DeleteTemplate
 		return nil, errors.New(codes.Internal, errors.ReasonTemplateDeleteFailed, "Failed to delete template", map[string]string{"template_id": req.TemplateId})
 	}
 
-	return &pb.DeleteTemplateResponse{
-		Success: true,
-	}, nil
+	return &pb.DeleteTemplateResponse{}, nil
 }
 
 func (s *QuizService) CreateInstance(ctx context.Context, req *pb.CreateInstanceRequest) (*pb.CreateInstanceResponse, error) {
@@ -332,9 +317,8 @@ func (s *QuizService) GetInstanceByAccessCode(ctx context.Context, req *pb.GetIn
 	instance, err := s.instanceRepo.GetInstanceByAccessCode(ctx, req.AccessCode)
 	if err != nil {
 		return &pb.GetInstanceByAccessCodeResponse{
-			Instance:     nil,
-			HasAccess:    false,
-			ErrorMessage: "Quiz not found",
+			Instance:  nil,
+			HasAccess: false,
 		}, nil
 	}
 
@@ -410,26 +394,65 @@ func (s *QuizService) templateToProto(t *repository.Template) *pb.QuizTemplate {
 func (s *QuizService) questionsToProto(questions []*repository.Question) []*pb.Question {
 	var protoQuestions []*pb.Question
 	for _, q := range questions {
-		var options []string
-		json.Unmarshal([]byte(q.Options), &options)
-
 		protoQuestion := &pb.Question{
-			Id:            q.ID,
-			TemplateId:    q.TemplateID,
-			Text:          q.Text,
-			Type:          q.Type,
-			Options:       options,
-			CorrectAnswer: q.CorrectAnswer,
-			OrderIndex:    int32(q.OrderIndex),
-			MaxScore:      int32(q.MaxScore),
-			TimeLimitSec:  int32(q.TimeLimitSec),
+			Id:           q.ID,
+			TemplateId:   q.TemplateID,
+			Text:         q.Text,
+			OrderIndex:   int32(q.OrderIndex),
+			MaxScore:     int32(q.MaxScore),
+			TimeLimitSec: int32(q.TimeLimitSec),
 		}
+
+		switch q.Type {
+		case "single":
+			var data repository.SingleChoiceData
+			json.Unmarshal([]byte(q.CorrectAnswer), &data)
+			protoQuestion.Answer = &pb.Question_SingleChoice{
+				SingleChoice: &pb.SingleChoice{Options: data.Options, CorrectOption: data.CorrectOption},
+			}
+		case "multiple":
+			var data repository.MultipleChoiceData
+			json.Unmarshal([]byte(q.CorrectAnswer), &data)
+			protoQuestion.Answer = &pb.Question_MultipleChoice{
+				MultipleChoice: &pb.MultipleChoice{Options: data.Options, CorrectOptions: data.CorrectOptions},
+			}
+		case "open":
+			var data repository.OpenAnswerData
+			json.Unmarshal([]byte(q.CorrectAnswer), &data)
+			protoQuestion.Answer = &pb.Question_OpenAnswer{
+				OpenAnswer: &pb.OpenAnswer{CorrectText: data.CorrectText},
+			}
+		}
+
 		if q.AIAnswer.Valid {
 			protoQuestion.AiAnswer = q.AIAnswer.String
 		}
 		protoQuestions = append(protoQuestions, protoQuestion)
 	}
 	return protoQuestions
+}
+
+func (s *QuizService) questionInputToDB(q *pb.QuestionInput) (questionType string, correctAnswerJSON string, err error) {
+	switch a := q.Answer.(type) {
+	case *pb.QuestionInput_SingleChoice:
+		questionType = "single"
+		correctAnswerJSON, err = repository.MarshalAnswerJSON(repository.SingleChoiceData{
+			Options:       a.SingleChoice.Options,
+			CorrectOption: a.SingleChoice.CorrectOption,
+		})
+	case *pb.QuestionInput_MultipleChoice:
+		questionType = "multiple"
+		correctAnswerJSON, err = repository.MarshalAnswerJSON(repository.MultipleChoiceData{
+			Options:        a.MultipleChoice.Options,
+			CorrectOptions: a.MultipleChoice.CorrectOptions,
+		})
+	case *pb.QuestionInput_OpenAnswer:
+		questionType = "open"
+		correctAnswerJSON, err = repository.MarshalAnswerJSON(repository.OpenAnswerData{
+			CorrectText: a.OpenAnswer.CorrectText,
+		})
+	}
+	return
 }
 
 func (s *QuizService) instanceToProto(i *repository.Instance) *pb.QuizInstance {

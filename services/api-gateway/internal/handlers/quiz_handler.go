@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -43,15 +44,7 @@ func (h *QuizHandler) CreateTemplate(c *gin.Context) {
 
 	questions := make([]*pb.QuestionInput, len(req.Questions))
 	for i, q := range req.Questions {
-		questions[i] = &pb.QuestionInput{
-			Text:          q.Text,
-			Type:          q.Type,
-			Options:       q.Options,
-			CorrectAnswer: q.CorrectAnswer,
-			OrderIndex:    q.OrderIndex,
-			MaxScore:      q.MaxScore,
-			TimeLimitSec:  q.TimeLimitSec,
-		}
+		questions[i] = questionInputToProto(&q)
 	}
 
 	resp, err := h.quizClient.CreateTemplate(c.Request.Context(), &pb.CreateTemplateRequest{
@@ -99,42 +92,7 @@ func (h *QuizHandler) GetTemplates(c *gin.Context) {
 
 	templates := make([]dto.TemplateDTO, len(resp.Templates))
 	for i, twq := range resp.Templates {
-		t := twq.Template
-
-		var totalTime uint64
-		questions := make([]dto.QuestionDTO, len(twq.Questions))
-		for j, q := range twq.Questions {
-			totalTime += uint64(q.TimeLimitSec)
-			questions[j] = dto.QuestionDTO{
-				ID:            q.Id,
-				Text:          q.Text,
-				Type:          q.Type,
-				Options:       q.Options,
-				CorrectAnswer: q.CorrectAnswer,
-				OrderIndex:    q.OrderIndex,
-				MaxScore:      q.MaxScore,
-				TimeLimitSec:  q.TimeLimitSec,
-			}
-		}
-
-		templates[i] = dto.TemplateDTO{
-			ID:          t.Id,
-			UserID:      t.OwnerId,
-			Title:       t.Title,
-			Description: t.Description,
-			QuizType:    t.QuizType,
-			Settings: dto.QuizSettings{
-				RandomOrder:        t.Settings.RandomOrder,
-				TimeLimitTotal:     t.Settings.TimeLimitTotal,
-				ShowCorrectAnswers: t.Settings.ShowCorrectAnswers,
-				AllowReview:        t.Settings.AllowReview,
-			},
-			Questions:      questions,
-			CreatedAt:      t.CreatedAt.AsTime().Format(time.RFC3339),
-			UpdatedAt:      t.UpdatedAt.AsTime().Format(time.RFC3339),
-			TotalTime:      totalTime,
-			TotalQuestions: uint64(len(questions)),
-		}
+		templates[i] = templateProtoToDTO(twq.Template, twq.Questions)
 	}
 
 	c.JSON(http.StatusOK, dto.GetTemplatesResponse{
@@ -164,44 +122,8 @@ func (h *QuizHandler) GetTemplate(c *gin.Context) {
 		return
 	}
 
-	t := resp.Template
-	var totalTime uint64
-	questions := make([]dto.QuestionDTO, len(resp.Questions))
-	for j, q := range resp.Questions {
-		totalTime += uint64(q.TimeLimitSec)
-		questions[j] = dto.QuestionDTO{
-			ID:            q.Id,
-			Text:          q.Text,
-			Type:          q.Type,
-			Options:       q.Options,
-			CorrectAnswer: q.CorrectAnswer,
-			OrderIndex:    q.OrderIndex,
-			MaxScore:      q.MaxScore,
-			TimeLimitSec:  q.TimeLimitSec,
-		}
-	}
-
-	template := dto.TemplateDTO{
-		ID:          t.Id,
-		UserID:      t.OwnerId,
-		Title:       t.Title,
-		Description: t.Description,
-		QuizType:    t.QuizType,
-		Settings: dto.QuizSettings{
-			RandomOrder:        t.Settings.RandomOrder,
-			TimeLimitTotal:     t.Settings.TimeLimitTotal,
-			ShowCorrectAnswers: t.Settings.ShowCorrectAnswers,
-			AllowReview:        t.Settings.AllowReview,
-		},
-		Questions:      questions,
-		CreatedAt:      t.CreatedAt.AsTime().Format(time.RFC3339),
-		UpdatedAt:      t.UpdatedAt.AsTime().Format(time.RFC3339),
-		TotalTime:      totalTime,
-		TotalQuestions: uint64(len(questions)),
-	}
-
 	c.JSON(http.StatusOK, dto.GetTemplateResponse{
-		Template: template,
+		Template: templateProtoToDTO(resp.Template, resp.Questions),
 	})
 }
 
@@ -227,16 +149,9 @@ func (h *QuizHandler) UpdateTemplate(c *gin.Context) {
 
 	questions := make([]*pb.QuestionInput, len(req.Questions))
 	for i, q := range req.Questions {
-		questions[i] = &pb.QuestionInput{
-			Id:            q.ID,
-			Text:          q.Text,
-			Type:          q.Type,
-			Options:       q.Options,
-			CorrectAnswer: q.CorrectAnswer,
-			OrderIndex:    q.OrderIndex,
-			MaxScore:      q.MaxScore,
-			TimeLimitSec:  q.TimeLimitSec,
-		}
+		qi := questionInputToProto(&q)
+		qi.Id = q.ID
+		questions[i] = qi
 	}
 
 	resp, err := h.quizClient.UpdateTemplate(c.Request.Context(), &pb.UpdateTemplateRequest{
@@ -385,16 +300,7 @@ func (h *QuizHandler) GetInstance(c *gin.Context) {
 
 	questions := make([]dto.QuestionDTO, len(resp.Questions))
 	for i, q := range resp.Questions {
-		questions[i] = dto.QuestionDTO{
-			ID:            q.Id,
-			Text:          q.Text,
-			Type:          q.Type,
-			Options:       q.Options,
-			CorrectAnswer: q.CorrectAnswer,
-			OrderIndex:    q.OrderIndex,
-			MaxScore:      q.MaxScore,
-			TimeLimitSec:  q.TimeLimitSec,
-		}
+		questions[i] = questionProtoToDTO(q)
 	}
 
 	c.JSON(http.StatusOK, dto.GetInstanceResponse{
@@ -513,4 +419,91 @@ func (h *QuizHandler) GetParticipatingInstances(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.GetParticipatingInstancesResponse{
 		Instances: instances,
 	})
+}
+
+func questionInputToProto(q *dto.QuestionInput) *pb.QuestionInput {
+	qi := &pb.QuestionInput{
+		Text:         q.Text,
+		OrderIndex:   q.OrderIndex,
+		MaxScore:     q.MaxScore,
+		TimeLimitSec: q.TimeLimitSec,
+	}
+
+	switch q.Type {
+	case "single":
+		var correctOption int32
+		json.Unmarshal(q.CorrectAnswer, &correctOption)
+		qi.Answer = &pb.QuestionInput_SingleChoice{
+			SingleChoice: &pb.SingleChoice{Options: q.Options, CorrectOption: correctOption},
+		}
+	case "multiple":
+		var correctOptions []int32
+		json.Unmarshal(q.CorrectAnswer, &correctOptions)
+		qi.Answer = &pb.QuestionInput_MultipleChoice{
+			MultipleChoice: &pb.MultipleChoice{Options: q.Options, CorrectOptions: correctOptions},
+		}
+	case "open":
+		var correctText string
+		json.Unmarshal(q.CorrectAnswer, &correctText)
+		qi.Answer = &pb.QuestionInput_OpenAnswer{
+			OpenAnswer: &pb.OpenAnswer{CorrectText: correctText},
+		}
+	}
+
+	return qi
+}
+
+func templateProtoToDTO(t *pb.QuizTemplate, protoQuestions []*pb.Question) dto.TemplateDTO {
+	questions := make([]dto.QuestionDTO, len(protoQuestions))
+	var totalTime uint64
+	for i, q := range protoQuestions {
+		questions[i] = questionProtoToDTO(q)
+		totalTime += uint64(q.TimeLimitSec)
+	}
+
+	return dto.TemplateDTO{
+		ID:             t.Id,
+		UserID:         t.OwnerId,
+		Title:          t.Title,
+		Description:    t.Description,
+		QuizType:       t.QuizType,
+		Settings: dto.QuizSettings{
+			RandomOrder:        t.Settings.RandomOrder,
+			TimeLimitTotal:     t.Settings.TimeLimitTotal,
+			ShowCorrectAnswers: t.Settings.ShowCorrectAnswers,
+			AllowReview:        t.Settings.AllowReview,
+		},
+		Questions:      questions,
+		CreatedAt:      t.CreatedAt.AsTime().Format(time.RFC3339),
+		UpdatedAt:      t.UpdatedAt.AsTime().Format(time.RFC3339),
+		TotalTime:      totalTime,
+		TotalQuestions: uint64(len(protoQuestions)),
+	}
+}
+
+func questionProtoToDTO(q *pb.Question) dto.QuestionDTO {
+	d := dto.QuestionDTO{
+		ID:           q.Id,
+		Text:         q.Text,
+		OrderIndex:   q.OrderIndex,
+		MaxScore:     q.MaxScore,
+		TimeLimitSec: q.TimeLimitSec,
+		AIAnswer:     q.AiAnswer,
+	}
+
+	switch a := q.Answer.(type) {
+	case *pb.Question_SingleChoice:
+		d.Type = "single"
+		d.Options = a.SingleChoice.Options
+		d.CorrectAnswer = a.SingleChoice.CorrectOption
+	case *pb.Question_MultipleChoice:
+		d.Type = "multiple"
+		d.Options = a.MultipleChoice.Options
+		d.CorrectAnswer = a.MultipleChoice.CorrectOptions
+	case *pb.Question_OpenAnswer:
+		d.Type = "open"
+		d.CorrectAnswer = a.OpenAnswer.CorrectText
+	}
+
+	return d
 }

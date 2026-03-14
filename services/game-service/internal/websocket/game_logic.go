@@ -373,7 +373,7 @@ func (h *Hub) handleAnswer(client *Client, payload any) {
 		}
 	}
 
-	isCorrect := h.validateAnswer(answerPayload.Answer, question.CorrectAnswer)
+	isCorrect := h.validateAnswer(answerPayload.Answer, question.CorrectAnswer, question.Type)
 
 	score := 0
 	if isCorrect {
@@ -473,7 +473,7 @@ func (h *Hub) handleContinue(client *Client) {
 
 	if nextQuestionIndex >= len(quizData.Questions) {
 		log.Printf("Quiz %s finished, updating status", client.InstanceID)
-		if err := h.updateInstanceStatus(ctx, client.InstanceID, constants.InstanceStatusFinished); err != nil {
+		if err := h.updateInstanceStatus(ctx, client.InstanceID, constants.InstanceStatusPendingReview); err != nil {
 			log.Printf("Failed to update instance status: %v", err)
 		}
 
