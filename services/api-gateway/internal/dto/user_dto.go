@@ -12,10 +12,10 @@ type UpdateProfileRequest struct {
 }
 
 type UpdateNotificationSettingsRequest struct {
-	NewQuizzes       *bool   `json:"new_quizzes,omitempty" example:"true"`
-	QuizResults      *bool   `json:"quiz_results,omitempty" example:"true"`
-	GroupInvites     *bool   `json:"group_invites,omitempty" example:"true"`
-	DeadlineReminder *string `json:"deadline_reminder,omitempty" example:"24h"`
+	NewQuizzes   *bool `json:"new_quizzes,omitempty" example:"true"`
+	QuizResults  *bool `json:"quiz_results,omitempty" example:"true"`
+	GroupInvites *bool `json:"group_invites,omitempty" example:"true"`
+	DeadlineReminder *string `json:"deadline_reminder,omitempty" enums:"never,1h,3h,6h,12h,24h" example:"24h"`
 }
 
 
@@ -41,11 +41,11 @@ type UserDTO struct {
 }
 
 type NotificationSettingsDTO struct {
-	UserID           string `json:"user_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	NewQuizzes       bool   `json:"new_quizzes" example:"true"`
-	QuizResults      bool   `json:"quiz_results" example:"true"`
-	GroupInvites     bool   `json:"group_invites" example:"true"`
-	DeadlineReminder string `json:"deadline_reminder" example:"24h"`
+	UserID       string `json:"user_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	NewQuizzes   bool   `json:"new_quizzes" example:"true"`
+	QuizResults  bool   `json:"quiz_results" example:"true"`
+	GroupInvites bool   `json:"group_invites" example:"true"`
+	DeadlineReminder string `json:"deadline_reminder" enums:"never,1h,3h,6h,12h,24h" example:"24h"`
 }
 
 

@@ -314,7 +314,7 @@ func (h *QuizHandler) GetInstance(c *gin.Context) {
 // @Tags Quiz
 // @Produce json
 // @Security BearerAuth
-// @Param status query string false "Status filter"
+// @Param status query string false "Instance status filter" Enums(waiting,active,pending_review,reviewed)
 // @Success 200 {object} dto.GetHostingInstancesResponse
 // @Router /quizzes/instances/hosting [get]
 func (h *QuizHandler) GetHostingInstances(c *gin.Context) {
@@ -368,7 +368,7 @@ func (h *QuizHandler) GetHostingInstances(c *gin.Context) {
 // @Tags Quiz
 // @Produce json
 // @Security BearerAuth
-// @Param session_status query string false "Session status filter (not_started, joined, in_progress, finished)"
+// @Param session_status query string false "Session status filter" Enums(not_started,joined,in_progress,finished)
 // @Success 200 {object} dto.GetParticipatingInstancesResponse
 // @Router /quizzes/instances/participating [get]
 func (h *QuizHandler) GetParticipatingInstances(c *gin.Context) {
