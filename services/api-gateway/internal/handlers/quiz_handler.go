@@ -101,8 +101,10 @@ func (h *QuizHandler) GetTemplates(c *gin.Context) {
 	for i, twq := range resp.Templates {
 		t := twq.Template
 
+		var totalTime uint64
 		questions := make([]dto.QuestionDTO, len(twq.Questions))
 		for j, q := range twq.Questions {
+			totalTime += uint64(q.TimeLimitSec)
 			questions[j] = dto.QuestionDTO{
 				ID:            q.Id,
 				Text:          q.Text,
@@ -127,9 +129,11 @@ func (h *QuizHandler) GetTemplates(c *gin.Context) {
 				ShowCorrectAnswers: t.Settings.ShowCorrectAnswers,
 				AllowReview:        t.Settings.AllowReview,
 			},
-			Questions: questions,
-			CreatedAt: t.CreatedAt.AsTime().Format(time.RFC3339),
-			UpdatedAt: t.UpdatedAt.AsTime().Format(time.RFC3339),
+			Questions:      questions,
+			CreatedAt:      t.CreatedAt.AsTime().Format(time.RFC3339),
+			UpdatedAt:      t.UpdatedAt.AsTime().Format(time.RFC3339),
+			TotalTime:      totalTime,
+			TotalQuestions: uint64(len(questions)),
 		}
 	}
 
@@ -161,8 +165,10 @@ func (h *QuizHandler) GetTemplate(c *gin.Context) {
 	}
 
 	t := resp.Template
+	var totalTime uint64
 	questions := make([]dto.QuestionDTO, len(resp.Questions))
 	for j, q := range resp.Questions {
+		totalTime += uint64(q.TimeLimitSec)
 		questions[j] = dto.QuestionDTO{
 			ID:            q.Id,
 			Text:          q.Text,
@@ -187,9 +193,11 @@ func (h *QuizHandler) GetTemplate(c *gin.Context) {
 			ShowCorrectAnswers: t.Settings.ShowCorrectAnswers,
 			AllowReview:        t.Settings.AllowReview,
 		},
-		Questions: questions,
-		CreatedAt: t.CreatedAt.AsTime().Format(time.RFC3339),
-		UpdatedAt: t.UpdatedAt.AsTime().Format(time.RFC3339),
+		Questions:      questions,
+		CreatedAt:      t.CreatedAt.AsTime().Format(time.RFC3339),
+		UpdatedAt:      t.UpdatedAt.AsTime().Format(time.RFC3339),
+		TotalTime:      totalTime,
+		TotalQuestions: uint64(len(questions)),
 	}
 
 	c.JSON(http.StatusOK, dto.GetTemplateResponse{

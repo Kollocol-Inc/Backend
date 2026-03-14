@@ -39,15 +39,17 @@ type QuestionDTO struct {
 }
 
 type TemplateDTO struct {
-	ID          string         `json:"id"`
-	UserID      string         `json:"user_id"`
-	Title       string         `json:"title"`
-	Description string         `json:"description"`
-	QuizType    string         `json:"quiz_type"`
-	Settings    QuizSettings   `json:"settings"`
-	Questions   []QuestionDTO  `json:"questions"`
-	CreatedAt   string         `json:"created_at"`
-	UpdatedAt   string         `json:"updated_at"`
+	ID             string         `json:"id"`
+	UserID         string         `json:"user_id"`
+	Title          string         `json:"title"`
+	Description    string         `json:"description"`
+	QuizType       string         `json:"quiz_type"`
+	Settings       QuizSettings   `json:"settings"`
+	Questions      []QuestionDTO  `json:"questions"`
+	CreatedAt      string         `json:"created_at"`
+	UpdatedAt      string         `json:"updated_at"`
+	TotalTime      uint64         `json:"total_time"`
+	TotalQuestions uint64         `json:"total_questions"`
 }
 
 type CreateTemplateResponse struct {
