@@ -45,7 +45,7 @@ func NewQuizService(
 }
 
 func (s *QuizService) CreateTemplate(ctx context.Context, req *pb.CreateTemplateRequest) (*pb.CreateTemplateResponse, error) {
-	settingsJSON, err := json.Marshal(req.Settings)
+	settingsJSON, err := s.marshalSettings(req.Settings)
 	if err != nil {
 		return nil, errors.New(codes.Internal, errors.ReasonSettingsMarshalFailed, "Failed to marshal settings", nil)
 	}
@@ -54,7 +54,7 @@ func (s *QuizService) CreateTemplate(ctx context.Context, req *pb.CreateTemplate
 		OwnerID:  req.UserId,
 		Title:    req.Title,
 		QuizType: req.QuizType,
-		Settings: string(settingsJSON),
+		Settings: settingsJSON,
 	}
 
 	if err := s.templateRepo.CreateTemplate(ctx, template); err != nil {
@@ -62,7 +62,7 @@ func (s *QuizService) CreateTemplate(ctx context.Context, req *pb.CreateTemplate
 	}
 
 	var questions []*repository.Question
-	for _, q := range req.Questions {
+	for i, q := range req.Questions {
 		questionType, correctAnswerJSON, err := s.questionInputToDB(q)
 		if err != nil {
 			return nil, errors.New(codes.Internal, errors.ReasonAnswerMarshalFailed, "Failed to marshal answer", map[string]string{"template_id": template.ID})
@@ -73,7 +73,7 @@ func (s *QuizService) CreateTemplate(ctx context.Context, req *pb.CreateTemplate
 			Text:          q.Text,
 			Type:          questionType,
 			CorrectAnswer: correctAnswerJSON,
-			OrderIndex:    int(q.OrderIndex),
+			OrderIndex:    i,
 			MaxScore:      int(q.MaxScore),
 			TimeLimitSec:  int(q.TimeLimitSec),
 		}
@@ -146,7 +146,7 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "User is not the template owner", map[string]string{"template_id": req.TemplateId, "user_id": req.UserId, "owner_id": existing.OwnerID})
 	}
 
-	settingsJSON, err := json.Marshal(req.Settings)
+	settingsJSON, err := s.marshalSettings(req.Settings)
 	if err != nil {
 		return nil, errors.New(codes.Internal, errors.ReasonSettingsMarshalFailed, "Failed to marshal settings", map[string]string{"template_id": req.TemplateId})
 	}
@@ -155,21 +155,11 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 		ID:       req.TemplateId,
 		OwnerID:  req.UserId,
 		Title:    req.Title,
-		Settings: string(settingsJSON),
+		Settings: settingsJSON,
 	}
 
 	if err := s.templateRepo.UpdateTemplate(ctx, template); err != nil {
 		return nil, errors.New(codes.Internal, errors.ReasonTemplateUpdateFailed, "Failed to update template", map[string]string{"template_id": req.TemplateId})
-	}
-
-	existingQuestions, err := s.templateRepo.GetQuestionsByTemplateID(ctx, req.TemplateId)
-	if err != nil {
-		return nil, errors.New(codes.Internal, errors.ReasonTemplateNotFound, "Failed to get existing questions", map[string]string{"template_id": req.TemplateId})
-	}
-
-	existingQuestionsMap := make(map[string]*repository.Question)
-	for _, q := range existingQuestions {
-		existingQuestionsMap[q.ID] = q
 	}
 
 	if err := s.templateRepo.DeleteQuestionsByTemplateID(ctx, req.TemplateId); err != nil {
@@ -177,47 +167,23 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 	}
 
 	var questions []*repository.Question
-	for _, q := range req.Questions {
+	for i, q := range req.Questions {
 		questionType, correctAnswerJSON, err := s.questionInputToDB(q)
 		if err != nil {
 			return nil, errors.New(codes.Internal, errors.ReasonAnswerMarshalFailed, "Failed to marshal answer", map[string]string{"template_id": req.TemplateId})
 		}
 
-		var questionIDToLink string
-		var question *repository.Question
-
-		if q.Id != "" {
-			if existingQ, ok := existingQuestionsMap[q.Id]; ok {
-				if existingQ.Text == q.Text &&
-					existingQ.Type == questionType &&
-					existingQ.CorrectAnswer == correctAnswerJSON &&
-					existingQ.MaxScore == int(q.MaxScore) &&
-					existingQ.TimeLimitSec == int(q.TimeLimitSec) {
-
-					questionIDToLink = existingQ.ID
-					question = existingQ
-					question.OrderIndex = int(q.OrderIndex)
-				}
-			}
+		question := &repository.Question{
+			TemplateID:    req.TemplateId,
+			Text:          q.Text,
+			Type:          questionType,
+			CorrectAnswer: correctAnswerJSON,
+			OrderIndex:    i,
+			MaxScore:      int(q.MaxScore),
+			TimeLimitSec:  int(q.TimeLimitSec),
 		}
-
-		if questionIDToLink != "" {
-			if err := s.templateRepo.LinkQuestionToTemplate(ctx, req.TemplateId, questionIDToLink, int(q.OrderIndex)); err != nil {
-				return nil, errors.New(codes.Internal, errors.ReasonQuestionCreateFailed, "Failed to link existing question", map[string]string{"template_id": req.TemplateId})
-			}
-		} else {
-			question = &repository.Question{
-				TemplateID:    req.TemplateId,
-				Text:          q.Text,
-				Type:          questionType,
-				CorrectAnswer: correctAnswerJSON,
-				OrderIndex:    int(q.OrderIndex),
-				MaxScore:      int(q.MaxScore),
-				TimeLimitSec:  int(q.TimeLimitSec),
-			}
-			if err := s.templateRepo.CreateQuestion(ctx, question); err != nil {
-				return nil, errors.New(codes.Internal, errors.ReasonQuestionCreateFailed, "Failed to create question", map[string]string{"template_id": req.TemplateId})
-			}
+		if err := s.templateRepo.CreateQuestion(ctx, question); err != nil {
+			return nil, errors.New(codes.Internal, errors.ReasonQuestionCreateFailed, "Failed to create question", map[string]string{"template_id": req.TemplateId})
 		}
 		questions = append(questions, question)
 	}
@@ -370,18 +336,25 @@ func (s *QuizService) GetParticipatingInstances(ctx context.Context, req *pb.Get
 }
 
 func (s *QuizService) templateToProto(t *repository.Template) *pb.QuizTemplate {
-	var settings pb.QuizSettings
-	json.Unmarshal([]byte(t.Settings), &settings)
-
-	return &pb.QuizTemplate{
+	tmpl := &pb.QuizTemplate{
 		Id:        t.ID,
 		OwnerId:   t.OwnerID,
 		Title:     t.Title,
 		QuizType:  t.QuizType,
-		Settings:  &settings,
 		CreatedAt: timestamppb.New(t.CreatedAt),
 		UpdatedAt: timestamppb.New(t.UpdatedAt),
 	}
+
+	switch t.QuizType {
+	case "sync":
+		tmpl.Settings = &pb.QuizTemplate_SyncSettings{SyncSettings: &pb.QuizSyncSettings{}}
+	case "async":
+		var asyncSettings pb.QuizAsyncSettings
+		json.Unmarshal([]byte(t.Settings), &asyncSettings)
+		tmpl.Settings = &pb.QuizTemplate_AsyncSettings{AsyncSettings: &asyncSettings}
+	}
+
+	return tmpl
 }
 
 func (s *QuizService) questionsToProto(questions []*repository.Question) []*pb.Question {
@@ -446,9 +419,6 @@ func (s *QuizService) questionInputToDB(q *pb.QuestionInput) (questionType strin
 }
 
 func (s *QuizService) instanceToProto(i *repository.Instance) *pb.QuizInstance {
-	var settings pb.QuizSettings
-	json.Unmarshal([]byte(i.Settings), &settings)
-
 	instance := &pb.QuizInstance{
 		Id:             i.ID,
 		Title:          i.Title,
@@ -457,9 +427,17 @@ func (s *QuizService) instanceToProto(i *repository.Instance) *pb.QuizInstance {
 		CreatedBy:      i.CreatedBy,
 		CreatedAt:      timestamppb.New(i.CreatedAt),
 		QuizType:       i.QuizType,
-		Settings:       &settings,
 		TotalTime:      i.TotalTime,
 		TotalQuestions: i.TotalQuestions,
+	}
+
+	switch i.QuizType {
+	case "sync":
+		instance.Settings = &pb.QuizInstance_SyncSettings{SyncSettings: &pb.QuizSyncSettings{}}
+	case "async":
+		var asyncSettings pb.QuizAsyncSettings
+		json.Unmarshal([]byte(i.Settings), &asyncSettings)
+		instance.Settings = &pb.QuizInstance_AsyncSettings{AsyncSettings: &asyncSettings}
 	}
 
 	if i.TemplateID.Valid {
@@ -479,6 +457,25 @@ func (s *QuizService) instanceToProto(i *repository.Instance) *pb.QuizInstance {
 	}
 
 	return instance
+}
+
+func (s *QuizService) marshalSettings(settings any) (string, error) {
+	switch st := settings.(type) {
+	case *pb.CreateTemplateRequest_AsyncSettings:
+		b, err := json.Marshal(st.AsyncSettings)
+		if err != nil {
+			return "", err
+		}
+		return string(b), nil
+	case *pb.UpdateTemplateRequest_AsyncSettings:
+		b, err := json.Marshal(st.AsyncSettings)
+		if err != nil {
+			return "", err
+		}
+		return string(b), nil
+	default:
+		return "{}", nil
+	}
 }
 
 func (s *QuizService) publishQuizCreated(ctx context.Context, instance *repository.Instance) {

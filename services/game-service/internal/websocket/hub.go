@@ -268,10 +268,8 @@ func (h *Hub) convertToQuizData(resp *pb.GetInstanceResponse) *models.QuizData {
 	}
 
 	settings := models.Settings{}
-	if resp.Instance.Settings != nil {
-		settings.RandomOrder = resp.Instance.Settings.RandomOrder
-		settings.TimeLimitTotal = int(resp.Instance.Settings.TimeLimitTotal)
-		settings.ShowCorrectAnswers = resp.Instance.Settings.ShowCorrectAnswers
+	if asyncSettings := resp.Instance.GetAsyncSettings(); asyncSettings != nil {
+		settings.QuestionsRandomOrder = asyncSettings.QuestionsRandomOrder
 	}
 
 	return &models.QuizData{

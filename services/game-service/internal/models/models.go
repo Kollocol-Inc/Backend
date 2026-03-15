@@ -44,9 +44,7 @@ type Question struct {
 }
 
 type Settings struct {
-	RandomOrder        bool `json:"random_order"`
-	TimeLimitTotal     int  `json:"time_limit_total"`
-	ShowCorrectAnswers bool `json:"show_correct_answers"`
+	QuestionsRandomOrder bool `json:"questions_random_order"`
 }
 
 type LeaderboardEntry struct {

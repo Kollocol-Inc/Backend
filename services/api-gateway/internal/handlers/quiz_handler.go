@@ -47,17 +47,20 @@ func (h *QuizHandler) CreateTemplate(c *gin.Context) {
 		questions[i] = questionInputToProto(&q)
 	}
 
-	resp, err := h.quizClient.CreateTemplate(c.Request.Context(), &pb.CreateTemplateRequest{
-		UserId:   userID,
-		Title:    req.Title,
-		QuizType: req.QuizType,
-		Settings: &pb.QuizSettings{
-			RandomOrder:        req.Settings.RandomOrder,
-			TimeLimitTotal:     req.Settings.TimeLimitTotal,
-			ShowCorrectAnswers: req.Settings.ShowCorrectAnswers,
-		},
+	protoReq := &pb.CreateTemplateRequest{
+		UserId:    userID,
+		Title:     req.Title,
+		QuizType:  req.QuizType,
 		Questions: questions,
-	})
+	}
+
+	if asyncSettings := parseAsyncSettings(req.QuizType, req.Settings); asyncSettings != nil {
+		protoReq.Settings = &pb.CreateTemplateRequest_AsyncSettings{AsyncSettings: asyncSettings}
+	} else {
+		protoReq.Settings = &pb.CreateTemplateRequest_SyncSettings{SyncSettings: &pb.QuizSyncSettings{}}
+	}
+
+	resp, err := h.quizClient.CreateTemplate(c.Request.Context(), protoReq)
 
 	if err != nil {
 		dto.JsonError(c, err)
@@ -147,23 +150,24 @@ func (h *QuizHandler) UpdateTemplate(c *gin.Context) {
 
 	questions := make([]*pb.QuestionInput, len(req.Questions))
 	for i, q := range req.Questions {
-		qi := questionInputToProto(&q)
-		qi.Id = q.ID
-		questions[i] = qi
+		questions[i] = questionInputToProto(&q)
 	}
 
-	resp, err := h.quizClient.UpdateTemplate(c.Request.Context(), &pb.UpdateTemplateRequest{
+	updateReq := &pb.UpdateTemplateRequest{
 		TemplateId: templateID,
 		UserId:     userID,
 		Title:      req.Title,
 		QuizType:   req.QuizType,
-		Settings: &pb.QuizSettings{
-			RandomOrder:        req.Settings.RandomOrder,
-			TimeLimitTotal:     req.Settings.TimeLimitTotal,
-			ShowCorrectAnswers: req.Settings.ShowCorrectAnswers,
-		},
-		Questions: questions,
-	})
+		Questions:  questions,
+	}
+
+	if asyncSettings := parseAsyncSettings(req.QuizType, req.Settings); asyncSettings != nil {
+		updateReq.Settings = &pb.UpdateTemplateRequest_AsyncSettings{AsyncSettings: asyncSettings}
+	} else {
+		updateReq.Settings = &pb.UpdateTemplateRequest_SyncSettings{SyncSettings: &pb.QuizSyncSettings{}}
+	}
+
+	resp, err := h.quizClient.UpdateTemplate(c.Request.Context(), updateReq)
 
 	if err != nil {
 		dto.JsonError(c, err)
@@ -270,24 +274,7 @@ func (h *QuizHandler) GetInstance(c *gin.Context) {
 	}
 
 	inst := resp.Instance
-	instance := dto.InstanceDTO{
-		ID:         inst.Id,
-		TemplateID: inst.TemplateId,
-		HostUserID: inst.CreatedBy,
-		Title:      inst.Title,
-		AccessCode: inst.AccessCode,
-		GroupID:    inst.GroupId,
-		Status:     inst.Status,
-		QuizType:   inst.QuizType,
-		Settings: dto.QuizSettings{
-			RandomOrder:        inst.Settings.RandomOrder,
-			TimeLimitTotal:     inst.Settings.TimeLimitTotal,
-			ShowCorrectAnswers: inst.Settings.ShowCorrectAnswers,
-		},
-		CreatedAt:      inst.CreatedAt.AsTime().Format(time.RFC3339),
-		TotalTime:      inst.TotalTime,
-		TotalQuestions: inst.TotalQuestions,
-	}
+	instance := instanceProtoToDTO(inst)
 
 	if inst.Deadline != nil {
 		instance.Deadline = inst.Deadline.AsTime().Format(time.RFC3339)
@@ -328,25 +315,7 @@ func (h *QuizHandler) GetHostingInstances(c *gin.Context) {
 
 	instances := make([]dto.InstanceDTO, len(resp.Instances))
 	for i, inst := range resp.Instances {
-		instances[i] = dto.InstanceDTO{
-			ID:         inst.Id,
-			TemplateID: inst.TemplateId,
-			HostUserID: inst.CreatedBy,
-			Title:      inst.Title,
-			AccessCode: inst.AccessCode,
-			GroupID:    inst.GroupId,
-			Status:     inst.Status,
-			QuizType:   inst.QuizType,
-			Settings: dto.QuizSettings{
-				RandomOrder:        inst.Settings.RandomOrder,
-				TimeLimitTotal:     inst.Settings.TimeLimitTotal,
-				ShowCorrectAnswers: inst.Settings.ShowCorrectAnswers,
-			},
-			CreatedAt:      inst.CreatedAt.AsTime().Format(time.RFC3339),
-			TotalTime:      inst.TotalTime,
-			TotalQuestions: inst.TotalQuestions,
-		}
-
+		instances[i] = instanceProtoToDTO(inst)
 		if inst.Deadline != nil {
 			instances[i].Deadline = inst.Deadline.AsTime().Format(time.RFC3339)
 		}
@@ -382,30 +351,13 @@ func (h *QuizHandler) GetParticipatingInstances(c *gin.Context) {
 	instances := make([]dto.ParticipatingInstanceDTO, len(resp.Instances))
 	for i, pi := range resp.Instances {
 		inst := pi.Instance
-		instances[i] = dto.ParticipatingInstanceDTO{
-			Instance: dto.InstanceDTO{
-				ID:         inst.Id,
-				TemplateID: inst.TemplateId,
-				HostUserID: inst.CreatedBy,
-				Title:      inst.Title,
-				AccessCode: inst.AccessCode,
-				GroupID:    inst.GroupId,
-				Status:     inst.Status,
-				QuizType:   inst.QuizType,
-				Settings: dto.QuizSettings{
-					RandomOrder:        inst.Settings.RandomOrder,
-					TimeLimitTotal:     inst.Settings.TimeLimitTotal,
-					ShowCorrectAnswers: inst.Settings.ShowCorrectAnswers,
-				},
-				CreatedAt:      inst.CreatedAt.AsTime().Format(time.RFC3339),
-				TotalTime:      inst.TotalTime,
-				TotalQuestions: inst.TotalQuestions,
-			},
-			SessionStatus: pi.SessionStatus,
-		}
-
+		instance := instanceProtoToDTO(inst)
 		if inst.Deadline != nil {
-			instances[i].Instance.Deadline = inst.Deadline.AsTime().Format(time.RFC3339)
+			instance.Deadline = inst.Deadline.AsTime().Format(time.RFC3339)
+		}
+		instances[i] = dto.ParticipatingInstanceDTO{
+			Instance:      instance,
+			SessionStatus: pi.SessionStatus,
 		}
 	}
 
@@ -417,7 +369,6 @@ func (h *QuizHandler) GetParticipatingInstances(c *gin.Context) {
 func questionInputToProto(q *dto.QuestionInput) *pb.QuestionInput {
 	qi := &pb.QuestionInput{
 		Text:         q.Text,
-		OrderIndex:   q.OrderIndex,
 		MaxScore:     q.MaxScore,
 		TimeLimitSec: q.TimeLimitSec,
 	}
@@ -455,15 +406,11 @@ func templateProtoToDTO(t *pb.QuizTemplate, protoQuestions []*pb.Question) dto.T
 	}
 
 	return dto.TemplateDTO{
-		ID:       t.Id,
-		UserID:   t.OwnerId,
-		Title:    t.Title,
-		QuizType: t.QuizType,
-		Settings: dto.QuizSettings{
-			RandomOrder:        t.Settings.RandomOrder,
-			TimeLimitTotal:     t.Settings.TimeLimitTotal,
-			ShowCorrectAnswers: t.Settings.ShowCorrectAnswers,
-		},
+		ID:             t.Id,
+		UserID:         t.OwnerId,
+		Title:          t.Title,
+		QuizType:       t.QuizType,
+		Settings:       settingsProtoToDTO(t.QuizType, t.Settings),
 		Questions:      questions,
 		CreatedAt:      t.CreatedAt.AsTime().Format(time.RFC3339),
 		UpdatedAt:      t.UpdatedAt.AsTime().Format(time.RFC3339),
@@ -472,11 +419,51 @@ func templateProtoToDTO(t *pb.QuizTemplate, protoQuestions []*pb.Question) dto.T
 	}
 }
 
+func parseAsyncSettings(quizType string, raw json.RawMessage) *pb.QuizAsyncSettings {
+	if quizType != "async" {
+		return nil
+	}
+	var s dto.QuizAsyncSettings
+	if len(raw) > 0 {
+		json.Unmarshal(raw, &s)
+	}
+	return &pb.QuizAsyncSettings{QuestionsRandomOrder: s.QuestionsRandomOrder}
+}
+
+func settingsProtoToDTO(quizType string, settings any) any {
+	switch quizType {
+	case "async":
+		switch s := settings.(type) {
+		case *pb.QuizTemplate_AsyncSettings:
+			return dto.QuizAsyncSettings{QuestionsRandomOrder: s.AsyncSettings.GetQuestionsRandomOrder()}
+		case *pb.QuizInstance_AsyncSettings:
+			return dto.QuizAsyncSettings{QuestionsRandomOrder: s.AsyncSettings.GetQuestionsRandomOrder()}
+		}
+	}
+	return dto.QuizSyncSettings{}
+}
+
+func instanceProtoToDTO(inst *pb.QuizInstance) dto.InstanceDTO {
+	return dto.InstanceDTO{
+		ID:             inst.Id,
+		TemplateID:     inst.TemplateId,
+		HostUserID:     inst.CreatedBy,
+		Title:          inst.Title,
+		AccessCode:     inst.AccessCode,
+		GroupID:        inst.GroupId,
+		Status:         inst.Status,
+		QuizType:       inst.QuizType,
+		Settings:       settingsProtoToDTO(inst.QuizType, inst.Settings),
+		CreatedAt:      inst.CreatedAt.AsTime().Format(time.RFC3339),
+		TotalTime:      inst.TotalTime,
+		TotalQuestions: inst.TotalQuestions,
+	}
+}
+
 func questionProtoToDTO(q *pb.Question) dto.QuestionDTO {
 	d := dto.QuestionDTO{
 		ID:           q.Id,
 		Text:         q.Text,
-		OrderIndex:   q.OrderIndex,
 		MaxScore:     q.MaxScore,
 		TimeLimitSec: q.TimeLimitSec,
 	}

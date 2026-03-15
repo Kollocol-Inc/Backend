@@ -25,15 +25,19 @@ message QuizTemplate {
   string owner_id = 2;
   string title = 3;
   string quiz_type = 4; // "sync" or "async"
-  QuizSettings settings = 5;
   google.protobuf.Timestamp created_at = 6;
   google.protobuf.Timestamp updated_at = 7;
+  oneof settings {
+    QuizSyncSettings sync_settings = 8;
+    QuizAsyncSettings async_settings = 9;
+  }
 }
 
-message QuizSettings {
-  bool random_order = 1;
-  int32 time_limit_total = 2; // seconds, 0 = no limit
-  bool show_correct_answers = 3;
+message QuizSyncSettings {
+}
+
+message QuizAsyncSettings {
+  bool questions_random_order = 1;
 }
 
 message SingleChoice {
@@ -76,29 +80,33 @@ message QuizInstance {
   google.protobuf.Timestamp start_time = 9;
   google.protobuf.Timestamp deadline = 10;
   string quiz_type = 11;
-  QuizSettings settings = 12;
   uint64 total_time = 13;
   uint64 total_questions = 14;
+  oneof settings {
+    QuizSyncSettings sync_settings = 15;
+    QuizAsyncSettings async_settings = 16;
+  }
 }
 
 message CreateTemplateRequest {
   string user_id = 1;
   string title = 2;
   string quiz_type = 3;
-  QuizSettings settings = 4;
   repeated QuestionInput questions = 5;
+  oneof settings {
+    QuizSyncSettings sync_settings = 6;
+    QuizAsyncSettings async_settings = 7;
+  }
 }
 
 message QuestionInput {
-  string id = 1;
-  string text = 2;
-  int32 order_index = 3;
-  int32 max_score = 4;
-  int32 time_limit_sec = 5;
+  string text = 1;
+  int32 max_score = 2;
+  int32 time_limit_sec = 3;
   oneof answer {
-    SingleChoice single_choice = 6;
-    MultipleChoice multiple_choice = 7;
-    OpenAnswer open_answer = 8;
+    SingleChoice single_choice = 4;
+    MultipleChoice multiple_choice = 5;
+    OpenAnswer open_answer = 6;
   }
 }
 
@@ -134,9 +142,12 @@ message UpdateTemplateRequest {
   string template_id = 1;
   string user_id = 2;
   string title = 3;
-  QuizSettings settings = 4;
   repeated QuestionInput questions = 5;
   string quiz_type = 6;
+  oneof settings {
+    QuizSyncSettings sync_settings = 7;
+    QuizAsyncSettings async_settings = 8;
+  }
 }
 
 message UpdateTemplateResponse {

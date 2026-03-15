@@ -2,14 +2,14 @@ package dto
 
 import "encoding/json"
 
-type QuizSettings struct {
-	RandomOrder        bool  `json:"random_order" example:"false"`
-	TimeLimitTotal     int32 `json:"time_limit_total" example:"0"`
-	ShowCorrectAnswers bool  `json:"show_correct_answers" example:"true"`
+type QuizSyncSettings struct {
+}
+
+type QuizAsyncSettings struct {
+	QuestionsRandomOrder bool `json:"questions_random_order" example:"false"`
 }
 
 type QuestionInput struct {
-	ID   string `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
 	Text string `json:"text" binding:"required" example:"What is 2+2?"`
 	// Question type. Determines the format of correct_answer and whether options are required.
 	Type string `json:"type" binding:"required,oneof=single multiple open" enums:"single,multiple,open" example:"single"`
@@ -17,7 +17,6 @@ type QuestionInput struct {
 	Options []string `json:"options" example:"4,3,5,6"`
 	// Format depends on type: single -> integer index (e.g. 0), multiple -> array of indices (e.g. [0,2]), open -> string (e.g. "Math")
 	CorrectAnswer json.RawMessage `json:"correct_answer" binding:"required" swaggertype:"string" example:"0"`
-	OrderIndex    int32           `json:"order_index" example:"1"`
 	MaxScore      int32           `json:"max_score" binding:"required" example:"1"`
 	TimeLimitSec  int32           `json:"time_limit_sec" example:"30"`
 }
@@ -25,7 +24,7 @@ type QuestionInput struct {
 type CreateTemplateRequest struct {
 	Title     string          `json:"title" binding:"required" example:"Math Quiz"`
 	QuizType  string          `json:"quiz_type" binding:"required,oneof=sync async" enums:"sync,async" example:"sync"`
-	Settings  QuizSettings    `json:"settings"`
+	Settings  json.RawMessage `json:"settings" swaggertype:"object"`
 	Questions []QuestionInput `json:"questions" binding:"required,min=1"`
 }
 
@@ -36,23 +35,22 @@ type QuestionDTO struct {
 	// Present for single and multiple types
 	Options []string `json:"options,omitempty" example:"4,3,5,6"`
 	// Format depends on type: single -> integer index (e.g. 0), multiple -> array of indices (e.g. [0,2]), open -> string (e.g. "Math")
-	CorrectAnswer any    `json:"correct_answer,omitempty" swaggertype:"string" example:"0"`
-	OrderIndex    int32  `json:"order_index" example:"1"`
-	MaxScore      int32  `json:"max_score" example:"1"`
-	TimeLimitSec  int32  `json:"time_limit_sec" example:"30"`
+	CorrectAnswer any   `json:"correct_answer,omitempty" swaggertype:"string" example:"0"`
+	MaxScore      int32 `json:"max_score" example:"1"`
+	TimeLimitSec  int32 `json:"time_limit_sec" example:"30"`
 }
 
 type TemplateDTO struct {
-	ID       string        `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	UserID   string        `json:"user_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Title    string        `json:"title" example:"Math Quiz"`
-	QuizType string        `json:"quiz_type" enums:"sync,async" example:"sync"`
-	Settings    QuizSettings  `json:"settings"`
-	Questions   []QuestionDTO `json:"questions"`
-	CreatedAt   string        `json:"created_at" example:"2024-01-15T10:30:00Z"`
-	UpdatedAt   string        `json:"updated_at" example:"2024-01-15T10:30:00Z"`
-	TotalTime      uint64 `json:"total_time" example:"360"`
-	TotalQuestions uint64 `json:"total_questions" example:"5"`
+	ID             string        `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	UserID         string        `json:"user_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Title          string        `json:"title" example:"Math Quiz"`
+	QuizType       string        `json:"quiz_type" enums:"sync,async" example:"sync"`
+	Settings       any           `json:"settings" swaggertype:"object"`
+	Questions      []QuestionDTO `json:"questions"`
+	CreatedAt      string        `json:"created_at" example:"2024-01-15T10:30:00Z"`
+	UpdatedAt      string        `json:"updated_at" example:"2024-01-15T10:30:00Z"`
+	TotalTime      uint64        `json:"total_time" example:"360"`
+	TotalQuestions uint64        `json:"total_questions" example:"5"`
 }
 
 type CreateTemplateResponse struct {
@@ -78,17 +76,17 @@ type CreateInstanceRequest struct {
 }
 
 type InstanceDTO struct {
-	ID         string `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	TemplateID string `json:"template_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	HostUserID string `json:"host_user_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Title      string `json:"title" example:"Class Quiz — March"`
-	AccessCode string `json:"access_code" example:"481623"`
-	GroupID    string `json:"group_id,omitempty" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Status    string       `json:"status" enums:"waiting,active,pending_review,reviewed" example:"waiting"`
-	QuizType  string       `json:"quiz_type" enums:"sync,async" example:"sync"`
-	Settings  QuizSettings `json:"settings"`
-	CreatedAt string       `json:"created_at" example:"2024-01-15T10:30:00Z"`
-	Deadline  string       `json:"deadline,omitempty" example:"2024-06-01T15:00:00Z"`
+	ID             string `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	TemplateID     string `json:"template_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	HostUserID     string `json:"host_user_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Title          string `json:"title" example:"Class Quiz — March"`
+	AccessCode     string `json:"access_code" example:"481623"`
+	GroupID        string `json:"group_id,omitempty" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Status         string `json:"status" enums:"waiting,active,pending_review,reviewed" example:"waiting"`
+	QuizType       string `json:"quiz_type" enums:"sync,async" example:"sync"`
+	Settings       any    `json:"settings" swaggertype:"object"`
+	CreatedAt      string `json:"created_at" example:"2024-01-15T10:30:00Z"`
+	Deadline       string `json:"deadline,omitempty" example:"2024-06-01T15:00:00Z"`
 	TotalTime      uint64 `json:"total_time" example:"360"`
 	TotalQuestions uint64 `json:"total_questions" example:"5"`
 }
@@ -104,8 +102,8 @@ type GetInstanceResponse struct {
 }
 
 type ParticipatingInstanceDTO struct {
-	Instance InstanceDTO `json:"instance"`
-	SessionStatus string `json:"session_status" enums:"not_started,joined,in_progress,finished" example:"not_started"`
+	Instance      InstanceDTO `json:"instance"`
+	SessionStatus string      `json:"session_status" enums:"not_started,joined,in_progress,finished" example:"not_started"`
 }
 
 type GetParticipatingInstancesResponse struct {
