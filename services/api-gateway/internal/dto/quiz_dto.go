@@ -6,7 +6,6 @@ type QuizSettings struct {
 	RandomOrder        bool  `json:"random_order" example:"false"`
 	TimeLimitTotal     int32 `json:"time_limit_total" example:"0"`
 	ShowCorrectAnswers bool  `json:"show_correct_answers" example:"true"`
-	AllowReview        bool  `json:"allow_review" example:"false"`
 }
 
 type QuestionInput struct {
@@ -24,11 +23,10 @@ type QuestionInput struct {
 }
 
 type CreateTemplateRequest struct {
-	Title       string          `json:"title" binding:"required" example:"Math Quiz"`
-	Description string          `json:"description" example:"Basic math operations"`
-	QuizType    string          `json:"quiz_type" binding:"required,oneof=sync async" enums:"sync,async" example:"sync"`
-	Settings    QuizSettings    `json:"settings"`
-	Questions   []QuestionInput `json:"questions" binding:"required,min=1"`
+	Title     string          `json:"title" binding:"required" example:"Math Quiz"`
+	QuizType  string          `json:"quiz_type" binding:"required,oneof=sync async" enums:"sync,async" example:"sync"`
+	Settings  QuizSettings    `json:"settings"`
+	Questions []QuestionInput `json:"questions" binding:"required,min=1"`
 }
 
 type QuestionDTO struct {
@@ -42,15 +40,13 @@ type QuestionDTO struct {
 	OrderIndex    int32  `json:"order_index" example:"1"`
 	MaxScore      int32  `json:"max_score" example:"1"`
 	TimeLimitSec  int32  `json:"time_limit_sec" example:"30"`
-	AIAnswer      string `json:"ai_answer,omitempty" example:"The answer is 4"`
 }
 
 type TemplateDTO struct {
-	ID          string        `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	UserID      string        `json:"user_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Title       string        `json:"title" example:"Math Quiz"`
-	Description string        `json:"description" example:"Basic math operations"`
-	QuizType    string        `json:"quiz_type" enums:"sync,async" example:"sync"`
+	ID       string        `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	UserID   string        `json:"user_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Title    string        `json:"title" example:"Math Quiz"`
+	QuizType string        `json:"quiz_type" enums:"sync,async" example:"sync"`
 	Settings    QuizSettings  `json:"settings"`
 	Questions   []QuestionDTO `json:"questions"`
 	CreatedAt   string        `json:"created_at" example:"2024-01-15T10:30:00Z"`

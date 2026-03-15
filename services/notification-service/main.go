@@ -104,7 +104,6 @@ func main() {
 		}
 	}()
 
-	// Start RabbitMQ consumers
 	log.Println("Starting RabbitMQ consumers...")
 	startConsumers(rabbitClient, notificationService)
 

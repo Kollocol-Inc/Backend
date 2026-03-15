@@ -31,6 +31,8 @@ go.work
 # Proto generated files
 *.pb.go
 *_grpc.pb.go
+*_pb2.py
+*pb2_grpc.py
 
 # Swagger generated files
 services/api-gateway/docs/

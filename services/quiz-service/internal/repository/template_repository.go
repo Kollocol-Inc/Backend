@@ -19,14 +19,13 @@ func NewTemplateRepository(db *sql.DB) *TemplateRepository {
 }
 
 type Template struct {
-	ID          string
-	OwnerID     string
-	Title       string
-	Description string
-	QuizType    string
-	Settings    string // JSON
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID        string
+	OwnerID   string
+	Title     string
+	QuizType  string
+	Settings  string // JSON
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type Question struct {
@@ -38,7 +37,6 @@ type Question struct {
 	OrderIndex    int
 	MaxScore      int
 	TimeLimitSec  int
-	AIAnswer      sql.NullString // JSON
 }
 
 func (r *TemplateRepository) CreateTemplate(ctx context.Context, template *Template) error {
@@ -47,15 +45,14 @@ func (r *TemplateRepository) CreateTemplate(ctx context.Context, template *Templ
 	template.UpdatedAt = time.Now()
 
 	query := `
-		INSERT INTO quiz_templates (id, owner_id, title, description, quiz_type, settings, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO quiz_templates (id, owner_id, title, quiz_type, settings, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 
 	_, err := r.db.ExecContext(ctx, query,
 		template.ID,
 		template.OwnerID,
 		template.Title,
-		template.Description,
 		template.QuizType,
 		template.Settings,
 		template.CreatedAt,
@@ -67,7 +64,7 @@ func (r *TemplateRepository) CreateTemplate(ctx context.Context, template *Templ
 
 func (r *TemplateRepository) GetTemplateByID(ctx context.Context, templateID string) (*Template, error) {
 	query := `
-		SELECT id, owner_id, title, description, quiz_type, settings, created_at, updated_at
+		SELECT id, owner_id, title, quiz_type, settings, created_at, updated_at
 		FROM quiz_templates
 		WHERE id = $1
 	`
@@ -77,7 +74,6 @@ func (r *TemplateRepository) GetTemplateByID(ctx context.Context, templateID str
 		&template.ID,
 		&template.OwnerID,
 		&template.Title,
-		&template.Description,
 		&template.QuizType,
 		&template.Settings,
 		&template.CreatedAt,
@@ -96,7 +92,7 @@ func (r *TemplateRepository) GetTemplateByID(ctx context.Context, templateID str
 
 func (r *TemplateRepository) GetTemplatesByOwner(ctx context.Context, ownerID string) ([]*Template, error) {
 	query := `
-		SELECT id, owner_id, title, description, quiz_type, settings, created_at, updated_at
+		SELECT id, owner_id, title, quiz_type, settings, created_at, updated_at
 		FROM quiz_templates
 		WHERE owner_id = $1
 		ORDER BY created_at DESC
@@ -115,7 +111,6 @@ func (r *TemplateRepository) GetTemplatesByOwner(ctx context.Context, ownerID st
 			&template.ID,
 			&template.OwnerID,
 			&template.Title,
-			&template.Description,
 			&template.QuizType,
 			&template.Settings,
 			&template.CreatedAt,
@@ -135,13 +130,12 @@ func (r *TemplateRepository) UpdateTemplate(ctx context.Context, template *Templ
 
 	query := `
 		UPDATE quiz_templates
-		SET title = $1, description = $2, settings = $3, updated_at = $4
-		WHERE id = $5 AND owner_id = $6
+		SET title = $1, settings = $2, updated_at = $3
+		WHERE id = $4 AND owner_id = $5
 	`
 
 	result, err := r.db.ExecContext(ctx, query,
 		template.Title,
-		template.Description,
 		template.Settings,
 		template.UpdatedAt,
 		template.ID,
@@ -235,7 +229,7 @@ func (r *TemplateRepository) LinkQuestionToTemplate(ctx context.Context, templat
 
 func (r *TemplateRepository) GetQuestionsByTemplateID(ctx context.Context, templateID string) ([]*Question, error) {
 	query := `
-		SELECT q.id, tq.template_id, q.text, q.type, q.correct_answer, tq.order_index, q.max_score, q.time_limit_sec, q.ai_answer
+		SELECT q.id, tq.template_id, q.text, q.type, q.correct_answer, tq.order_index, q.max_score, q.time_limit_sec
 		FROM questions q
 		JOIN template_questions tq ON q.id = tq.question_id
 		WHERE tq.template_id = $1
@@ -260,7 +254,6 @@ func (r *TemplateRepository) GetQuestionsByTemplateID(ctx context.Context, templ
 			&question.OrderIndex,
 			&question.MaxScore,
 			&question.TimeLimitSec,
-			&question.AIAnswer,
 		)
 		if err != nil {
 			return nil, err

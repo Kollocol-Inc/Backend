@@ -48,15 +48,13 @@ func (h *QuizHandler) CreateTemplate(c *gin.Context) {
 	}
 
 	resp, err := h.quizClient.CreateTemplate(c.Request.Context(), &pb.CreateTemplateRequest{
-		UserId:      userID,
-		Title:       req.Title,
-		Description: req.Description,
-		QuizType:    req.QuizType,
+		UserId:   userID,
+		Title:    req.Title,
+		QuizType: req.QuizType,
 		Settings: &pb.QuizSettings{
 			RandomOrder:        req.Settings.RandomOrder,
 			TimeLimitTotal:     req.Settings.TimeLimitTotal,
 			ShowCorrectAnswers: req.Settings.ShowCorrectAnswers,
-			AllowReview:        req.Settings.AllowReview,
 		},
 		Questions: questions,
 	})
@@ -155,16 +153,14 @@ func (h *QuizHandler) UpdateTemplate(c *gin.Context) {
 	}
 
 	resp, err := h.quizClient.UpdateTemplate(c.Request.Context(), &pb.UpdateTemplateRequest{
-		TemplateId:  templateID,
-		UserId:      userID,
-		Title:       req.Title,
-		Description: req.Description,
-		QuizType:    req.QuizType,
+		TemplateId: templateID,
+		UserId:     userID,
+		Title:      req.Title,
+		QuizType:   req.QuizType,
 		Settings: &pb.QuizSettings{
 			RandomOrder:        req.Settings.RandomOrder,
 			TimeLimitTotal:     req.Settings.TimeLimitTotal,
 			ShowCorrectAnswers: req.Settings.ShowCorrectAnswers,
-			AllowReview:        req.Settings.AllowReview,
 		},
 		Questions: questions,
 	})
@@ -287,10 +283,9 @@ func (h *QuizHandler) GetInstance(c *gin.Context) {
 			RandomOrder:        inst.Settings.RandomOrder,
 			TimeLimitTotal:     inst.Settings.TimeLimitTotal,
 			ShowCorrectAnswers: inst.Settings.ShowCorrectAnswers,
-			AllowReview:        inst.Settings.AllowReview,
 		},
-		CreatedAt: inst.CreatedAt.AsTime().Format(time.RFC3339),
-		TotalTime: inst.TotalTime,
+		CreatedAt:      inst.CreatedAt.AsTime().Format(time.RFC3339),
+		TotalTime:      inst.TotalTime,
 		TotalQuestions: inst.TotalQuestions,
 	}
 
@@ -346,10 +341,9 @@ func (h *QuizHandler) GetHostingInstances(c *gin.Context) {
 				RandomOrder:        inst.Settings.RandomOrder,
 				TimeLimitTotal:     inst.Settings.TimeLimitTotal,
 				ShowCorrectAnswers: inst.Settings.ShowCorrectAnswers,
-				AllowReview:        inst.Settings.AllowReview,
 			},
-			CreatedAt: inst.CreatedAt.AsTime().Format(time.RFC3339),
-			TotalTime: inst.TotalTime,
+			CreatedAt:      inst.CreatedAt.AsTime().Format(time.RFC3339),
+			TotalTime:      inst.TotalTime,
 			TotalQuestions: inst.TotalQuestions,
 		}
 
@@ -402,10 +396,9 @@ func (h *QuizHandler) GetParticipatingInstances(c *gin.Context) {
 					RandomOrder:        inst.Settings.RandomOrder,
 					TimeLimitTotal:     inst.Settings.TimeLimitTotal,
 					ShowCorrectAnswers: inst.Settings.ShowCorrectAnswers,
-					AllowReview:        inst.Settings.AllowReview,
 				},
-				CreatedAt: inst.CreatedAt.AsTime().Format(time.RFC3339),
-				TotalTime: inst.TotalTime,
+				CreatedAt:      inst.CreatedAt.AsTime().Format(time.RFC3339),
+				TotalTime:      inst.TotalTime,
 				TotalQuestions: inst.TotalQuestions,
 			},
 			SessionStatus: pi.SessionStatus,
@@ -462,16 +455,14 @@ func templateProtoToDTO(t *pb.QuizTemplate, protoQuestions []*pb.Question) dto.T
 	}
 
 	return dto.TemplateDTO{
-		ID:             t.Id,
-		UserID:         t.OwnerId,
-		Title:          t.Title,
-		Description:    t.Description,
-		QuizType:       t.QuizType,
+		ID:       t.Id,
+		UserID:   t.OwnerId,
+		Title:    t.Title,
+		QuizType: t.QuizType,
 		Settings: dto.QuizSettings{
 			RandomOrder:        t.Settings.RandomOrder,
 			TimeLimitTotal:     t.Settings.TimeLimitTotal,
 			ShowCorrectAnswers: t.Settings.ShowCorrectAnswers,
-			AllowReview:        t.Settings.AllowReview,
 		},
 		Questions:      questions,
 		CreatedAt:      t.CreatedAt.AsTime().Format(time.RFC3339),
@@ -488,7 +479,6 @@ func questionProtoToDTO(q *pb.Question) dto.QuestionDTO {
 		OrderIndex:   q.OrderIndex,
 		MaxScore:     q.MaxScore,
 		TimeLimitSec: q.TimeLimitSec,
-		AIAnswer:     q.AiAnswer,
 	}
 
 	switch a := q.Answer.(type) {

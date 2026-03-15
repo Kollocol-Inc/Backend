@@ -199,7 +199,7 @@ func (r *InstanceRepository) GetInstanceWithQuestions(ctx context.Context, insta
 	query := `
 		SELECT
 			i.id, i.template_id, i.title, i.access_code, i.status, i.group_id, i.created_by, i.created_at, i.start_time, i.deadline, i.quiz_type, i.settings, i.total_time, i.total_questions,
-			q.id, q.text, q.type, q.correct_answer, iq.order_index, q.max_score, q.time_limit_sec, q.ai_answer
+			q.id, q.text, q.type, q.correct_answer, iq.order_index, q.max_score, q.time_limit_sec
 		FROM quiz_instances i
 		LEFT JOIN instance_questions iq ON i.id = iq.instance_id
 		LEFT JOIN questions q ON iq.question_id = q.id
@@ -226,7 +226,6 @@ func (r *InstanceRepository) GetInstanceWithQuestions(ctx context.Context, insta
 		var qID sql.NullString
 		var qText, qType, qCorrectAnswer sql.NullString
 		var qOrderIndex, qMaxScore, qTimeLimitSec sql.NullInt32
-		var qAIAnswer sql.NullString
 
 		err := rows.Scan(
 			&result.Instance.ID,
@@ -250,7 +249,6 @@ func (r *InstanceRepository) GetInstanceWithQuestions(ctx context.Context, insta
 			&qOrderIndex,
 			&qMaxScore,
 			&qTimeLimitSec,
-			&qAIAnswer,
 		)
 		if err != nil {
 			return nil, err
@@ -266,7 +264,6 @@ func (r *InstanceRepository) GetInstanceWithQuestions(ctx context.Context, insta
 				OrderIndex:    int(qOrderIndex.Int32),
 				MaxScore:      int(qMaxScore.Int32),
 				TimeLimitSec:  int(qTimeLimitSec.Int32),
-				AIAnswer:      qAIAnswer,
 			}
 			questions = append(questions, question)
 		}

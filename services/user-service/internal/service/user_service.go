@@ -78,9 +78,7 @@ func (s *UserService) Register(ctx context.Context, req *pb.RegisterRequest) (*p
 	}
 
 	return &pb.RegisterResponse{
-		Success: true,
-		User:    s.userToProto(user),
-		Message: "Registration completed successfully",
+		User: s.userToProto(user),
 	}, nil
 }
 
@@ -91,9 +89,7 @@ func (s *UserService) GetProfile(ctx context.Context, req *pb.GetProfileRequest)
 	}
 
 	return &pb.GetProfileResponse{
-		Success: true,
-		User:    s.userToProto(user),
-		Message: "Profile retrieved successfully",
+		User: s.userToProto(user),
 	}, nil
 }
 
@@ -104,9 +100,7 @@ func (s *UserService) GetProfileByEmail(ctx context.Context, req *pb.GetProfileB
 	}
 
 	return &pb.GetProfileByEmailResponse{
-		Success: true,
-		User:    s.userToProto(user),
-		Message: "Profile retrieved successfully",
+		User: s.userToProto(user),
 	}, nil
 }
 
@@ -138,9 +132,7 @@ func (s *UserService) UpdateProfile(ctx context.Context, req *pb.UpdateProfileRe
 	}
 
 	return &pb.UpdateProfileResponse{
-		Success: true,
-		User:    s.userToProto(user),
-		Message: "Profile updated successfully",
+		User: s.userToProto(user),
 	}, nil
 }
 
@@ -152,9 +144,7 @@ func (s *UserService) GetNotificationSettings(ctx context.Context, req *pb.GetNo
 	}
 
 	return &pb.GetNotificationSettingsResponse{
-		Success:  true,
 		Settings: s.settingsToProto(settings),
-		Message:  "Settings retrieved successfully",
 	}, nil
 }
 
@@ -199,9 +189,7 @@ func (s *UserService) UpdateNotificationSettings(ctx context.Context, req *pb.Up
 	log.Printf("Settings saved successfully")
 
 	return &pb.UpdateNotificationSettingsResponse{
-		Success:  true,
 		Settings: s.settingsToProto(settings),
-		Message:  "Settings updated successfully",
 	}, nil
 }
 
@@ -241,9 +229,7 @@ func (s *UserService) CreateGroup(ctx context.Context, req *pb.CreateGroupReques
 	group.MemberCount = memberCount
 
 	return &pb.CreateGroupResponse{
-		Success: true,
-		Group:   s.groupToProto(group),
-		Message: "Group created successfully",
+		Group: s.groupToProto(group),
 	}, nil
 }
 
@@ -271,9 +257,7 @@ func (s *UserService) GetGroups(ctx context.Context, req *pb.GetGroupsRequest) (
 	}
 
 	return &pb.GetGroupsResponse{
-		Success: true,
-		Groups:  protoGroups,
-		Message: "Groups retrieved successfully",
+		Groups: protoGroups,
 	}, nil
 }
 
@@ -300,12 +284,10 @@ func (s *UserService) GetGroup(ctx context.Context, req *pb.GetGroupRequest) (*p
 	}
 
 	return &pb.GetGroupResponse{
-		Success: true,
 		Group: &pb.GroupWithMembers{
 			Group:   s.groupToProto(group),
 			Members: members,
 		},
-		Message: "Group retrieved successfully",
 	}, nil
 }
 
@@ -375,9 +357,7 @@ func (s *UserService) UpdateGroup(ctx context.Context, req *pb.UpdateGroupReques
 	group.MemberCount = memberCount
 
 	return &pb.UpdateGroupResponse{
-		Success: true,
-		Group:   s.groupToProto(group),
-		Message: "Group updated successfully",
+		Group: s.groupToProto(group),
 	}, nil
 }
 
@@ -396,10 +376,7 @@ func (s *UserService) DeleteGroup(ctx context.Context, req *pb.DeleteGroupReques
 		return nil, errors.New(codes.Internal, errors.ReasonGroupDeleteFailed, "Failed to delete group", map[string]string{"group_id": req.GroupId})
 	}
 
-	return &pb.DeleteGroupResponse{
-		Success: true,
-		Message: "Group deleted successfully",
-	}, nil
+	return &pb.DeleteGroupResponse{}, nil
 }
 
 func (s *UserService) CheckGroupMembership(ctx context.Context, req *pb.CheckGroupMembershipRequest) (*pb.CheckGroupMembershipResponse, error) {
@@ -518,10 +495,7 @@ func (s *UserService) DeleteAvatar(ctx context.Context, req *pb.DeleteAvatarRequ
 		return nil, errors.New(codes.Internal, errors.ReasonUserUpdateFailed, "Failed to update profile", map[string]string{"user_id": req.UserId})
 	}
 
-	return &pb.DeleteAvatarResponse{
-		Success: true,
-		Message: "Avatar deleted successfully",
-	}, nil
+	return &pb.DeleteAvatarResponse{}, nil
 }
 
 func (s *UserService) uploadAvatar(ctx context.Context, userID, filename string, data []byte, oldAvatarURL string) (string, error) {

@@ -53,7 +53,6 @@ func (c *PostgresClient) InitSchema(ctx context.Context) error {
 			id VARCHAR(255) PRIMARY KEY,
 			owner_id VARCHAR(255) NOT NULL,
 			title VARCHAR(255) NOT NULL,
-			description TEXT NOT NULL DEFAULT '',
 			quiz_type VARCHAR(50) NOT NULL,
 			settings JSONB NOT NULL DEFAULT '{}',
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -69,8 +68,7 @@ func (c *PostgresClient) InitSchema(ctx context.Context) error {
 			type VARCHAR(50) NOT NULL,
 			correct_answer JSONB NOT NULL DEFAULT '{}',
 			max_score INTEGER NOT NULL DEFAULT 0,
-			time_limit_sec INTEGER NOT NULL DEFAULT 0,
-			ai_answer JSONB
+			time_limit_sec INTEGER NOT NULL DEFAULT 0
 		);
 	`
 

@@ -57,10 +57,17 @@ func main() {
 	}
 	defer notificationClient.Close()
 
+	mlClient, err := client.NewMLClient(cfg.ML.Host, cfg.ML.Port)
+	if err != nil {
+		log.Fatalf("Failed to connect to ML Service: %v", err)
+	}
+	defer mlClient.Close()
+
 	authHandler := handlers.NewAuthHandler(authClient)
 	userHandler := handlers.NewUserHandler(userClient)
 	quizHandler := handlers.NewQuizHandler(quizClient)
 	notificationHandler := handlers.NewNotificationHandler(notificationClient)
+	mlHandler := handlers.NewMLHandler(mlClient)
 	gameHandler := handlers.NewGameHandler(cfg.Game.Host, cfg.Game.Port)
 
 	if os.Getenv("GIN_MODE") == "" {
@@ -138,6 +145,14 @@ func main() {
 		notificationsGroup.GET("", notificationHandler.GetNotifications)
 		notificationsGroup.PUT("/:id/read", notificationHandler.MarkAsRead)
 		notificationsGroup.DELETE("/:id", notificationHandler.DeleteNotification)
+	}
+
+	mlGroup := router.Group("/ml")
+	mlGroup.Use(middleware.JWTAuth(authClient))
+	{
+		mlGroup.POST("/paraphrase", mlHandler.Paraphrase)
+		mlGroup.POST("/generate/template", mlHandler.GenerateTemplate)
+		mlGroup.POST("/generate/template/questions", mlHandler.GenerateQuestions)
 	}
 
 	router.GET("/ws", middleware.JWTAuthWS(authClient), gameHandler.ProxyWebSocket)

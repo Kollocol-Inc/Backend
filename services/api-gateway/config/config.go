@@ -11,6 +11,7 @@ type Config struct {
 	Quiz         QuizServiceConfig
 	Game         GameServiceConfig
 	Notification NotificationServiceConfig
+	ML           MLServiceConfig
 	JWT          JWTConfig
 }
 
@@ -44,6 +45,11 @@ type NotificationServiceConfig struct {
 	Port string
 }
 
+type MLServiceConfig struct {
+	Host string
+	Port string
+}
+
 type JWTConfig struct {
 	Secret string
 }
@@ -73,6 +79,10 @@ func Load() *Config {
 		Notification: NotificationServiceConfig{
 			Host: getEnv("NOTIFICATION_SERVICE_HOST", "localhost"),
 			Port: getEnv("NOTIFICATION_SERVICE_PORT", "50051"),
+		},
+		ML: MLServiceConfig{
+			Host: getEnv("ML_SERVICE_HOST", "localhost"),
+			Port: getEnv("ML_SERVICE_PORT", "50051"),
 		},
 		JWT: JWTConfig{
 			Secret: getEnv("JWT_SECRET", "test-secret-key"),

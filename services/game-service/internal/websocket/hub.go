@@ -272,7 +272,6 @@ func (h *Hub) convertToQuizData(resp *pb.GetInstanceResponse) *models.QuizData {
 		settings.RandomOrder = resp.Instance.Settings.RandomOrder
 		settings.TimeLimitTotal = int(resp.Instance.Settings.TimeLimitTotal)
 		settings.ShowCorrectAnswers = resp.Instance.Settings.ShowCorrectAnswers
-		settings.AllowReview = resp.Instance.Settings.AllowReview
 	}
 
 	return &models.QuizData{

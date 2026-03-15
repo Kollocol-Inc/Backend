@@ -65,10 +65,7 @@ func (s *AuthService) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Logi
 		log.Printf("Failed to publish send_auth_code event: %v", err)
 	}
 
-	return &pb.LoginResponse{
-		Success: true,
-		Message: "Verification code sent to your email",
-	}, nil
+	return &pb.LoginResponse{}, nil
 }
 
 func (s *AuthService) VerifyCode(ctx context.Context, req *pb.VerifyCodeRequest) (*pb.VerifyCodeResponse, error) {
@@ -115,12 +112,10 @@ func (s *AuthService) VerifyCode(ctx context.Context, req *pb.VerifyCodeRequest)
 	s.authRepo.DeleteAuthCode(ctx, email)
 
 	return &pb.VerifyCodeResponse{
-		Success:      true,
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
 		IsRegistered: user.IsRegistered,
 		UserId:       user.ID,
-		Message:      "Login successful",
 	}, nil
 }
 
@@ -157,10 +152,8 @@ func (s *AuthService) RefreshToken(ctx context.Context, req *pb.RefreshTokenRequ
 	}
 
 	return &pb.RefreshTokenResponse{
-		Success:      true,
 		AccessToken:  newTokens.AccessToken,
 		RefreshToken: newTokens.RefreshToken,
-		Message:      "Tokens refreshed successfully",
 	}, nil
 }
 
@@ -182,10 +175,7 @@ func (s *AuthService) Logout(ctx context.Context, req *pb.LogoutRequest) (*pb.Lo
 		}
 	}
 
-	return &pb.LogoutResponse{
-		Success: true,
-		Message: "Logged out successfully",
-	}, nil
+	return &pb.LogoutResponse{}, nil
 }
 
 func (s *AuthService) ValidateToken(ctx context.Context, req *pb.ValidateTokenRequest) (*pb.ValidateTokenResponse, error) {
@@ -205,10 +195,8 @@ func (s *AuthService) ValidateToken(ctx context.Context, req *pb.ValidateTokenRe
 	}
 
 	return &pb.ValidateTokenResponse{
-		Valid:   true,
-		UserId:  claims.UserID,
-		Email:   claims.Email,
-		Message: "Token is valid",
+		UserId: claims.UserID,
+		Email:  claims.Email,
 	}, nil
 }
 

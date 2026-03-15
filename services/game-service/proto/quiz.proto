@@ -15,7 +15,6 @@ message QuizSettings {
   bool random_order = 1;
   int32 time_limit_total = 2;
   bool show_correct_answers = 3;
-  bool allow_review = 4;
 }
 
 message SingleChoice {
@@ -36,14 +35,13 @@ message Question {
   string id = 1;
   string template_id = 2;
   string text = 3;
-  int32 order_index = 7;
-  int32 max_score = 8;
-  int32 time_limit_sec = 9;
-  string ai_answer = 10;
+  int32 order_index = 4;
+  int32 max_score = 5;
+  int32 time_limit_sec = 6;
   oneof answer {
-    SingleChoice single_choice = 11;
-    MultipleChoice multiple_choice = 12;
-    OpenAnswer open_answer = 13;
+    SingleChoice single_choice = 7;
+    MultipleChoice multiple_choice = 8;
+    OpenAnswer open_answer = 9;
   }
 }
 

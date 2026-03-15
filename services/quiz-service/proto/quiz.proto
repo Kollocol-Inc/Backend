@@ -24,18 +24,16 @@ message QuizTemplate {
   string id = 1;
   string owner_id = 2;
   string title = 3;
-  string description = 4;
-  string quiz_type = 5; // "sync" or "async"
-  QuizSettings settings = 6;
-  google.protobuf.Timestamp created_at = 7;
-  google.protobuf.Timestamp updated_at = 8;
+  string quiz_type = 4; // "sync" or "async"
+  QuizSettings settings = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
 }
 
 message QuizSettings {
   bool random_order = 1;
   int32 time_limit_total = 2; // seconds, 0 = no limit
   bool show_correct_answers = 3;
-  bool allow_review = 4;
 }
 
 message SingleChoice {
@@ -56,14 +54,13 @@ message Question {
   string id = 1;
   string template_id = 2;
   string text = 3;
-  int32 order_index = 7;
-  int32 max_score = 8;
-  int32 time_limit_sec = 9; // 0 = no limit
-  string ai_answer = 10;
+  int32 order_index = 4;
+  int32 max_score = 5;
+  int32 time_limit_sec = 6; // 0 = no limit
   oneof answer {
-    SingleChoice single_choice = 11;
-    MultipleChoice multiple_choice = 12;
-    OpenAnswer open_answer = 13;
+    SingleChoice single_choice = 7;
+    MultipleChoice multiple_choice = 8;
+    OpenAnswer open_answer = 9;
   }
 }
 
@@ -87,22 +84,21 @@ message QuizInstance {
 message CreateTemplateRequest {
   string user_id = 1;
   string title = 2;
-  string description = 3;
-  string quiz_type = 4;
-  QuizSettings settings = 5;
-  repeated QuestionInput questions = 6;
+  string quiz_type = 3;
+  QuizSettings settings = 4;
+  repeated QuestionInput questions = 5;
 }
 
 message QuestionInput {
   string id = 1;
   string text = 2;
-  int32 order_index = 6;
-  int32 max_score = 7;
-  int32 time_limit_sec = 8;
+  int32 order_index = 3;
+  int32 max_score = 4;
+  int32 time_limit_sec = 5;
   oneof answer {
-    SingleChoice single_choice = 9;
-    MultipleChoice multiple_choice = 10;
-    OpenAnswer open_answer = 11;
+    SingleChoice single_choice = 6;
+    MultipleChoice multiple_choice = 7;
+    OpenAnswer open_answer = 8;
   }
 }
 
@@ -138,10 +134,9 @@ message UpdateTemplateRequest {
   string template_id = 1;
   string user_id = 2;
   string title = 3;
-  string description = 4;
-  QuizSettings settings = 5;
-  repeated QuestionInput questions = 6;
-  string quiz_type = 7;
+  QuizSettings settings = 4;
+  repeated QuestionInput questions = 5;
+  string quiz_type = 6;
 }
 
 message UpdateTemplateResponse {

@@ -65,10 +65,7 @@ func (s *NotificationService) MarkAsRead(ctx context.Context, req *pb.MarkAsRead
 		return nil, errors.New(codes.Internal, errors.ReasonNotificationMarkFailed, "Failed to mark notification as read", map[string]string{"notification_id": req.NotificationId})
 	}
 
-	return &pb.MarkAsReadResponse{
-		Success: true,
-		Message: "Notification marked as read",
-	}, nil
+	return &pb.MarkAsReadResponse{}, nil
 }
 
 func (s *NotificationService) DeleteNotification(ctx context.Context, req *pb.DeleteNotificationRequest) (*pb.DeleteNotificationResponse, error) {
@@ -77,10 +74,7 @@ func (s *NotificationService) DeleteNotification(ctx context.Context, req *pb.De
 		return nil, errors.New(codes.Internal, errors.ReasonNotificationDeleteFailed, "Failed to delete notification", map[string]string{"notification_id": req.NotificationId})
 	}
 
-	return &pb.DeleteNotificationResponse{
-		Success: true,
-		Message: "Notification deleted",
-	}, nil
+	return &pb.DeleteNotificationResponse{}, nil
 }
 
 func (s *NotificationService) HandleSendAuthCode(ctx context.Context, data []byte) error {
@@ -129,7 +123,6 @@ func (s *NotificationService) HandleQuizCreated(ctx context.Context, data []byte
 
 	log.Printf("Processing quiz_created event for instance %s", event.InstanceID)
 
-	// Create in-app notifications for participants
 	for _, userID := range event.Participants {
 		notification := &repository.Notification{
 			UserID:  userID,
@@ -160,7 +153,6 @@ func (s *NotificationService) HandleQuizResultsReady(ctx context.Context, data [
 
 	log.Printf("Processing quiz_results_ready event for instance %s", event.InstanceID)
 
-	// Create in-app notifications for participants
 	for _, userID := range event.ParticipantIDs {
 		notification := &repository.Notification{
 			UserID:  userID,

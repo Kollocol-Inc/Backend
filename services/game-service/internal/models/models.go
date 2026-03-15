@@ -47,7 +47,6 @@ type Settings struct {
 	RandomOrder        bool `json:"random_order"`
 	TimeLimitTotal     int  `json:"time_limit_total"`
 	ShowCorrectAnswers bool `json:"show_correct_answers"`
-	AllowReview        bool `json:"allow_review"`
 }
 
 type LeaderboardEntry struct {

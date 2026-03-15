@@ -51,11 +51,10 @@ func (s *QuizService) CreateTemplate(ctx context.Context, req *pb.CreateTemplate
 	}
 
 	template := &repository.Template{
-		OwnerID:     req.UserId,
-		Title:       req.Title,
-		Description: req.Description,
-		QuizType:    req.QuizType,
-		Settings:    string(settingsJSON),
+		OwnerID:  req.UserId,
+		Title:    req.Title,
+		QuizType: req.QuizType,
+		Settings: string(settingsJSON),
 	}
 
 	if err := s.templateRepo.CreateTemplate(ctx, template); err != nil {
@@ -84,8 +83,6 @@ func (s *QuizService) CreateTemplate(ctx context.Context, req *pb.CreateTemplate
 		}
 		questions = append(questions, question)
 	}
-
-	s.publishAIAnswerRequest(ctx, template.ID, questions)
 
 	return &pb.CreateTemplateResponse{
 		Template:  s.templateToProto(template),
@@ -155,11 +152,10 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 	}
 
 	template := &repository.Template{
-		ID:          req.TemplateId,
-		OwnerID:     req.UserId,
-		Title:       req.Title,
-		Description: req.Description,
-		Settings:    string(settingsJSON),
+		ID:       req.TemplateId,
+		OwnerID:  req.UserId,
+		Title:    req.Title,
+		Settings: string(settingsJSON),
 	}
 
 	if err := s.templateRepo.UpdateTemplate(ctx, template); err != nil {
@@ -225,8 +221,6 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 		}
 		questions = append(questions, question)
 	}
-
-	s.publishAIAnswerRequest(ctx, req.TemplateId, questions)
 
 	updatedTemplate, err := s.templateRepo.GetTemplateByID(ctx, req.TemplateId)
 	if err != nil {
@@ -380,14 +374,13 @@ func (s *QuizService) templateToProto(t *repository.Template) *pb.QuizTemplate {
 	json.Unmarshal([]byte(t.Settings), &settings)
 
 	return &pb.QuizTemplate{
-		Id:          t.ID,
-		OwnerId:     t.OwnerID,
-		Title:       t.Title,
-		Description: t.Description,
-		QuizType:    t.QuizType,
-		Settings:    &settings,
-		CreatedAt:   timestamppb.New(t.CreatedAt),
-		UpdatedAt:   timestamppb.New(t.UpdatedAt),
+		Id:        t.ID,
+		OwnerId:   t.OwnerID,
+		Title:     t.Title,
+		QuizType:  t.QuizType,
+		Settings:  &settings,
+		CreatedAt: timestamppb.New(t.CreatedAt),
+		UpdatedAt: timestamppb.New(t.UpdatedAt),
 	}
 }
 
@@ -424,9 +417,6 @@ func (s *QuizService) questionsToProto(questions []*repository.Question) []*pb.Q
 			}
 		}
 
-		if q.AIAnswer.Valid {
-			protoQuestion.AiAnswer = q.AIAnswer.String
-		}
 		protoQuestions = append(protoQuestions, protoQuestion)
 	}
 	return protoQuestions
@@ -489,49 +479,6 @@ func (s *QuizService) instanceToProto(i *repository.Instance) *pb.QuizInstance {
 	}
 
 	return instance
-}
-
-func (s *QuizService) publishAIAnswerRequest(ctx context.Context, templateID string, questions []*repository.Question) {
-	if s.mqPublisher == nil {
-		return
-	}
-
-	type QuestionData struct {
-		QuestionID string `json:"question_id"`
-		Text       string `json:"text"`
-		Type       string `json:"type"`
-	}
-
-	type AIAnswerRequestEvent struct {
-		TemplateID string         `json:"template_id"`
-		Questions  []QuestionData `json:"questions"`
-		Models     []string       `json:"models"`
-	}
-
-	var questionData []QuestionData
-	for _, q := range questions {
-		questionData = append(questionData, QuestionData{
-			QuestionID: q.ID,
-			Text:       q.Text,
-			Type:       q.Type,
-		})
-	}
-
-	event := AIAnswerRequestEvent{
-		TemplateID: templateID,
-		Questions:  questionData,
-		Models:     []string{},
-	}
-
-	eventJSON, err := json.Marshal(event)
-	if err != nil {
-		log.Printf("Failed to marshal ai_answer_request event: %v", err)
-		return
-	}
-
-	if err := s.mqPublisher.Publish(ctx, "ml.ai_answer_requests", eventJSON); err != nil {
-		log.Printf("Failed to publish ai_answer_request event: %v", err)
-	}
 }
 
 func (s *QuizService) publishQuizCreated(ctx context.Context, instance *repository.Instance) {

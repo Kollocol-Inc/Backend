@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package ml;
+
+option go_package = "ml-service/proto";
+
+service MLService {
+  rpc Paraphrase(ParaphraseRequest) returns (ParaphraseResponse);
+  rpc GenerateTemplate(GenerateTemplateRequest) returns (GenerateTemplateResponse);
+  rpc GenerateQuestions(GenerateQuestionsRequest) returns (GenerateQuestionsResponse);
+}
+
+message ParaphraseRequest {
+  string text = 1;
+}
+
+message ParaphraseResponse {
+  string text = 1;
+}
+
+message GenerateTemplateRequest {
+  string text = 1;
+}
+
+message MLSingleChoice {
+  repeated string options = 1;
+  int32 correct_option = 2;
+}
+
+message MLMultipleChoice {
+  repeated string options = 1;
+  repeated int32 correct_options = 2;
+}
+
+message MLOpenAnswer {
+  string correct_text = 1;
+}
+
+message GeneratedQuestion {
+  string text = 1;
+  int32 max_score = 2;
+  int32 time_limit_sec = 3;
+  oneof answer {
+    MLSingleChoice single_choice = 4;
+    MLMultipleChoice multiple_choice = 5;
+    MLOpenAnswer open_answer = 6;
+  }
+}
+
+message GenerateTemplateResponse {
+  string title = 1;
+  repeated GeneratedQuestion questions = 2;
+}
+
+message GenerateQuestionsRequest {
+  string text = 1;
+  repeated GeneratedQuestion questions = 2;
+}
+
+message GenerateQuestionsResponse {
+  repeated GeneratedQuestion questions = 1;
+}

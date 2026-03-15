@@ -145,6 +145,8 @@ services:
       - QUIZ_SERVICE_PORT=50051
       - NOTIFICATION_SERVICE_HOST=notification-service
       - NOTIFICATION_SERVICE_PORT=50051
+      - ML_SERVICE_HOST=ml-service
+      - ML_SERVICE_PORT=50051
       - GAME_SERVICE_HOST=game-service
       - GAME_SERVICE_PORT=8080
       - JWT_SECRET=${JWT_SECRET}
@@ -349,6 +351,27 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+    networks:
+      - kollocol-network
+
+  ml-service:
+    build:
+      context: ./services/ml-service
+      dockerfile: Dockerfile
+    container_name: ml-service
+    ports:
+      - "${ML_SERVICE_PORT}:50051"
+    environment:
+      - GRPC_PORT=50051
+      - YANDEX_CLOUD_API_KEY=${YANDEX_CLOUD_API_KEY}
+      - YANDEX_CLOUD_FOLDER=${YANDEX_CLOUD_FOLDER}
+      - YANDEX_CLOUD_MODEL=${YANDEX_CLOUD_MODEL}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import grpc; ch = grpc.insecure_channel(\"localhost:50051\"); grpc.channel_ready_future(ch).result(timeout=2)'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - kollocol-network
 
