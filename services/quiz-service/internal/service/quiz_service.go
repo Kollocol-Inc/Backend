@@ -155,6 +155,7 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 		ID:       req.TemplateId,
 		OwnerID:  req.UserId,
 		Title:    req.Title,
+		QuizType: req.QuizType,
 		Settings: settingsJSON,
 	}
 

@@ -130,12 +130,13 @@ func (r *TemplateRepository) UpdateTemplate(ctx context.Context, template *Templ
 
 	query := `
 		UPDATE quiz_templates
-		SET title = $1, settings = $2, updated_at = $3
-		WHERE id = $4 AND owner_id = $5
+		SET title = $1, quiz_type = $2, settings = $3, updated_at = $4
+		WHERE id = $5 AND owner_id = $6
 	`
 
 	result, err := r.db.ExecContext(ctx, query,
 		template.Title,
+		template.QuizType,
 		template.Settings,
 		template.UpdatedAt,
 		template.ID,
