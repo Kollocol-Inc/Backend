@@ -9,21 +9,41 @@ import (
 	"math/big"
 	"time"
 
-	pb "auth-service/proto"
 	"auth-service/internal/repository"
 	"auth-service/pkg/cache"
 	"auth-service/pkg/errors"
 	"auth-service/pkg/jwt"
 	"auth-service/pkg/messaging"
 	"auth-service/pkg/validator"
+	pb "auth-service/proto"
 	"google.golang.org/grpc/codes"
 )
 
+type AuthRepository interface {
+	SaveAuthCode(ctx context.Context, email, code string) error
+	GetAuthCode(ctx context.Context, email string) (*repository.AuthCode, error)
+	IncrementAuthCodeAttempts(ctx context.Context, email string) error
+	DeleteAuthCode(ctx context.Context, email string) error
+	AddToBlacklist(ctx context.Context, jti string) error
+	IsBlacklisted(ctx context.Context, jti string) (bool, error)
+	SaveRefreshToken(ctx context.Context, token *repository.RefreshToken) error
+	GetRefreshToken(ctx context.Context, token string) (*repository.RefreshToken, error)
+	DeleteRefreshToken(ctx context.Context, token string) error
+}
+
+type UserRepository interface {
+	GetOrCreateUser(ctx context.Context, email string) (*repository.User, error)
+}
+
+type MessagePublisher interface {
+	Publish(ctx context.Context, queueName string, body []byte) error
+}
+
 type AuthService struct {
 	pb.UnimplementedAuthServiceServer
-	authRepo   *repository.AuthRepository
-	userRepo   *repository.UserRepository
-	rabbitMQ   *messaging.RabbitMQClient
+	authRepo   AuthRepository
+	userRepo   UserRepository
+	rabbitMQ   MessagePublisher
 	jwtSecret  string
 }
 
@@ -31,6 +51,15 @@ func NewAuthService(redis *cache.RedisClient, db *sql.DB, rabbitMQ *messaging.Ra
 	return &AuthService{
 		authRepo:  repository.NewAuthRepository(redis, db),
 		userRepo:  repository.NewUserRepository(db),
+		rabbitMQ:  rabbitMQ,
+		jwtSecret: jwtSecret,
+	}
+}
+
+func NewAuthServiceWithDeps(authRepo AuthRepository, userRepo UserRepository, rabbitMQ MessagePublisher, jwtSecret string) *AuthService {
+	return &AuthService{
+		authRepo:  authRepo,
+		userRepo:  userRepo,
 		rabbitMQ:  rabbitMQ,
 		jwtSecret: jwtSecret,
 	}
