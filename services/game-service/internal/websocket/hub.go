@@ -209,6 +209,17 @@ func (h *Hub) handleJoin(client *Client) {
 		log.Printf("Failed to cache quiz data: %v", err)
 	}
 
+	if client.IsCreator && quizData.QuizType == constants.QuizTypeAsync {
+		log.Printf("Rejecting creator %s from async quiz %s", client.UserID, client.InstanceID)
+		client.SendError("Creator cannot join async quizzes")
+
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+			h.Unregister <- client
+		}()
+		return
+	}
+
 	exists, err := h.sessionRepo.SessionExists(ctx, client.InstanceID, client.UserID)
 	if err != nil {
 		log.Printf("Failed to check session existence: %v", err)
