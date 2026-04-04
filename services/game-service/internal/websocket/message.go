@@ -9,10 +9,12 @@ const (
 	MessageTypeAnswer   MessageType = "answer"
 	MessageTypeContinue MessageType = "continue"
 	MessageTypePing     MessageType = "ping"
+	MessageTypeKick     MessageType = "kick"
 
 	// Server -> Client
 	MessageTypeConnected          MessageType = "connected"
 	MessageTypeParticipantsUpdate MessageType = "participants_update"
+	MessageTypeParticipantsList   MessageType = "participants_list"
 	MessageTypeQuizStarted        MessageType = "quiz_started"
 	MessageTypeQuestion           MessageType = "question"
 	MessageTypeAnswerResult       MessageType = "answer_result"
@@ -20,6 +22,7 @@ const (
 	MessageTypeTimeExpired        MessageType = "time_expired"
 	MessageTypeWaitingForCreator  MessageType = "waiting_for_creator"
 	MessageTypeQuizFinished       MessageType = "quiz_finished"
+	MessageTypeAnswerProgress     MessageType = "answer_progress"
 	MessageTypeError              MessageType = "error"
 	MessageTypePong               MessageType = "pong"
 )
@@ -49,8 +52,31 @@ type ConnectedPayload struct {
 
 type ParticipantsUpdatePayload struct {
 	Action string `json:"action"` // "joined" or "left"
-	UserID string `json:"user_id"`
+	User   User   `json:"user"`
 	Count  int    `json:"count"`
+}
+
+type User struct {
+	UserID    string `json:"user_id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Email     string `json:"email"`
+	AvatarURL string `json:"avatar_url,omitempty"`
+	IsCreator bool   `json:"is_creator"`
+	IsOnline  bool   `json:"is_online"`
+}
+
+type Quiz struct {
+	Title string `json:"title"`
+}
+
+type ParticipantsListPayload struct {
+	Participants []User `json:"participants"`
+	Quiz         Quiz   `json:"quiz"`
+}
+
+type KickPayload struct {
+	Email string `json:"email"`
 }
 
 type QuizStartedPayload struct {
@@ -82,14 +108,23 @@ type AnswerResultPayload struct {
 	TotalScore  int   `json:"total_score"`
 }
 
+type AnswerOptionStats struct {
+	Option string `json:"option"`
+	Count  int    `json:"count"`
+}
+
 type LeaderboardPayload struct {
-	Leaderboard []LeaderboardEntry `json:"leaderboard"`
+	Leaderboard       []LeaderboardEntry  `json:"leaderboard"`
+	AnswerOptionStats []AnswerOptionStats `json:"questions_stats,omitempty"`
+	CanContinue       bool                `json:"can_continue,omitempty"`
+	Question          *QuestionPayload    `json:"question,omitempty"`
 }
 
 type LeaderboardEntry struct {
-	Rank   int    `json:"rank"`
-	UserID string `json:"user_id"`
-	Score  int    `json:"score"`
+	User       User `json:"user"`
+	Rank       int  `json:"rank"`
+	Score      int  `json:"score"`
+	IsAnswered bool `json:"is_answered"`
 }
 
 type TimeExpiredPayload struct {
@@ -99,6 +134,11 @@ type TimeExpiredPayload struct {
 type WaitingForCreatorPayload struct {
 	QuestionIndex int    `json:"question_index"`
 	Reason        string `json:"reason,omitempty"`
+}
+
+type AnswerProgressPayload struct {
+	ParticipantsAnswered int `json:"participants_answered"`
+	TotalParticipants    int `json:"total_participants"`
 }
 
 type QuizFinishedPayload struct {

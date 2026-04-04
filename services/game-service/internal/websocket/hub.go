@@ -30,6 +30,7 @@ type Hub struct {
 	HandleMessage chan *ClientMessage
 
 	quizClient  *client.QuizClient
+	userClient  *client.UserClient
 	redisClient *cache.RedisClient
 	sessionRepo *repository.SessionRepository
 	db          *sql.DB
@@ -38,10 +39,13 @@ type Hub struct {
 
 	questionTimers map[string]*time.Timer
 	timerMu        sync.Mutex
+
+	frozenParticipants map[string][]User
 }
 
 func NewHub(
 	quizClient *client.QuizClient,
+	userClient *client.UserClient,
 	redisClient *cache.RedisClient,
 	sessionRepo *repository.SessionRepository,
 	db *sql.DB,
@@ -52,10 +56,12 @@ func NewHub(
 		Unregister:     make(chan *Client),
 		HandleMessage:  make(chan *ClientMessage),
 		quizClient:     quizClient,
+		userClient:     userClient,
 		redisClient:    redisClient,
 		sessionRepo:    sessionRepo,
 		db:             db,
-		questionTimers: make(map[string]*time.Timer),
+		questionTimers:     make(map[string]*time.Timer),
+		frozenParticipants: make(map[string][]User),
 	}
 }
 
@@ -76,12 +82,22 @@ func (h *Hub) Run() {
 
 func (h *Hub) registerClient(client *Client) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 
 	if h.clients[client.InstanceID] == nil {
 		h.clients[client.InstanceID] = make(map[*Client]bool)
 	}
+
+	for existing := range h.clients[client.InstanceID] {
+		if existing.UserID == client.UserID {
+			delete(h.clients[client.InstanceID], existing)
+			close(existing.Send)
+			log.Printf("Closing duplicate connection: user=%s, instance=%s", client.UserID, client.InstanceID)
+			break
+		}
+	}
+
 	h.clients[client.InstanceID][client] = true
+	h.mu.Unlock()
 
 	log.Printf("Client registered: user=%s, instance=%s, isCreator=%v",
 		client.UserID, client.InstanceID, client.IsCreator)
@@ -100,16 +116,25 @@ func (h *Hub) unregisterClient(client *Client) {
 
 			if len(clients) == 0 {
 				delete(h.clients, client.InstanceID)
+				delete(h.frozenParticipants, client.InstanceID)
 				h.cancelAllTimersForInstance(client.InstanceID)
 			} else {
+				userProfile, err := h.userClient.GetProfile(context.Background(), client.UserID)
+				if err != nil {
+					log.Printf("Failed to get user profile for participant update: %v", err)
+				}
+
+				leftUser := userFromProfile(userProfile, client.IsCreator)
+				leftUser.IsOnline = false
 				payload := ParticipantsUpdatePayload{
 					Action: constants.ActionLeft,
-					UserID: client.UserID,
+					User:   leftUser,
 					Count:  len(clients),
 				}
 				for c := range clients {
 					c.SendMessage(MessageTypeParticipantsUpdate, payload)
 				}
+				go h.sendParticipantsList(client.InstanceID)
 			}
 
 			log.Printf("Client unregistered: user=%s, instance=%s", client.UserID, client.InstanceID)
@@ -139,6 +164,13 @@ func (h *Hub) handleClientMessage(clientMsg *ClientMessage) {
 			h.handleContinue(client)
 		} else {
 			client.SendError("Only the creator can continue")
+		}
+
+	case MessageTypeKick:
+		if client.IsCreator {
+			h.handleKick(client, msg.Payload)
+		} else {
+			client.SendError("Only the creator can kick participants")
 		}
 
 	case MessageTypePing:
@@ -184,6 +216,17 @@ func (h *Hub) handleJoin(client *Client) {
 		return
 	}
 
+	if !exists && !client.IsCreator && quizResp.Instance.Status == constants.InstanceStatusActive && quizData.QuizType == constants.QuizTypeSync {
+		log.Printf("Rejecting late join for user %s in active sync quiz %s", client.UserID, client.InstanceID)
+		client.SendError("Quiz has already started")
+
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+			h.Unregister <- client
+		}()
+		return
+	}
+
 	if !exists {
 		session := &models.GameSession{
 			InstanceID:           client.InstanceID,
@@ -213,11 +256,18 @@ func (h *Hub) handleJoin(client *Client) {
 	participantCount := len(h.clients[client.InstanceID])
 	h.mu.RUnlock()
 
+	userProfile, err := h.userClient.GetProfile(ctx, client.UserID)
+	if err != nil {
+		log.Printf("Failed to get user profile for participant update: %v", err)
+	}
+
 	h.broadcastToInstance(client.InstanceID, MessageTypeParticipantsUpdate, ParticipantsUpdatePayload{
 		Action: constants.ActionJoined,
-		UserID: client.UserID,
+		User:   userFromProfile(userProfile, client.IsCreator),
 		Count:  participantCount,
 	})
+
+	go h.sendParticipantsList(client.InstanceID)
 
 	if quizResp.Instance.Status == constants.InstanceStatusActive {
 		if !client.IsCreator {
@@ -277,6 +327,7 @@ func (h *Hub) convertToQuizData(resp *pb.GetInstanceResponse) *models.QuizData {
 		CreatedBy:  resp.Instance.CreatedBy,
 		Questions:  questions,
 		TemplateID: resp.Instance.TemplateId,
+		Title:      resp.Instance.Title,
 		Settings:   settings,
 	}
 }
@@ -289,16 +340,14 @@ func (h *Hub) cacheQuizData(ctx context.Context, instanceID string, data *models
 	if err != nil {
 		return err
 	}
-	key := fmt.Sprintf("quiz:%s:data", instanceID)
-	return h.redisClient.Set(ctx, key, string(jsonData), 24*time.Hour)
+	return h.redisClient.Set(ctx, redisQuizDataKey(instanceID), string(jsonData), 24*time.Hour)
 }
 
 func (h *Hub) getQuizData(ctx context.Context, instanceID string) (*models.QuizData, error) {
 	if h.redisClient == nil {
 		return nil, fmt.Errorf("redis client is not initialized")
 	}
-	key := fmt.Sprintf("quiz:%s:data", instanceID)
-	jsonData, err := h.redisClient.Get(ctx, key)
+	jsonData, err := h.redisClient.Get(ctx, redisQuizDataKey(instanceID))
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +359,106 @@ func (h *Hub) getQuizData(ctx context.Context, instanceID string) (*models.QuizD
 	return &data, nil
 }
 
-func (h *Hub) broadcastToInstance(instanceID string, msgType MessageType, payload interface{}) {
+func (h *Hub) handleKick(client *Client, payload any) {
+	ctx := context.Background()
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		client.SendError("Invalid kick format")
+		return
+	}
+
+	var kickPayload KickPayload
+	if err := json.Unmarshal(payloadBytes, &kickPayload); err != nil {
+		client.SendError("Invalid kick format")
+		return
+	}
+
+	if kickPayload.Email == "" {
+		client.SendError("Email is required")
+		return
+	}
+
+	userProfile, err := h.userClient.GetByEmail(ctx, kickPayload.Email)
+	if err != nil {
+		log.Printf("Failed to get user profile by email %s: %v", kickPayload.Email, err)
+		client.SendError("User not found")
+		return
+	}
+
+	targetUserID := userProfile.Id
+
+	if targetUserID == client.UserID {
+		client.SendError("You cannot kick yourself")
+		return
+	}
+
+	quizData, err := h.getQuizData(ctx, client.InstanceID)
+	if err != nil {
+		log.Printf("Failed to get quiz data: %v", err)
+		client.SendError("Failed to kick participant")
+		return
+	}
+
+	if quizData.QuizType != constants.QuizTypeSync {
+		client.SendError("Kick is only available in sync quizzes")
+		return
+	}
+
+	h.mu.Lock()
+
+	clients, ok := h.clients[client.InstanceID]
+	if !ok {
+		h.mu.Unlock()
+		client.SendError("No participants found")
+		return
+	}
+
+	var targetClient *Client
+	for c := range clients {
+		if c.UserID == targetUserID {
+			targetClient = c
+			break
+		}
+	}
+
+	if targetClient == nil {
+		h.mu.Unlock()
+		client.SendError("Participant not found")
+		return
+	}
+
+	if targetClient.IsCreator {
+		h.mu.Unlock()
+		client.SendError("Cannot kick the creator")
+		return
+	}
+
+	close(targetClient.Send)
+	targetClient.Conn.Close()
+
+	delete(clients, targetClient)
+	clientCount := len(clients)
+	h.mu.Unlock()
+
+	if err := h.sessionRepo.DeleteSession(ctx, client.InstanceID, targetUserID); err != nil {
+		log.Printf("Failed to delete session for kicked user %s: %v", targetUserID, err)
+	}
+
+	log.Printf("User %s kicked user %s (email: %s) from instance %s", client.UserID, targetUserID, kickPayload.Email, client.InstanceID)
+
+	kickedUser := userFromProfile(userProfile, targetClient.IsCreator)
+	kickedUser.IsOnline = false
+	h.broadcastToInstance(client.InstanceID, MessageTypeParticipantsUpdate, ParticipantsUpdatePayload{
+		Action: constants.ActionLeft,
+		User:   kickedUser,
+		Count:  clientCount,
+	})
+
+	go h.sendParticipantsList(client.InstanceID)
+}
+
+func (h *Hub) broadcastToInstance(instanceID string, msgType MessageType, payload any) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
@@ -320,7 +468,87 @@ func (h *Hub) broadcastToInstance(instanceID string, msgType MessageType, payloa
 	}
 }
 
-func (h *Hub) broadcastToParticipants(instanceID string, msgType MessageType, payload interface{}) {
+func (h *Hub) sendParticipantsList(instanceID string) {
+	ctx := context.Background()
+
+	quizData, err := h.getQuizData(ctx, instanceID)
+	if err != nil {
+		log.Printf("Failed to get quiz data for participants list: %v", err)
+		return
+	}
+
+	h.mu.RLock()
+	frozen := h.frozenParticipants[instanceID]
+	clients := h.clients[instanceID]
+	h.mu.RUnlock()
+
+	var participants []User
+
+	if len(frozen) > 0 {
+		participants = make([]User, len(frozen))
+		copy(participants, frozen)
+		for i := range participants {
+			participants[i].IsOnline = h.isUserOnline(instanceID, participants[i].UserID)
+		}
+	} else {
+		participants = make([]User, 0, len(clients))
+		for client := range clients {
+			userProfile, err := h.userClient.GetProfile(ctx, client.UserID)
+			if err != nil {
+				log.Printf("Failed to get user profile %s: %v", client.UserID, err)
+				continue
+			}
+			participants = append(participants, userFromProfile(userProfile, client.IsCreator))
+		}
+	}
+
+	h.broadcastToInstance(instanceID, MessageTypeParticipantsList, ParticipantsListPayload{
+		Participants: participants,
+		Quiz: Quiz{
+			Title: quizData.Title,
+		},
+	})
+}
+
+func (h *Hub) freezeParticipants(ctx context.Context, instanceID string) {
+	h.mu.RLock()
+	liveClients := h.clients[instanceID]
+	snapshot := make([]*Client, 0, len(liveClients))
+	for c := range liveClients {
+		snapshot = append(snapshot, c)
+	}
+	h.mu.RUnlock()
+
+	participants := make([]User, 0, len(snapshot))
+	for _, c := range snapshot {
+		userProfile, err := h.userClient.GetProfile(ctx, c.UserID)
+		if err != nil {
+			log.Printf("Failed to get user profile %s for freeze: %v", c.UserID, err)
+			continue
+		}
+		participants = append(participants, userFromProfile(userProfile, c.IsCreator))
+	}
+
+	h.mu.Lock()
+	h.frozenParticipants[instanceID] = participants
+	h.mu.Unlock()
+
+	log.Printf("Froze %d participants for instance %s", len(participants), instanceID)
+}
+
+func (h *Hub) isUserOnline(instanceID, userID string) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for c := range h.clients[instanceID] {
+		if c.UserID == userID {
+			return true
+		}
+	}
+	return false
+}
+
+func (h *Hub) broadcastToParticipants(instanceID string, msgType MessageType, payload any) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
@@ -330,6 +558,46 @@ func (h *Hub) broadcastToParticipants(instanceID string, msgType MessageType, pa
 			client.SendMessage(msgType, payload)
 		}
 	}
+}
+
+func (h *Hub) sendLeaderboardToCreator(ctx context.Context, instanceID string, quizData *models.QuizData) {
+	h.mu.RLock()
+	clients := h.clients[instanceID]
+	h.mu.RUnlock()
+
+	var creator *Client
+	for c := range clients {
+		if c.IsCreator {
+			creator = c
+			break
+		}
+	}
+
+	if creator == nil {
+		return
+	}
+
+	questionIndex := h.getCurrentQuestionIndex(ctx, instanceID)
+
+	sessions, err := h.sessionRepo.GetSessionsByInstance(ctx, instanceID)
+	if err != nil {
+		log.Printf("Failed to get sessions for creator leaderboard: %v", err)
+		return
+	}
+
+	leaderboard := h.buildLeaderboard(ctx, sessions, quizData, questionIndex)
+	questionStats := h.buildQuestionStats(sessions, quizData, questionIndex)
+
+	var qp *QuestionPayload
+	if questionIndex < len(quizData.Questions) {
+		qp = questionPayloadFromModel(quizData.Questions[questionIndex], questionIndex, len(quizData.Questions))
+	}
+
+	creator.SendMessage(MessageTypeLeaderboard, LeaderboardPayload{
+		Leaderboard:       leaderboard,
+		AnswerOptionStats: questionStats,
+		Question:          qp,
+	})
 }
 
 func (h *Hub) cancelQuestionTimer(timerKey string) {
@@ -395,6 +663,7 @@ func (h *Hub) validateAnswer(answer, correctAnswerJSON, questionType string) boo
 }
 
 func (h *Hub) calculateScore(maxScore int, timeSpentMs, timeLimitMs int64) int {
+	maxScore = 100 * maxScore
 	if timeLimitMs == 0 {
 		return maxScore
 	}

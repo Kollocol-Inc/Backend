@@ -55,9 +55,16 @@ func main() {
 	log.Println("Connected to Quiz Service")
 	defer quizClient.Close()
 
+	userClient, err := client.NewUserClient(cfg.User.Host, cfg.User.Port)
+	if err != nil {
+		log.Fatalf("Failed to connect to User Service: %v", err)
+	}
+	log.Println("Connected to User Service")
+	defer userClient.Close()
+
 	sessionRepo := repository.NewSessionRepository(pgClient.GetDB())
 
-	hub := ws.NewHub(quizClient, redisClient, sessionRepo, pgClient.GetDB())
+	hub := ws.NewHub(quizClient, userClient, redisClient, sessionRepo, pgClient.GetDB())
 	go hub.Run()
 	log.Println("WebSocket hub started")
 

@@ -126,6 +126,12 @@ func (r *SessionRepository) GetActiveSessionsCount(ctx context.Context, instance
 	return count, err
 }
 
+func (r *SessionRepository) DeleteSession(ctx context.Context, instanceID, userID string) error {
+	query := `DELETE FROM game_sessions WHERE instance_id = $1 AND user_id = $2`
+	_, err := r.db.ExecContext(ctx, query, instanceID, userID)
+	return err
+}
+
 func (r *SessionRepository) UpdateSessionStatus(ctx context.Context, instanceID, userID, status string) error {
 	query := `UPDATE game_sessions SET status = $1 WHERE instance_id = $2 AND user_id = $3`
 	result, err := r.db.ExecContext(ctx, query, status, instanceID, userID)

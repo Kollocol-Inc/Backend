@@ -10,6 +10,7 @@ type Config struct {
 	DB       DBConfig
 	Redis    RedisConfig
 	Quiz     QuizServiceConfig
+	User     UserServiceConfig
 	Auth     AuthServiceConfig
 }
 
@@ -35,6 +36,11 @@ type RedisConfig struct {
 }
 
 type QuizServiceConfig struct {
+	Host string
+	Port string
+}
+
+type UserServiceConfig struct {
 	Host string
 	Port string
 }
@@ -67,6 +73,10 @@ func Load() *Config {
 		Quiz: QuizServiceConfig{
 			Host: getEnv("QUIZ_SERVICE_HOST", "localhost"),
 			Port: getEnv("QUIZ_SERVICE_PORT", "50051"),
+		},
+		User: UserServiceConfig{
+			Host: getEnv("USER_SERVICE_HOST", "localhost"),
+			Port: getEnv("USER_SERVICE_PORT", "50051"),
 		},
 		Auth: AuthServiceConfig{
 			Host: getEnv("AUTH_SERVICE_HOST", "localhost"),

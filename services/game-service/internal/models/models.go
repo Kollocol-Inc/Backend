@@ -29,6 +29,7 @@ type QuizData struct {
 	CreatedBy  string     `json:"created_by"`
 	Questions  []Question `json:"questions"`
 	TemplateID string     `json:"template_id"`
+	Title      string     `json:"title"`
 	Settings   Settings   `json:"settings"`
 }
 

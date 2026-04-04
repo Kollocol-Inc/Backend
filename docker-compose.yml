@@ -297,6 +297,8 @@ services:
       - REDIS_DB=${REDIS_DB}
       - QUIZ_SERVICE_HOST=quiz-service
       - QUIZ_SERVICE_PORT=50051
+      - USER_SERVICE_HOST=user-service
+      - USER_SERVICE_PORT=50051
     depends_on:
       postgres:
         condition: service_healthy

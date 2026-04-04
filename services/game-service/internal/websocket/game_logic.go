@@ -21,18 +21,18 @@ func (h *Hub) handleStartQuiz(client *Client) {
 		client.SendError("Failed to start quiz")
 		return
 	}
-	log.Printf("Got quiz data for instance %s", client.InstanceID)
 
 	if err := h.sessionRepo.UpdateSessionStatus(ctx, client.InstanceID, client.UserID, constants.SessionStatusInProgress); err != nil {
 		log.Printf("Failed to update session status: %v", err)
 	}
-	log.Printf("Updated session status for creator %s", client.UserID)
 
 	if err := h.updateInstanceStatus(ctx, client.InstanceID, constants.InstanceStatusActive); err != nil {
 		log.Printf("Failed to update instance status: %v", err)
 	}
 
 	if quizData.QuizType == constants.QuizTypeSync {
+		h.freezeParticipants(ctx, client.InstanceID)
+
 		h.broadcastToInstance(client.InstanceID, MessageTypeQuizStarted, QuizStartedPayload{
 			QuizType: quizData.QuizType,
 		})
@@ -41,15 +41,18 @@ func (h *Hub) handleStartQuiz(client *Client) {
 		clients := h.clients[client.InstanceID]
 		h.mu.RUnlock()
 
+		participantCount := 0
 		for c := range clients {
+			if err := h.sessionRepo.UpdateSessionStatus(ctx, client.InstanceID, c.UserID, constants.SessionStatusInProgress); err != nil {
+				log.Printf("Failed to update session status for user %s: %v", c.UserID, err)
+			}
 			if !c.IsCreator {
-				if err := h.sessionRepo.UpdateSessionStatus(ctx, client.InstanceID, c.UserID, constants.SessionStatusInProgress); err != nil {
-					log.Printf("Failed to update session status for user %s: %v", c.UserID, err)
-				}
-				h.sendQuestion(c, quizData, 0)
+				participantCount++
 			}
 		}
-		h.notifyCreatorProgress(ctx, client.InstanceID, 0)
+		h.saveTotalParticipants(ctx, client.InstanceID, participantCount)
+		h.sendQuestionToAll(clients, quizData, 0)
+		h.sendAnswerProgressToAll(ctx, client.InstanceID, quizData, 0)
 	} else {
 		client.SendMessage(MessageTypeQuizStarted, QuizStartedPayload{
 			QuizType: quizData.QuizType,
@@ -57,6 +60,7 @@ func (h *Hub) handleStartQuiz(client *Client) {
 		h.sendQuestion(client, quizData, 0)
 	}
 }
+
 func (h *Hub) handleResumeQuiz(client *Client, quizData *models.QuizData) {
 	ctx := context.Background()
 
@@ -68,97 +72,132 @@ func (h *Hub) handleResumeQuiz(client *Client, quizData *models.QuizData) {
 
 	if quizData.QuizType == constants.QuizTypeAsync {
 		h.sendQuestion(client, quizData, session.CurrentQuestionIndex)
-	} else {
-		var currentIndex int
-		if h.redisClient != nil {
-			indexKey := fmt.Sprintf("quiz:%s:current_index", client.InstanceID)
-			indexStr, err := h.redisClient.Get(ctx, indexKey)
-			if err == nil {
-				fmt.Sscanf(indexStr, "%d", &currentIndex)
-			}
-		}
+		return
+	}
 
-		startTimeKey := fmt.Sprintf("quiz:%s:question:%d:start", client.InstanceID, currentIndex)
-		var startTime int64
-		if h.redisClient != nil {
-			startTimeStr, err := h.redisClient.Get(ctx, startTimeKey)
-			if err == nil {
-				fmt.Sscanf(startTimeStr, "%d", &startTime)
-			}
-		}
+	currentIndex := h.getCurrentQuestionIndex(ctx, client.InstanceID)
+	if currentIndex >= len(quizData.Questions) {
+		h.finishQuiz(client)
+		return
+	}
 
-		isTimeExpired := false
-		if startTime > 0 {
-			question := quizData.Questions[currentIndex]
-			if question.TimeLimitSec > 0 {
-				elapsed := time.Now().UnixMilli() - startTime
-				if elapsed > int64(question.TimeLimitSec)*1000 {
-					isTimeExpired = true
-				}
-			}
-		}
+	stKey := redisStartTimeKey(quizData.QuizType, client.InstanceID, client.UserID, currentIndex)
+	startTime := h.getStartTimeMs(ctx, stKey)
+	isTimeExpired := h.isQuestionTimeExpired(quizData.Questions[currentIndex], startTime)
 
-		allAnswered := h.checkAllParticipantsAnswered(ctx, client.InstanceID, currentIndex)
+	sessions, err := h.sessionRepo.GetSessionsByInstance(ctx, client.InstanceID)
+	if err != nil {
+		log.Printf("Failed to get sessions for resume: %v", err)
+		return
+	}
+	total, answered := h.countAnswerProgress(ctx, client.InstanceID, sessions, quizData.CreatedBy, currentIndex)
+	allAnswered := total > 0 && answered >= total
 
-		if client.IsCreator {
-			if isTimeExpired || allAnswered {
-				h.sendLeaderboardToClient(client, currentIndex)
-				client.SendMessage(MessageTypeWaitingForCreator, WaitingForCreatorPayload{
-					QuestionIndex: currentIndex,
-					Reason:        "Waiting for continue command",
-				})
-			} else {
-				h.notifyCreatorProgress(ctx, client.InstanceID, currentIndex)
-			}
-			return
-		}
+	qd := questionPayloadFromModel(quizData.Questions[currentIndex], currentIndex, len(quizData.Questions))
 
-		if session.CurrentQuestionIndex > currentIndex {
-			h.sendLeaderboardToClient(client, currentIndex)
+	if client.IsCreator {
+		if isTimeExpired || allAnswered {
+			h.sendLeaderboardToClient(ctx, client, quizData, currentIndex, qd)
 			client.SendMessage(MessageTypeWaitingForCreator, WaitingForCreatorPayload{
 				QuestionIndex: currentIndex,
-				Reason:        "Waiting for next question",
+				Reason:        "Waiting for continue command",
 			})
 		} else {
-			if isTimeExpired {
-				h.sendLeaderboardToClient(client, currentIndex)
-				client.SendMessage(MessageTypeTimeExpired, TimeExpiredPayload{
-					QuestionIndex: currentIndex,
-				})
-				client.SendMessage(MessageTypeWaitingForCreator, WaitingForCreatorPayload{
-					QuestionIndex: currentIndex,
-					Reason:        "Time expired",
-				})
-				return
-			}
-
 			h.sendQuestion(client, quizData, currentIndex)
+			h.sendAnswerProgressToAll(ctx, client.InstanceID, quizData, currentIndex)
 		}
+		return
 	}
+
+	if session.CurrentQuestionIndex > currentIndex {
+		h.sendLeaderboardToClient(ctx, client, quizData, currentIndex, qd)
+		client.SendMessage(MessageTypeWaitingForCreator, WaitingForCreatorPayload{
+			QuestionIndex: currentIndex,
+			Reason:        "Waiting for next question",
+		})
+		return
+	}
+
+	if isTimeExpired {
+		h.sendLeaderboardToClient(ctx, client, quizData, currentIndex, qd)
+		client.SendMessage(MessageTypeTimeExpired, TimeExpiredPayload{
+			QuestionIndex: currentIndex,
+		})
+		client.SendMessage(MessageTypeWaitingForCreator, WaitingForCreatorPayload{
+			QuestionIndex: currentIndex,
+			Reason:        "Time expired",
+		})
+		return
+	}
+
+	h.sendQuestion(client, quizData, currentIndex)
 }
 
-func (h *Hub) sendLeaderboardToClient(client *Client, questionIndex int) {
-	ctx := context.Background()
-	leaderboard := h.getLeaderboard(ctx, client.InstanceID)
+func (h *Hub) isQuestionTimeExpired(question models.Question, startTime int64) bool {
+	if startTime <= 0 || question.TimeLimitSec <= 0 {
+		return false
+	}
+	elapsed := time.Now().UnixMilli() - startTime
+	return elapsed > int64(question.TimeLimitSec)*1000
+}
+
+func (h *Hub) sendLeaderboardToClient(ctx context.Context, client *Client, quizData *models.QuizData, questionIndex int, question *QuestionPayload) {
+	sessions, err := h.sessionRepo.GetSessionsByInstance(ctx, client.InstanceID)
+	if err != nil {
+		log.Printf("Failed to get sessions for leaderboard: %v", err)
+		return
+	}
+
+	leaderboard := h.buildLeaderboard(ctx, sessions, quizData, questionIndex)
+	questionStats := h.buildQuestionStats(sessions, quizData, questionIndex)
+
+	canContinue := false
+	if client.IsCreator {
+		canContinue = h.canCreatorContinue(ctx, client.InstanceID, questionIndex, quizData)
+	}
+
 	client.SendMessage(MessageTypeLeaderboard, LeaderboardPayload{
-		Leaderboard: leaderboard,
+		Leaderboard:       leaderboard,
+		AnswerOptionStats: questionStats,
+		CanContinue:       canContinue,
+		Question:          question,
 	})
 }
 
-func (h *Hub) notifyCreatorProgress(ctx context.Context, instanceID string, questionIndex int) {
+func (h *Hub) sendLeaderboardToAll(ctx context.Context, instanceID string, quizData *models.QuizData, questionIndex int, question *QuestionPayload) {
+	sessions, err := h.sessionRepo.GetSessionsByInstance(ctx, instanceID)
+	if err != nil {
+		log.Printf("Failed to get sessions for leaderboard: %v", err)
+		return
+	}
+
+	leaderboard := h.buildLeaderboard(ctx, sessions, quizData, questionIndex)
+	questionStats := h.buildQuestionStats(sessions, quizData, questionIndex)
+	canContinue := h.canCreatorContinue(ctx, instanceID, questionIndex, quizData)
+
 	h.mu.RLock()
 	clients := h.clients[instanceID]
 	h.mu.RUnlock()
 
-	var creator *Client
-	for c := range clients {
-		if c.IsCreator {
-			creator = c
-			break
+	for client := range clients {
+		payload := LeaderboardPayload{
+			Leaderboard:       leaderboard,
+			AnswerOptionStats: questionStats,
+			Question:          question,
 		}
+		if client.IsCreator {
+			payload.CanContinue = canContinue
+		}
+		client.SendMessage(MessageTypeLeaderboard, payload)
 	}
+}
 
-	if creator == nil {
+func (h *Hub) sendAnswerProgressToAll(ctx context.Context, instanceID string, quizData *models.QuizData, questionIndex int) {
+	h.mu.RLock()
+	clients := h.clients[instanceID]
+	h.mu.RUnlock()
+
+	if clients == nil {
 		return
 	}
 
@@ -167,31 +206,25 @@ func (h *Hub) notifyCreatorProgress(ctx context.Context, instanceID string, ques
 		return
 	}
 
-	participantCount := 0
-	answeredCount := 0
+	total, answered := h.countAnswerProgress(ctx, instanceID, sessions, quizData.CreatedBy, questionIndex)
 
-	for _, session := range sessions {
-		if session.UserID == creator.UserID {
-			continue
-		}
-
-		if session.Status == constants.SessionStatusInProgress || session.Status == constants.SessionStatusFinished {
-			participantCount++
-			if session.CurrentQuestionIndex > questionIndex {
-				answeredCount++
-			}
-		}
+	progress := AnswerProgressPayload{
+		ParticipantsAnswered: answered,
+		TotalParticipants:    total,
 	}
 
-	creator.SendMessage(MessageTypeWaitingForCreator, WaitingForCreatorPayload{
-		QuestionIndex: questionIndex,
-		Reason:        fmt.Sprintf("Question in progress: %d/%d answered", answeredCount, participantCount),
-	})
+	for client := range clients {
+		client.SendMessage(MessageTypeAnswerProgress, progress)
+	}
+}
+
+func (h *Hub) sendQuestionToAll(clients map[*Client]bool, quizData *models.QuizData, questionIndex int) {
+	for c := range clients {
+		h.sendQuestion(c, quizData, questionIndex)
+	}
 }
 
 func (h *Hub) sendQuestion(client *Client, quizData *models.QuizData, questionIndex int) {
-	log.Printf("Sending question %d to user %s (creator=%v, type=%s)", questionIndex, client.UserID, client.IsCreator, quizData.QuizType)
-
 	if questionIndex >= len(quizData.Questions) {
 		h.finishQuiz(client)
 		return
@@ -200,38 +233,12 @@ func (h *Hub) sendQuestion(client *Client, quizData *models.QuizData, questionIn
 	question := quizData.Questions[questionIndex]
 	ctx := context.Background()
 
-	var startTimeKey string
-	if quizData.QuizType == constants.QuizTypeSync {
-		startTimeKey = fmt.Sprintf("quiz:%s:question:%d:start", client.InstanceID, questionIndex)
-	} else {
-		startTimeKey = fmt.Sprintf("quiz:%s:user:%s:question:%d:start", client.InstanceID, client.UserID, questionIndex)
-	}
-
+	stKey := redisStartTimeKey(quizData.QuizType, client.InstanceID, client.UserID, questionIndex)
 	if h.redisClient != nil {
-		h.redisClient.GetClient().SetNX(ctx, startTimeKey, time.Now().UnixMilli(), 1*time.Hour)
+		h.redisClient.GetClient().SetNX(ctx, stKey, time.Now().UnixMilli(), 1*time.Hour)
 	}
 
-	duration := time.Duration(0)
-	if question.TimeLimitSec > 0 {
-		duration = time.Duration(question.TimeLimitSec) * time.Second
-
-		if h.redisClient != nil {
-			startTimeStr, err := h.redisClient.Get(ctx, startTimeKey)
-			if err == nil {
-				var startTime int64
-				fmt.Sscanf(startTimeStr, "%d", &startTime)
-				if startTime > 0 {
-					elapsed := time.Now().UnixMilli() - startTime
-					remainingMs := int64(question.TimeLimitSec)*1000 - elapsed
-					if remainingMs <= 0 {
-						duration = 0
-					} else {
-						duration = time.Duration(remainingMs) * time.Millisecond
-					}
-				}
-			}
-		}
-	}
+	duration := h.remainingDuration(ctx, question, stKey)
 
 	payload := QuestionPayload{
 		Question: QuestionData{
@@ -252,37 +259,44 @@ func (h *Hub) sendQuestion(client *Client, quizData *models.QuizData, questionIn
 		payload.TimeLimitMs = duration.Milliseconds()
 	}
 
-	if quizData.QuizType == constants.QuizTypeSync && !client.IsCreator {
-		log.Printf("Sending question payload to participant %s", client.UserID)
-		client.SendMessage(MessageTypeQuestion, payload)
-	} else if quizData.QuizType == constants.QuizTypeAsync {
-		client.SendMessage(MessageTypeQuestion, payload)
-	} else {
-		log.Printf("Skipping question send for user %s (sync creator)", client.UserID)
-	}
+	client.SendMessage(MessageTypeQuestion, payload)
 
 	if question.TimeLimitSec > 0 {
 		h.startQuestionTimer(client, quizData, questionIndex, duration)
 	}
 }
 
-func (h *Hub) startQuestionTimer(client *Client, quizData *models.QuizData, questionIndex int, duration time.Duration) {
-	var timerKey string
-	if quizData.QuizType == constants.QuizTypeSync {
-		timerKey = fmt.Sprintf("%s:%d", client.InstanceID, questionIndex)
-	} else {
-		timerKey = fmt.Sprintf("%s:%s:%d", client.InstanceID, client.UserID, questionIndex)
+func (h *Hub) remainingDuration(ctx context.Context, question models.Question, stKey string) time.Duration {
+	if question.TimeLimitSec <= 0 {
+		return 0
 	}
 
+	fullDuration := time.Duration(question.TimeLimitSec) * time.Second
+	startTime := h.getStartTimeMs(ctx, stKey)
+	if startTime <= 0 {
+		return fullDuration
+	}
+
+	elapsed := time.Now().UnixMilli() - startTime
+	remainingMs := int64(question.TimeLimitSec)*1000 - elapsed
+	if remainingMs <= 0 {
+		return 0
+	}
+	return time.Duration(remainingMs) * time.Millisecond
+}
+
+func (h *Hub) startQuestionTimer(client *Client, quizData *models.QuizData, questionIndex int, duration time.Duration) {
+	tk := timerKey(quizData.QuizType, client.InstanceID, client.UserID, questionIndex)
+
 	h.timerMu.Lock()
-	if timer, ok := h.questionTimers[timerKey]; ok {
+	if timer, ok := h.questionTimers[tk]; ok {
 		timer.Stop()
 	}
 
 	timer := time.AfterFunc(duration, func() {
 		h.handleQuestionTimeout(client, quizData, questionIndex)
 	})
-	h.questionTimers[timerKey] = timer
+	h.questionTimers[tk] = timer
 	h.timerMu.Unlock()
 }
 
@@ -290,19 +304,21 @@ func (h *Hub) handleQuestionTimeout(client *Client, quizData *models.QuizData, q
 	log.Printf("Question timeout: instance=%s, user=%s, question=%d",
 		client.InstanceID, client.UserID, questionIndex)
 
+	ctx := context.Background()
+
 	if quizData.QuizType == constants.QuizTypeSync {
 		h.broadcastToParticipants(client.InstanceID, MessageTypeTimeExpired, TimeExpiredPayload{
 			QuestionIndex: questionIndex,
 		})
-
-		h.showLeaderboardAndWait(client.InstanceID, questionIndex)
+		qd := questionPayloadFromModel(quizData.Questions[questionIndex], questionIndex, len(quizData.Questions))
+		h.sendLeaderboardToAll(ctx, client.InstanceID, quizData, questionIndex, qd)
 	} else {
 		client.SendMessage(MessageTypeTimeExpired, TimeExpiredPayload{
 			QuestionIndex: questionIndex,
 		})
-
-		time.Sleep(200 * time.Millisecond)
-		h.sendQuestion(client, quizData, questionIndex+1)
+		time.AfterFunc(200*time.Millisecond, func() {
+			h.sendQuestion(client, quizData, questionIndex+1)
+		})
 	}
 }
 
@@ -343,31 +359,16 @@ func (h *Hub) handleAnswer(client *Client, payload any) {
 		return
 	}
 
-	var startTimeKey string
-	if quizData.QuizType == constants.QuizTypeSync {
-		startTimeKey = fmt.Sprintf("quiz:%s:question:%d:start", client.InstanceID, questionIndex)
-	} else {
-		startTimeKey = fmt.Sprintf("quiz:%s:user:%s:question:%d:start", client.InstanceID, client.UserID, questionIndex)
-	}
-
-	var startTime int64
-	if h.redisClient != nil {
-		startTimeStr, err := h.redisClient.Get(ctx, startTimeKey)
-		if err != nil {
-			log.Printf("Failed to get start time: %v", err)
-			startTime = time.Now().UnixMilli()
-		} else {
-			fmt.Sscanf(startTimeStr, "%d", &startTime)
-		}
-	} else {
+	stKey := redisStartTimeKey(quizData.QuizType, client.InstanceID, client.UserID, questionIndex)
+	startTime := h.getStartTimeMs(ctx, stKey)
+	if startTime == 0 {
 		startTime = time.Now().UnixMilli()
 	}
 
-	timeSpentMs := max(time.Now().UnixMilli() - startTime, 0)
+	timeSpentMs := max(time.Now().UnixMilli()-startTime, 0)
 
 	if question.TimeLimitSec > 0 {
-		timeLimitMs := int64(question.TimeLimitSec) * 1000
-		if timeSpentMs > timeLimitMs {
+		if timeSpentMs > int64(question.TimeLimitSec)*1000 {
 			client.SendError("Time limit exceeded")
 			return
 		}
@@ -377,8 +378,7 @@ func (h *Hub) handleAnswer(client *Client, payload any) {
 
 	score := 0
 	if isCorrect {
-		timeLimitMs := int64(question.TimeLimitSec) * 1000
-		score = h.calculateScore(question.MaxScore, timeSpentMs, timeLimitMs)
+		score = h.calculateScore(question.MaxScore, timeSpentMs, int64(question.TimeLimitSec)*1000)
 	}
 
 	session, err := h.sessionRepo.GetSession(ctx, client.InstanceID, client.UserID)
@@ -421,25 +421,28 @@ func (h *Hub) handleAnswer(client *Client, payload any) {
 	})
 
 	if quizData.QuizType == constants.QuizTypeSync {
-		h.updateLeaderboard(ctx, client.InstanceID)
-	}
+		h.sendLeaderboardToCreator(ctx, client.InstanceID, quizData)
 
-	if quizData.QuizType == constants.QuizTypeSync {
-		allAnswered := h.checkAllParticipantsAnswered(ctx, client.InstanceID, questionIndex)
+		sessions, err := h.sessionRepo.GetSessionsByInstance(ctx, client.InstanceID)
+		if err != nil {
+			log.Printf("Failed to get sessions: %v", err)
+			return
+		}
+		total, answered := h.countAnswerProgress(ctx, client.InstanceID, sessions, quizData.CreatedBy, questionIndex)
+		allAnswered := total > 0 && answered >= total
+
 		if allAnswered {
-			timerKey := fmt.Sprintf("%s:%d", client.InstanceID, questionIndex)
-			h.cancelQuestionTimer(timerKey)
-
-			h.showLeaderboardAndWait(client.InstanceID, questionIndex)
+			h.cancelQuestionTimer(timerKey(quizData.QuizType, client.InstanceID, client.UserID, questionIndex))
+			qd := questionPayloadFromModel(quizData.Questions[questionIndex], questionIndex, len(quizData.Questions))
+			h.sendLeaderboardToAll(ctx, client.InstanceID, quizData, questionIndex, qd)
 		} else {
-			h.notifyCreatorProgress(ctx, client.InstanceID, questionIndex)
+			h.sendAnswerProgressToAll(ctx, client.InstanceID, quizData, questionIndex)
 		}
 	} else {
-		timerKey := fmt.Sprintf("%s:%s:%d", client.InstanceID, client.UserID, questionIndex)
-		h.cancelQuestionTimer(timerKey)
-
-		time.Sleep(200 * time.Millisecond)
-		h.sendQuestion(client, quizData, questionIndex+1)
+		h.cancelQuestionTimer(timerKey(quizData.QuizType, client.InstanceID, client.UserID, questionIndex))
+		time.AfterFunc(200*time.Millisecond, func() {
+			h.sendQuestion(client, quizData, questionIndex+1)
+		})
 	}
 }
 
@@ -453,19 +456,7 @@ func (h *Hub) handleContinue(client *Client) {
 		return
 	}
 
-	sessions, err := h.sessionRepo.GetSessionsByInstance(ctx, client.InstanceID)
-	if err != nil || len(sessions) == 0 {
-		client.SendError("No active sessions")
-		return
-	}
-
-	nextQuestionIndex := 0
-	for _, s := range sessions {
-		if s.UserID != quizData.CreatedBy {
-			nextQuestionIndex = s.CurrentQuestionIndex
-			break
-		}
-	}
+	nextQuestionIndex := h.getCurrentQuestionIndex(ctx, client.InstanceID) + 1
 
 	h.mu.RLock()
 	clients := h.clients[client.InstanceID]
@@ -484,88 +475,89 @@ func (h *Hub) handleContinue(client *Client) {
 	}
 
 	if quizData.QuizType == constants.QuizTypeSync && h.redisClient != nil {
-		indexKey := fmt.Sprintf("quiz:%s:current_index", client.InstanceID)
-		h.redisClient.Set(ctx, indexKey, nextQuestionIndex, 24*time.Hour)
+		h.redisClient.Set(ctx, redisCurrentIndexKey(client.InstanceID), nextQuestionIndex, 24*time.Hour)
 	}
 
-	for c := range clients {
-		if !c.IsCreator {
-			h.sendQuestion(c, quizData, nextQuestionIndex)
-		}
+	h.sendQuestionToAll(clients, quizData, nextQuestionIndex)
+	h.sendAnswerProgressToAll(ctx, client.InstanceID, quizData, nextQuestionIndex)
+}
+
+func (h *Hub) canCreatorContinue(ctx context.Context, instanceID string, questionIndex int, quizData *models.QuizData) bool {
+	if questionIndex >= len(quizData.Questions) || quizData.QuizType != constants.QuizTypeSync {
+		return false
 	}
-	h.notifyCreatorProgress(ctx, client.InstanceID, nextQuestionIndex)
-}
 
-func (h *Hub) showLeaderboardAndWait(instanceID string, questionIndex int) {
-	ctx := context.Background()
+	stKey := redisStartTimeKey(quizData.QuizType, instanceID, "", questionIndex)
+	startTime := h.getStartTimeMs(ctx, stKey)
+	if h.isQuestionTimeExpired(quizData.Questions[questionIndex], startTime) {
+		return true
+	}
 
-	leaderboard := h.getLeaderboard(ctx, instanceID)
-
-	h.broadcastToInstance(instanceID, MessageTypeLeaderboard, LeaderboardPayload{
-		Leaderboard: leaderboard,
-	})
-
-	h.broadcastToParticipants(instanceID, MessageTypeWaitingForCreator, WaitingForCreatorPayload{
-		QuestionIndex: questionIndex,
-		Reason:        "All participants answered",
-	})
-}
-
-func (h *Hub) checkAllParticipantsAnswered(ctx context.Context, instanceID string, questionIndex int) bool {
 	sessions, err := h.sessionRepo.GetSessionsByInstance(ctx, instanceID)
 	if err != nil {
 		return false
 	}
+	total, answered := h.countAnswerProgress(ctx, instanceID, sessions, quizData.CreatedBy, questionIndex)
+	return total > 0 && answered >= total
+}
 
-	quizData, err := h.getQuizData(ctx, instanceID)
-	if err != nil {
-		log.Printf("Failed to get quiz data in checkAllParticipantsAnswered: %v", err)
-		return false
+func (h *Hub) buildQuestionStats(sessions []*models.GameSession, quizData *models.QuizData, questionIndex int) []AnswerOptionStats {
+	if questionIndex >= len(quizData.Questions) {
+		return nil
 	}
 
-	participantCount := 0
-	answeredCount := 0
+	question := quizData.Questions[questionIndex]
+	if question.Type == constants.QuestionTypeOpen {
+		return nil
+	}
+
+	if question.Type != constants.QuestionTypeSingle && question.Type != constants.QuestionTypeMultiple {
+		return nil
+	}
+
+	optionStats := make([]AnswerOptionStats, len(question.Options))
+	for i, option := range question.Options {
+		optionStats[i] = AnswerOptionStats{Option: option}
+	}
 
 	for _, session := range sessions {
 		if session.UserID == quizData.CreatedBy {
 			continue
 		}
 
-		if session.Status == constants.SessionStatusInProgress || session.Status == constants.SessionStatusFinished {
-			participantCount++
-			if session.CurrentQuestionIndex > questionIndex {
-				answeredCount++
+		var answers []models.Answer
+		if err := json.Unmarshal([]byte(session.Answers), &answers); err != nil {
+			continue
+		}
+
+		for _, answer := range answers {
+			if answer.QuestionID != question.ID {
+				continue
 			}
+			switch question.Type {
+			case constants.QuestionTypeSingle:
+				var idx int
+				if _, err := fmt.Sscanf(answer.Answer, "%d", &idx); err == nil && idx >= 0 && idx < len(optionStats) {
+					optionStats[idx].Count++
+				}
+			case constants.QuestionTypeMultiple:
+				var indices []int
+				if err := json.Unmarshal([]byte(answer.Answer), &indices); err == nil {
+					for _, idx := range indices {
+						if idx >= 0 && idx < len(optionStats) {
+							optionStats[idx].Count++
+						}
+					}
+				}
+			}
+			break
 		}
 	}
 
-	if participantCount == 0 {
-		return false
-	}
-
-	return answeredCount >= participantCount
+	return optionStats
 }
 
-func (h *Hub) updateLeaderboard(ctx context.Context, instanceID string) {
-	leaderboard := h.getLeaderboard(ctx, instanceID)
-	h.broadcastToInstance(instanceID, MessageTypeLeaderboard, LeaderboardPayload{
-		Leaderboard: leaderboard,
-	})
-}
-
-func (h *Hub) getLeaderboard(ctx context.Context, instanceID string) []LeaderboardEntry {
-	sessions, err := h.sessionRepo.GetSessionsByInstance(ctx, instanceID)
-	if err != nil {
-		log.Printf("Failed to get sessions for leaderboard: %v", err)
-		return []LeaderboardEntry{}
-	}
-
-	quizData, err := h.getQuizData(ctx, instanceID)
-	if err != nil {
-		log.Printf("Failed to get quiz data: %v", err)
-		return []LeaderboardEntry{}
-	}
-
+func (h *Hub) buildLeaderboard(ctx context.Context, sessions []*models.GameSession, quizData *models.QuizData, questionIndex int) []LeaderboardEntry {
 	var leaderboard []LeaderboardEntry
 	rank := 1
 	for _, session := range sessions {
@@ -573,10 +565,20 @@ func (h *Hub) getLeaderboard(ctx context.Context, instanceID string) []Leaderboa
 			continue
 		}
 
+		userProfile, err := h.userClient.GetProfile(ctx, session.UserID)
+		if err != nil {
+			log.Printf("Failed to get user profile %s: %v", session.UserID, err)
+			continue
+		}
+
+		user := userFromProfile(userProfile, false)
+		user.IsOnline = h.isUserOnline(session.InstanceID, session.UserID)
+
 		leaderboard = append(leaderboard, LeaderboardEntry{
-			Rank:   rank,
-			UserID: session.UserID,
-			Score:  session.Score,
+			Rank:       rank,
+			User:       user,
+			Score:      session.Score,
+			IsAnswered: session.CurrentQuestionIndex > questionIndex,
 		})
 		rank++
 	}
@@ -602,19 +604,39 @@ func (h *Hub) finishQuiz(client *Client) {
 		log.Printf("Failed to update session: %v", err)
 	}
 
-	leaderboard := h.getLeaderboard(ctx, client.InstanceID)
+	log.Printf("Quiz finished: user=%s, instance=%s, score=%d", client.UserID, client.InstanceID, session.Score)
+
+	quizData, err := h.getQuizData(ctx, client.InstanceID)
+	if err != nil {
+		log.Printf("Failed to get quiz data for finish: %v", err)
+		client.SendMessage(MessageTypeQuizFinished, QuizFinishedPayload{
+			FinalScore: session.Score,
+		})
+		return
+	}
+
+	sessions, err := h.sessionRepo.GetSessionsByInstance(ctx, client.InstanceID)
+	if err != nil {
+		log.Printf("Failed to get sessions for finish: %v", err)
+		client.SendMessage(MessageTypeQuizFinished, QuizFinishedPayload{
+			FinalScore: session.Score,
+		})
+		return
+	}
+
+	leaderboard := h.buildLeaderboard(ctx, sessions, quizData, len(quizData.Questions)-1)
 	rank := 0
+	score := 0
 	for _, entry := range leaderboard {
-		if entry.UserID == client.UserID {
+		if entry.User.UserID == client.UserID {
 			rank = entry.Rank
+			score = entry.Score
 			break
 		}
 	}
 
 	client.SendMessage(MessageTypeQuizFinished, QuizFinishedPayload{
-		FinalScore: session.Score,
+		FinalScore: score,
 		Rank:       rank,
 	})
-
-	log.Printf("Quiz finished: user=%s, instance=%s, score=%d, rank=%d", client.UserID, client.InstanceID, session.Score, rank)
 }

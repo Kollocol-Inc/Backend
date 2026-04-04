@@ -55,7 +55,6 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// If access_code provided, resolve to instance_id
 	if instanceID == "" && accessCode != "" {
 		resp, err := h.quizClient.GetInstanceByAccessCode(ctx, accessCode, userID)
 		if err != nil {
@@ -77,7 +76,6 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 		instanceID = resp.Instance.Id
 		isCreator = resp.Instance.CreatedBy == userID
 	} else {
-		// If instance_id provided, get instance to verify creator
 		resp, err := h.quizClient.GetInstance(ctx, instanceID, userID)
 		if err != nil {
 			log.Printf("Failed to get instance: %v", err)
