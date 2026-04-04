@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"io"
 	"log"
 	"path/filepath"
 	"strings"
@@ -18,13 +19,50 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
+type UserRepo interface {
+	GetUserByID(ctx context.Context, userID string) (*repository.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*repository.User, error)
+	UpdateUser(ctx context.Context, user *repository.User) error
+	GetUsersByEmailsMap(ctx context.Context, emails []string) (map[string]*repository.User, error)
+}
+
+type SettingsRepo interface {
+	GetOrCreateSettings(ctx context.Context, userID string) (*repository.NotificationSettings, error)
+	CreateDefaultSettings(ctx context.Context, userID string) (*repository.NotificationSettings, error)
+	UpdateSettings(ctx context.Context, settings *repository.NotificationSettings) error
+}
+
+type GroupRepo interface {
+	CreateGroup(ctx context.Context, name, ownerID string) (*repository.Group, error)
+	GetGroupByID(ctx context.Context, groupID string) (*repository.Group, error)
+	UpdateGroup(ctx context.Context, group *repository.Group) error
+	DeleteGroup(ctx context.Context, groupID string) error
+	AddMembers(ctx context.Context, groupID string, userIDs []string) error
+	GetMemberIDs(ctx context.Context, groupID string) ([]string, error)
+	GetMemberCount(ctx context.Context, groupID string) (int32, error)
+	GetUserGroups(ctx context.Context, userID string) ([]*repository.Group, error)
+	GetCreatedGroups(ctx context.Context, ownerID string) ([]*repository.Group, error)
+	IsMember(ctx context.Context, groupID, userID string) (bool, error)
+	GetGroupUsers(ctx context.Context, groupID string) ([]*repository.User, error)
+}
+
+type FileStorage interface {
+	UploadFile(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, contentType string) error
+	DeleteFile(ctx context.Context, bucketName, objectName string) error
+	GetPublicURL(bucketName, objectName string) string
+}
+
+type MessagePublisher interface {
+	Publish(ctx context.Context, queueName string, body []byte) error
+}
+
 type UserService struct {
 	pb.UnimplementedUserServiceServer
-	userRepo     *repository.UserRepository
-	settingsRepo *repository.NotificationSettingsRepository
-	groupRepo    *repository.GroupRepository
-	s3Client     *storage.S3Client
-	rabbitMQ     *messaging.RabbitMQClient
+	userRepo     UserRepo
+	settingsRepo SettingsRepo
+	groupRepo    GroupRepo
+	s3Client     FileStorage
+	rabbitMQ     MessagePublisher
 }
 
 func NewUserService(
@@ -36,6 +74,22 @@ func NewUserService(
 		userRepo:     repository.NewUserRepository(db),
 		settingsRepo: repository.NewNotificationSettingsRepository(db),
 		groupRepo:    repository.NewGroupRepository(db),
+		s3Client:     s3Client,
+		rabbitMQ:     rabbitMQ,
+	}
+}
+
+func NewUserServiceWithDeps(
+	userRepo UserRepo,
+	settingsRepo SettingsRepo,
+	groupRepo GroupRepo,
+	s3Client FileStorage,
+	rabbitMQ MessagePublisher,
+) *UserService {
+	return &UserService{
+		userRepo:     userRepo,
+		settingsRepo: settingsRepo,
+		groupRepo:    groupRepo,
 		s3Client:     s3Client,
 		rabbitMQ:     rabbitMQ,
 	}
