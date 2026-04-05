@@ -1,0 +1,80 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+
+env:
+  YCR_REGISTRY: cr.yandex/${{ secrets.YCR_REGISTRY_ID }}
+
+jobs:
+  build-and-push:
+    name: Build ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - api-gateway
+          - auth-service
+          - user-service
+          - quiz-service
+          - game-service
+          - notification-service
+          - ml-service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Yandex Container Registry
+        run: echo "${{ secrets.YCR_TOKEN }}" | docker login cr.yandex -u oauth --password-stdin
+
+      - name: Build and push image
+        run: |
+          IMAGE=${{ env.YCR_REGISTRY }}/${{ matrix.service }}
+          docker build -t $IMAGE:latest -t $IMAGE:${{ github.sha }} ./services/${{ matrix.service }}
+          docker push $IMAGE:latest
+          docker push $IMAGE:${{ github.sha }}
+
+  test:
+    name: Test ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - api-gateway
+          - auth-service
+          - user-service
+          - quiz-service
+          - game-service
+          - notification-service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: services/${{ matrix.service }}/go.sum
+
+      - name: Run tests
+        working-directory: services/${{ matrix.service }}
+        run: go test ./...
+
+  deploy:
+    name: Deploy to VM
+    runs-on: ubuntu-latest
+    needs: [build-and-push, test]
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            cd ${{ secrets.VM_DEPLOY_PATH }}
+            echo "${{ secrets.YCR_TOKEN }}" | docker login cr.yandex -u oauth --password-stdin
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker image prune -f
