@@ -23,10 +23,29 @@ type UserClient interface {
 	CheckGroupMembership(ctx context.Context, groupID, userID string) (bool, string, error)
 }
 
+type TemplateRepo interface {
+	CreateTemplate(ctx context.Context, template *repository.Template) error
+	GetTemplateByID(ctx context.Context, templateID string) (*repository.Template, error)
+	GetTemplatesByOwner(ctx context.Context, ownerID string) ([]*repository.Template, error)
+	UpdateTemplate(ctx context.Context, template *repository.Template) error
+	DeleteTemplate(ctx context.Context, templateID, ownerID string) error
+	CreateQuestion(ctx context.Context, question *repository.Question) error
+	GetQuestionsByTemplateID(ctx context.Context, templateID string) ([]*repository.Question, error)
+	DeleteQuestionsByTemplateID(ctx context.Context, templateID string) error
+}
+
+type InstanceRepo interface {
+	CreateInstance(ctx context.Context, instance *repository.Instance) error
+	GetInstanceWithQuestions(ctx context.Context, instanceID string) (*repository.InstanceWithQuestions, error)
+	GetInstanceByAccessCode(ctx context.Context, accessCode string) (*repository.Instance, error)
+	GetHostingInstances(ctx context.Context, userID, status string) ([]*repository.Instance, error)
+	GetParticipatingInstances(ctx context.Context, userID, sessionStatus string) ([]*repository.ParticipatingInstance, error)
+}
+
 type QuizService struct {
 	pb.UnimplementedQuizServiceServer
-	templateRepo *repository.TemplateRepository
-	instanceRepo *repository.InstanceRepository
+	templateRepo TemplateRepo
+	instanceRepo InstanceRepo
 	mqPublisher  RabbitMQPublisher
 	userClient   UserClient
 }
@@ -39,6 +58,20 @@ func NewQuizService(
 	return &QuizService{
 		templateRepo: repository.NewTemplateRepository(db),
 		instanceRepo: repository.NewInstanceRepository(db),
+		mqPublisher:  mqPublisher,
+		userClient:   userClient,
+	}
+}
+
+func NewQuizServiceWithDeps(
+	templateRepo TemplateRepo,
+	instanceRepo InstanceRepo,
+	mqPublisher RabbitMQPublisher,
+	userClient UserClient,
+) *QuizService {
+	return &QuizService{
+		templateRepo: templateRepo,
+		instanceRepo: instanceRepo,
 		mqPublisher:  mqPublisher,
 		userClient:   userClient,
 	}
