@@ -302,6 +302,36 @@ func (mr *MockInstanceRepoMockRecorder) GetInstanceByAccessCode(ctx, accessCode 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInstanceByAccessCode", reflect.TypeOf((*MockInstanceRepo)(nil).GetInstanceByAccessCode), ctx, accessCode)
 }
 
+// GetInstanceByID mocks base method.
+func (m *MockInstanceRepo) GetInstanceByID(ctx context.Context, instanceID string) (*repository.Instance, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetInstanceByID", ctx, instanceID)
+	ret0, _ := ret[0].(*repository.Instance)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetInstanceByID indicates an expected call of GetInstanceByID.
+func (mr *MockInstanceRepoMockRecorder) GetInstanceByID(ctx, instanceID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInstanceByID", reflect.TypeOf((*MockInstanceRepo)(nil).GetInstanceByID), ctx, instanceID)
+}
+
+// GetInstanceParticipants mocks base method.
+func (m *MockInstanceRepo) GetInstanceParticipants(ctx context.Context, instanceID string) ([]*repository.ParticipantSession, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetInstanceParticipants", ctx, instanceID)
+	ret0, _ := ret[0].([]*repository.ParticipantSession)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetInstanceParticipants indicates an expected call of GetInstanceParticipants.
+func (mr *MockInstanceRepoMockRecorder) GetInstanceParticipants(ctx, instanceID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInstanceParticipants", reflect.TypeOf((*MockInstanceRepo)(nil).GetInstanceParticipants), ctx, instanceID)
+}
+
 // GetInstanceWithQuestions mocks base method.
 func (m *MockInstanceRepo) GetInstanceWithQuestions(ctx context.Context, instanceID string) (*repository.InstanceWithQuestions, error) {
 	m.ctrl.T.Helper()
@@ -317,6 +347,21 @@ func (mr *MockInstanceRepoMockRecorder) GetInstanceWithQuestions(ctx, instanceID
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInstanceWithQuestions", reflect.TypeOf((*MockInstanceRepo)(nil).GetInstanceWithQuestions), ctx, instanceID)
 }
 
+// GetParticipantAnswers mocks base method.
+func (m *MockInstanceRepo) GetParticipantAnswers(ctx context.Context, instanceID, userID string) (*repository.ParticipantSession, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetParticipantAnswers", ctx, instanceID, userID)
+	ret0, _ := ret[0].(*repository.ParticipantSession)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetParticipantAnswers indicates an expected call of GetParticipantAnswers.
+func (mr *MockInstanceRepoMockRecorder) GetParticipantAnswers(ctx, instanceID, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetParticipantAnswers", reflect.TypeOf((*MockInstanceRepo)(nil).GetParticipantAnswers), ctx, instanceID, userID)
+}
+
 // GetParticipatingInstances mocks base method.
 func (m *MockInstanceRepo) GetParticipatingInstances(ctx context.Context, userID, sessionStatus string) ([]*repository.ParticipatingInstance, error) {
 	m.ctrl.T.Helper()
@@ -330,4 +375,32 @@ func (m *MockInstanceRepo) GetParticipatingInstances(ctx context.Context, userID
 func (mr *MockInstanceRepoMockRecorder) GetParticipatingInstances(ctx, userID, sessionStatus any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetParticipatingInstances", reflect.TypeOf((*MockInstanceRepo)(nil).GetParticipatingInstances), ctx, userID, sessionStatus)
+}
+
+// GradeAnswer mocks base method.
+func (m *MockInstanceRepo) GradeAnswer(ctx context.Context, instanceID, userID, questionID string, score int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GradeAnswer", ctx, instanceID, userID, questionID, score)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// GradeAnswer indicates an expected call of GradeAnswer.
+func (mr *MockInstanceRepoMockRecorder) GradeAnswer(ctx, instanceID, userID, questionID, score any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GradeAnswer", reflect.TypeOf((*MockInstanceRepo)(nil).GradeAnswer), ctx, instanceID, userID, questionID, score)
+}
+
+// UpdateInstanceStatus mocks base method.
+func (m *MockInstanceRepo) UpdateInstanceStatus(ctx context.Context, instanceID, status string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateInstanceStatus", ctx, instanceID, status)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateInstanceStatus indicates an expected call of UpdateInstanceStatus.
+func (mr *MockInstanceRepoMockRecorder) UpdateInstanceStatus(ctx, instanceID, status any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateInstanceStatus", reflect.TypeOf((*MockInstanceRepo)(nil).UpdateInstanceStatus), ctx, instanceID, status)
 }
