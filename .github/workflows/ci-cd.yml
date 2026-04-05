@@ -2,7 +2,7 @@ name: CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
 
 env:
   YCR_REGISTRY: cr.yandex/${{ secrets.YCR_REGISTRY_ID }}
@@ -11,6 +11,7 @@ jobs:
   build-and-push:
     name: Build ${{ matrix.service }}
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     strategy:
       matrix:
         service:
@@ -63,6 +64,7 @@ jobs:
   deploy:
     name: Deploy to VM
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     needs: [build-and-push, test]
 
     steps:
