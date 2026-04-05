@@ -8,6 +8,7 @@ service MLService {
   rpc Paraphrase(ParaphraseRequest) returns (ParaphraseResponse);
   rpc GenerateTemplate(GenerateTemplateRequest) returns (GenerateTemplateResponse);
   rpc GenerateQuestions(GenerateQuestionsRequest) returns (GenerateQuestionsResponse);
+  rpc ReviewAnswer(ReviewAnswerRequest) returns (ReviewAnswerResponse);
 }
 
 message ParaphraseRequest {
@@ -59,4 +60,16 @@ message GenerateQuestionsRequest {
 
 message GenerateQuestionsResponse {
   repeated GeneratedQuestion questions = 1;
+}
+
+message ReviewAnswerRequest {
+  string question_text = 1;
+  string correct_text = 2;
+  string student_answer = 3;
+  int32 max_score = 4;
+}
+
+message ReviewAnswerResponse {
+  string feedback = 1;
+  int32 suggested_score = 2;
 }

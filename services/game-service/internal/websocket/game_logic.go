@@ -376,9 +376,11 @@ func (h *Hub) handleAnswer(client *Client, payload any) {
 
 	isCorrect := h.validateAnswer(answerPayload.Answer, question.CorrectAnswer, question.Type)
 
-	score := 0
+	gameScore := 0
+	grade := 0
 	if isCorrect {
-		score = h.calculateScore(question.MaxScore, timeSpentMs, int64(question.TimeLimitSec)*1000)
+		gameScore = h.calculateScore(question.MaxScore, timeSpentMs, int64(question.TimeLimitSec)*1000)
+		grade = question.MaxScore
 	}
 
 	session, err := h.sessionRepo.GetSession(ctx, client.InstanceID, client.UserID)
@@ -394,17 +396,20 @@ func (h *Hub) handleAnswer(client *Client, payload any) {
 		answers = []models.Answer{}
 	}
 
+	graded := question.Type != constants.QuestionTypeOpen || isCorrect
+
 	answers = append(answers, models.Answer{
 		QuestionID:  answerPayload.QuestionID,
 		Answer:      answerPayload.Answer,
 		IsCorrect:   isCorrect,
-		Score:       score,
+		Score:       grade,
 		TimeSpentMs: timeSpentMs,
+		Graded:      graded,
 	})
 
 	answersJSON, _ := json.Marshal(answers)
 	session.Answers = string(answersJSON)
-	session.Score += score
+	session.Score += gameScore
 	session.CurrentQuestionIndex = questionIndex + 1
 
 	if err := h.sessionRepo.UpdateSession(ctx, session); err != nil {
@@ -415,7 +420,7 @@ func (h *Hub) handleAnswer(client *Client, payload any) {
 
 	client.SendMessage(MessageTypeAnswerResult, AnswerResultPayload{
 		IsCorrect:   isCorrect,
-		Score:       score,
+		Score:       gameScore,
 		TimeSpentMs: timeSpentMs,
 		TotalScore:  session.Score,
 	})

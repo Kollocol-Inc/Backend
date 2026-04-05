@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -38,8 +39,13 @@ type InstanceRepo interface {
 	CreateInstance(ctx context.Context, instance *repository.Instance) error
 	GetInstanceWithQuestions(ctx context.Context, instanceID string) (*repository.InstanceWithQuestions, error)
 	GetInstanceByAccessCode(ctx context.Context, accessCode string) (*repository.Instance, error)
+	GetInstanceByID(ctx context.Context, instanceID string) (*repository.Instance, error)
 	GetHostingInstances(ctx context.Context, userID, status string) ([]*repository.Instance, error)
 	GetParticipatingInstances(ctx context.Context, userID, sessionStatus string) ([]*repository.ParticipatingInstance, error)
+	GetInstanceParticipants(ctx context.Context, instanceID string) ([]*repository.ParticipantSession, error)
+	GetParticipantAnswers(ctx context.Context, instanceID, userID string) (*repository.ParticipantSession, error)
+	GradeAnswer(ctx context.Context, instanceID, userID, questionID string, score int) error
+	UpdateInstanceStatus(ctx context.Context, instanceID, status string) error
 }
 
 type QuizService struct {
@@ -509,6 +515,230 @@ func (s *QuizService) marshalSettings(settings any) (string, error) {
 		return string(b), nil
 	default:
 		return "{}", nil
+	}
+}
+
+func (s *QuizService) GetInstanceParticipants(ctx context.Context, req *pb.GetInstanceParticipantsRequest) (*pb.GetInstanceParticipantsResponse, error) {
+	instance, err := s.instanceRepo.GetInstanceByID(ctx, req.InstanceId)
+	if err != nil {
+		return nil, errors.New(codes.NotFound, errors.ReasonInstanceNotFound, "Instance not found", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	if instance.CreatedBy != req.UserId {
+		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only the quiz creator can view participants", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	sessions, err := s.instanceRepo.GetInstanceParticipants(ctx, req.InstanceId)
+	if err != nil {
+		return nil, errors.New(codes.Internal, errors.ReasonInstanceNotFound, "Failed to get participants", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	instanceWithQuestions, err := s.instanceRepo.GetInstanceWithQuestions(ctx, req.InstanceId)
+	if err != nil {
+		return nil, errors.New(codes.Internal, errors.ReasonInstanceNotFound, "Failed to get instance questions", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	openQuestionIDs := make(map[string]bool)
+	var maxPossibleScore int32
+	for _, q := range instanceWithQuestions.Questions {
+		maxPossibleScore += int32(q.MaxScore)
+		if q.Type == "open" {
+			openQuestionIDs[q.ID] = true
+		}
+	}
+
+	var participants []*pb.ParticipantInfo
+	for _, session := range sessions {
+		var answers []repository.SessionAnswer
+		json.Unmarshal([]byte(session.Answers), &answers)
+
+		var totalScore int32
+		for _, a := range answers {
+			totalScore += int32(a.Score)
+		}
+
+		reviewStatus := "reviewed"
+		if session.Status != "finished" {
+			reviewStatus = "not_finished"
+		} else if len(openQuestionIDs) > 0 {
+			for _, a := range answers {
+				if openQuestionIDs[a.QuestionID] && !a.Graded {
+					reviewStatus = "pending_review"
+					break
+				}
+			}
+		}
+
+		participants = append(participants, &pb.ParticipantInfo{
+			UserId:           session.UserID,
+			SessionStatus:    session.Status,
+			ReviewStatus:     reviewStatus,
+			TotalScore:       totalScore,
+			MaxPossibleScore: maxPossibleScore,
+		})
+	}
+
+	return &pb.GetInstanceParticipantsResponse{
+		Participants: participants,
+	}, nil
+}
+
+func (s *QuizService) GetParticipantAnswers(ctx context.Context, req *pb.GetParticipantAnswersRequest) (*pb.GetParticipantAnswersResponse, error) {
+	instanceWithQuestions, err := s.instanceRepo.GetInstanceWithQuestions(ctx, req.InstanceId)
+	if err != nil {
+		return nil, errors.New(codes.NotFound, errors.ReasonInstanceNotFound, "Instance not found", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	if instanceWithQuestions.Instance.CreatedBy != req.UserId {
+		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only the quiz creator can view answers", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	session, err := s.instanceRepo.GetParticipantAnswers(ctx, req.InstanceId, req.ParticipantId)
+	if err != nil {
+		return nil, errors.New(codes.NotFound, errors.ReasonParticipantNotFound, "Participant not found", map[string]string{"instance_id": req.InstanceId, "participant_id": req.ParticipantId})
+	}
+
+	var answers []repository.SessionAnswer
+	json.Unmarshal([]byte(session.Answers), &answers)
+
+	var answerInfos []*pb.AnswerInfo
+	for _, a := range answers {
+		answerInfos = append(answerInfos, &pb.AnswerInfo{
+			QuestionId:  a.QuestionID,
+			Answer:      a.Answer,
+			IsCorrect:   a.IsCorrect,
+			Score:       int32(a.Score),
+			TimeSpentMs: a.TimeSpentMs,
+		})
+	}
+
+	return &pb.GetParticipantAnswersResponse{
+		Instance:  s.instanceToProto(instanceWithQuestions.Instance),
+		Questions: s.questionsToProto(instanceWithQuestions.Questions),
+		Answers:   answerInfos,
+	}, nil
+}
+
+func (s *QuizService) GradeAnswer(ctx context.Context, req *pb.GradeAnswerRequest) (*pb.GradeAnswerResponse, error) {
+	instance, err := s.instanceRepo.GetInstanceByID(ctx, req.InstanceId)
+	if err != nil {
+		return nil, errors.New(codes.NotFound, errors.ReasonInstanceNotFound, "Instance not found", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	if instance.CreatedBy != req.UserId {
+		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only the quiz creator can grade answers", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	instanceWithQuestions, err := s.instanceRepo.GetInstanceWithQuestions(ctx, req.InstanceId)
+	if err != nil {
+		return nil, errors.New(codes.Internal, errors.ReasonInstanceNotFound, "Failed to get instance questions", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	var maxScore int32
+	questionFound := false
+	for _, q := range instanceWithQuestions.Questions {
+		if q.ID == req.QuestionId {
+			maxScore = int32(q.MaxScore)
+			questionFound = true
+			break
+		}
+	}
+	if !questionFound {
+		return nil, errors.New(codes.NotFound, errors.ReasonQuestionNotFound, "Question not found in instance", map[string]string{"question_id": req.QuestionId})
+	}
+
+	if req.Score < 0 || req.Score > maxScore {
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonInvalidScore, "Score must be between 0 and max_score", map[string]string{"max_score": fmt.Sprintf("%d", maxScore)})
+	}
+
+	if err := s.instanceRepo.GradeAnswer(ctx, req.InstanceId, req.ParticipantId, req.QuestionId, int(req.Score)); err != nil {
+		return nil, errors.New(codes.Internal, errors.ReasonGradeFailed, "Failed to grade answer", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	return &pb.GradeAnswerResponse{}, nil
+}
+
+func (s *QuizService) PublishResults(ctx context.Context, req *pb.PublishResultsRequest) (*pb.PublishResultsResponse, error) {
+	instance, err := s.instanceRepo.GetInstanceByID(ctx, req.InstanceId)
+	if err != nil {
+		return nil, errors.New(codes.NotFound, errors.ReasonInstanceNotFound, "Instance not found", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	if instance.CreatedBy != req.UserId {
+		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only the quiz creator can publish results", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	sessions, err := s.instanceRepo.GetInstanceParticipants(ctx, req.InstanceId)
+	if err != nil {
+		return nil, errors.New(codes.Internal, errors.ReasonPublishFailed, "Failed to get participants", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	instanceWithQuestions, err := s.instanceRepo.GetInstanceWithQuestions(ctx, req.InstanceId)
+	if err != nil {
+		return nil, errors.New(codes.Internal, errors.ReasonPublishFailed, "Failed to get instance questions", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	openQuestionIDs := make(map[string]bool)
+	for _, q := range instanceWithQuestions.Questions {
+		if q.Type == "open" {
+			openQuestionIDs[q.ID] = true
+		}
+	}
+
+	if len(openQuestionIDs) > 0 {
+		for _, session := range sessions {
+			if session.Status != "finished" {
+				continue
+			}
+			var answers []repository.SessionAnswer
+			json.Unmarshal([]byte(session.Answers), &answers)
+			for _, a := range answers {
+				if openQuestionIDs[a.QuestionID] && !a.Graded {
+					return nil, errors.New(codes.FailedPrecondition, errors.ReasonNotAllReviewed, "Not all open answers have been graded", map[string]string{"participant_id": session.UserID, "question_id": a.QuestionID})
+				}
+			}
+		}
+	}
+
+	if err := s.instanceRepo.UpdateInstanceStatus(ctx, req.InstanceId, "reviewed"); err != nil {
+		return nil, errors.New(codes.Internal, errors.ReasonPublishFailed, "Failed to update instance status", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	s.publishQuizResults(ctx, instance, sessions)
+
+	return &pb.PublishResultsResponse{}, nil
+}
+
+func (s *QuizService) publishQuizResults(ctx context.Context, instance *repository.Instance, sessions []*repository.ParticipantSession) {
+	if s.mqPublisher == nil {
+		return
+	}
+
+	type QuizResultsEvent struct {
+		InstanceID     string   `json:"instance_id"`
+		ParticipantIDs []string `json:"participant_ids"`
+		Title          string   `json:"title"`
+	}
+
+	var participantIDs []string
+	for _, session := range sessions {
+		participantIDs = append(participantIDs, session.UserID)
+	}
+
+	event := QuizResultsEvent{
+		InstanceID:     instance.ID,
+		ParticipantIDs: participantIDs,
+		Title:          instance.Title,
+	}
+
+	eventJSON, err := json.Marshal(event)
+	if err != nil {
+		log.Printf("Failed to marshal quiz_results_ready event: %v", err)
+		return
+	}
+
+	if err := s.mqPublisher.Publish(ctx, "quiz.results_ready", eventJSON); err != nil {
+		log.Printf("Failed to publish quiz_results_ready event: %v", err)
 	}
 }
 

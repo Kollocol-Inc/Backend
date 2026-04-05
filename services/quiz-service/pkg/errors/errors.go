@@ -34,4 +34,10 @@ const (
 	ReasonSettingsMarshalFailed = "SETTINGS_MARSHAL_FAILED"
 	ReasonOptionsMarshalFailed  = "OPTIONS_MARSHAL_FAILED"
 	ReasonAnswerMarshalFailed   = "ANSWER_MARSHAL_FAILED"
+	ReasonParticipantNotFound   = "PARTICIPANT_NOT_FOUND"
+	ReasonQuestionNotFound      = "QUESTION_NOT_FOUND"
+	ReasonGradeFailed           = "GRADE_FAILED"
+	ReasonInvalidScore          = "INVALID_SCORE"
+	ReasonNotAllReviewed        = "NOT_ALL_REVIEWED"
+	ReasonPublishFailed         = "PUBLISH_FAILED"
 )

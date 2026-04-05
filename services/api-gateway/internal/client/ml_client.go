@@ -53,3 +53,7 @@ func (c *MLClient) GenerateTemplate(ctx context.Context, req *pb.GenerateTemplat
 func (c *MLClient) GenerateQuestions(ctx context.Context, req *pb.GenerateQuestionsRequest) (*pb.GenerateQuestionsResponse, error) {
 	return c.client.GenerateQuestions(ctx, req)
 }
+
+func (c *MLClient) ReviewAnswer(ctx context.Context, req *pb.ReviewAnswerRequest) (*pb.ReviewAnswerResponse, error) {
+	return c.client.ReviewAnswer(ctx, req)
+}

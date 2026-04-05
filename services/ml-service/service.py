@@ -10,6 +10,7 @@ from prompts import (
     GENERATE_QUESTIONS_SYSTEM,
     GENERATE_TEMPLATE_SYSTEM,
     PARAPHRASE_SYSTEM,
+    REVIEW_ANSWER_SYSTEM,
 )
 
 logger = logging.getLogger(__name__)
@@ -123,6 +124,38 @@ class MLServiceServicer(ml_pb2_grpc.MLServiceServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return ml_pb2.GenerateQuestionsResponse()
+
+    def ReviewAnswer(self, request, context):
+        if not request.student_answer:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details("student_answer is required")
+            return ml_pb2.ReviewAnswerResponse()
+
+        user_message = (
+            f"Вопрос: {request.question_text}\n"
+            f"Правильный ответ: {request.correct_text}\n"
+            f"Ответ студента: {request.student_answer}\n"
+            f"Максимальный балл: {request.max_score}"
+        )
+
+        try:
+            raw = self._chat(REVIEW_ANSWER_SYSTEM, user_message)
+            data = json.loads(raw.strip("```"))
+
+            return ml_pb2.ReviewAnswerResponse(
+                feedback=data.get("feedback", ""),
+                suggested_score=min(max(data.get("suggested_score", 0), 0), request.max_score),
+            )
+        except json.JSONDecodeError as e:
+            logger.error("ReviewAnswer JSON parse failed: %s\nRaw: %s", e, raw)
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"Failed to parse LLM response as JSON: {e}")
+            return ml_pb2.ReviewAnswerResponse()
+        except Exception as e:
+            logger.error("ReviewAnswer failed: %s", e)
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return ml_pb2.ReviewAnswerResponse()
 
     @staticmethod
     def _dict_to_generated_question(q: dict) -> ml_pb2.GeneratedQuestion:

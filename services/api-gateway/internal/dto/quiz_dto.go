@@ -115,38 +115,49 @@ type GetHostingInstancesResponse struct {
 }
 
 type UserAnswerDTO struct {
-	UserID      string `json:"user_id" example:"550e8400-e29b-41d4-a716-446655440000"`
 	QuestionID  string `json:"question_id" example:"550e8400-e29b-41d4-a716-446655440000"`
 	Answer      string `json:"answer" example:"0"`
-	Score       int32  `json:"score" example:"1"`
-	MaxScore    int32  `json:"max_score" example:"1"`
 	IsCorrect   bool   `json:"is_correct" example:"true"`
-	GradedBy    string `json:"graded_by,omitempty" example:"auto"`
-	SubmittedAt string `json:"submitted_at" example:"2024-01-15T10:30:00Z"`
+	Score       int32  `json:"score" example:"1"`
+	TimeSpentMs int64  `json:"time_spent_ms" example:"5000"`
 }
 
-type UserResultDTO struct {
-	UserID      string          `json:"user_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	TotalScore  int32           `json:"total_score" example:"8"`
-	MaxScore    int32           `json:"max_score" example:"10"`
-	Percentage  float32         `json:"percentage" example:"80.0"`
-	Answers     []UserAnswerDTO `json:"answers"`
-	CompletedAt string          `json:"completed_at,omitempty" example:"2024-01-15T10:30:00Z"`
+type ParticipantDTO struct {
+	UserID           string `json:"user_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	SessionStatus    string `json:"session_status" enums:"joined,in_progress,finished" example:"finished"`
+	ReviewStatus     string `json:"review_status" enums:"pending_review,reviewed" example:"pending_review"`
+	TotalScore       int32  `json:"total_score" example:"8"`
+	MaxPossibleScore int32  `json:"max_possible_score" example:"10"`
 }
 
-type GetResultsResponse struct {
-	InstanceID string          `json:"instance_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Results    []UserResultDTO `json:"results"`
+type GetInstanceParticipantsResponse struct {
+	Participants []ParticipantDTO `json:"participants"`
+}
+
+type GetParticipantAnswersResponse struct {
+	Instance  InstanceDTO     `json:"instance"`
+	Questions []QuestionDTO   `json:"questions"`
+	Answers   []UserAnswerDTO `json:"answers"`
 }
 
 type GradeAnswerRequest struct {
-	UserID     string `json:"user_id" binding:"required" example:"550e8400-e29b-41d4-a716-446655440000"`
-	QuestionID string `json:"question_id" binding:"required" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Score      int32  `json:"score" binding:"required" example:"1"`
+	ParticipantID string `json:"participant_id" binding:"required" example:"550e8400-e29b-41d4-a716-446655440000"`
+	QuestionID    string `json:"question_id" binding:"required" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Score         int32  `json:"score" example:"1"`
 }
 
 type GradeAnswerResponse struct {
 }
 
 type PublishResultsResponse struct {
+}
+
+type ReviewAnswerRequest struct {
+	ParticipantID string `json:"participant_id" binding:"required" example:"550e8400-e29b-41d4-a716-446655440000"`
+	QuestionID    string `json:"question_id" binding:"required" example:"550e8400-e29b-41d4-a716-446655440000"`
+}
+
+type ReviewAnswerResponse struct {
+	Feedback       string `json:"feedback" example:"The answer is partially correct..."`
+	SuggestedScore int32  `json:"suggested_score" example:"1"`
 }

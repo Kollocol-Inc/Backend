@@ -18,6 +18,11 @@ service QuizService {
   rpc GetInstanceByAccessCode(GetInstanceByAccessCodeRequest) returns (GetInstanceByAccessCodeResponse);
   rpc GetHostingInstances(GetHostingInstancesRequest) returns (GetHostingInstancesResponse);
   rpc GetParticipatingInstances(GetParticipatingInstancesRequest) returns (GetParticipatingInstancesResponse);
+
+  rpc GetInstanceParticipants(GetInstanceParticipantsRequest) returns (GetInstanceParticipantsResponse);
+  rpc GetParticipantAnswers(GetParticipantAnswersRequest) returns (GetParticipantAnswersResponse);
+  rpc GradeAnswer(GradeAnswerRequest) returns (GradeAnswerResponse);
+  rpc PublishResults(PublishResultsRequest) returns (PublishResultsResponse);
 }
 
 message QuizTemplate {
@@ -217,3 +222,57 @@ message ParticipatingInstance {
 message GetParticipatingInstancesResponse {
   repeated ParticipatingInstance instances = 1;
 }
+
+message ParticipantInfo {
+  string user_id = 1;
+  string session_status = 2;  // "joined", "in_progress", "finished"
+  string review_status = 3;   // "not_finished", "pending_review", "reviewed"
+  int32 total_score = 4;
+  int32 max_possible_score = 5;
+}
+
+message GetInstanceParticipantsRequest {
+  string instance_id = 1;
+  string user_id = 2;
+}
+
+message GetInstanceParticipantsResponse {
+  repeated ParticipantInfo participants = 1;
+}
+
+message AnswerInfo {
+  string question_id = 1;
+  string answer = 2;
+  bool is_correct = 3;
+  int32 score = 4;
+  int64 time_spent_ms = 5;
+}
+
+message GetParticipantAnswersRequest {
+  string instance_id = 1;
+  string user_id = 2;
+  string participant_id = 3;
+}
+
+message GetParticipantAnswersResponse {
+  QuizInstance instance = 1;
+  repeated Question questions = 2;
+  repeated AnswerInfo answers = 3;
+}
+
+message GradeAnswerRequest {
+  string instance_id = 1;
+  string user_id = 2;
+  string participant_id = 3;
+  string question_id = 4;
+  int32 score = 5;
+}
+
+message GradeAnswerResponse {}
+
+message PublishResultsRequest {
+  string instance_id = 1;
+  string user_id = 2;
+}
+
+message PublishResultsResponse {}

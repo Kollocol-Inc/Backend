@@ -77,3 +77,19 @@ func (c *QuizClient) GetHostingInstances(ctx context.Context, req *pb.GetHosting
 func (c *QuizClient) GetParticipatingInstances(ctx context.Context, req *pb.GetParticipatingInstancesRequest) (*pb.GetParticipatingInstancesResponse, error) {
 	return c.client.GetParticipatingInstances(ctx, req)
 }
+
+func (c *QuizClient) GetInstanceParticipants(ctx context.Context, req *pb.GetInstanceParticipantsRequest) (*pb.GetInstanceParticipantsResponse, error) {
+	return c.client.GetInstanceParticipants(ctx, req)
+}
+
+func (c *QuizClient) GetParticipantAnswers(ctx context.Context, req *pb.GetParticipantAnswersRequest) (*pb.GetParticipantAnswersResponse, error) {
+	return c.client.GetParticipantAnswers(ctx, req)
+}
+
+func (c *QuizClient) GradeAnswer(ctx context.Context, req *pb.GradeAnswerRequest) (*pb.GradeAnswerResponse, error) {
+	return c.client.GradeAnswer(ctx, req)
+}
+
+func (c *QuizClient) PublishResults(ctx context.Context, req *pb.PublishResultsRequest) (*pb.PublishResultsResponse, error) {
+	return c.client.PublishResults(ctx, req)
+}

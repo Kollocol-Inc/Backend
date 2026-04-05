@@ -87,6 +87,27 @@ var (
 		"Notification ID is required",
 		nil,
 	)
+
+	ErrQuestionNotFound = New(
+		codes.NotFound,
+		"QUESTION_NOT_FOUND",
+		"Question not found in instance",
+		nil,
+	)
+
+	ErrReviewOnlyForOpen = New(
+		codes.InvalidArgument,
+		"REVIEW_ONLY_FOR_OPEN",
+		"AI review is only available for open-type questions",
+		nil,
+	)
+
+	ErrAnswerNotFound = New(
+		codes.NotFound,
+		"ANSWER_NOT_FOUND",
+		"Participant has not answered this question",
+		nil,
+	)
 )
 
 var (

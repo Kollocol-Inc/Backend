@@ -16,11 +16,13 @@ import (
 
 type QuizHandler struct {
 	quizClient *client.QuizClient
+	mlClient   *client.MLClient
 }
 
-func NewQuizHandler(quizClient *client.QuizClient) *QuizHandler {
+func NewQuizHandler(quizClient *client.QuizClient, mlClient *client.MLClient) *QuizHandler {
 	return &QuizHandler{
 		quizClient: quizClient,
+		mlClient:   mlClient,
 	}
 }
 
@@ -364,6 +366,240 @@ func (h *QuizHandler) GetParticipatingInstances(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.GetParticipatingInstancesResponse{
 		Instances: instances,
 	})
+}
+
+// GetInstanceParticipants godoc
+// @Summary Get quiz instance participants with review statuses
+// @Tags Quiz Review
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Instance ID"
+// @Success 200 {object} dto.GetInstanceParticipantsResponse
+// @Router /quizzes/instances/{id}/participants [get]
+func (h *QuizHandler) GetInstanceParticipants(c *gin.Context) {
+	userID := c.GetString("user_id")
+	instanceID := c.Param("id")
+
+	resp, err := h.quizClient.GetInstanceParticipants(c.Request.Context(), &pb.GetInstanceParticipantsRequest{
+		InstanceId: instanceID,
+		UserId:     userID,
+	})
+	if err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	participants := make([]dto.ParticipantDTO, len(resp.Participants))
+	for i, p := range resp.Participants {
+		participants[i] = dto.ParticipantDTO{
+			UserID:           p.UserId,
+			SessionStatus:    p.SessionStatus,
+			ReviewStatus:     p.ReviewStatus,
+			TotalScore:       p.TotalScore,
+			MaxPossibleScore: p.MaxPossibleScore,
+		}
+	}
+
+	c.JSON(http.StatusOK, dto.GetInstanceParticipantsResponse{
+		Participants: participants,
+	})
+}
+
+// GetParticipantAnswers godoc
+// @Summary Get quiz with participant's answers
+// @Tags Quiz Review
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Instance ID"
+// @Param userId path string true "Participant User ID"
+// @Success 200 {object} dto.GetParticipantAnswersResponse
+// @Router /quizzes/instances/{id}/participants/{userId}/answers [get]
+func (h *QuizHandler) GetParticipantAnswers(c *gin.Context) {
+	userID := c.GetString("user_id")
+	instanceID := c.Param("id")
+	participantID := c.Param("userId")
+
+	resp, err := h.quizClient.GetParticipantAnswers(c.Request.Context(), &pb.GetParticipantAnswersRequest{
+		InstanceId:    instanceID,
+		UserId:        userID,
+		ParticipantId: participantID,
+	})
+	if err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	instance := instanceProtoToDTO(resp.Instance)
+	if resp.Instance.Deadline != nil {
+		instance.Deadline = resp.Instance.Deadline.AsTime().Format(time.RFC3339)
+	}
+
+	questions := make([]dto.QuestionDTO, len(resp.Questions))
+	for i, q := range resp.Questions {
+		questions[i] = questionProtoToDTO(q)
+	}
+
+	answers := make([]dto.UserAnswerDTO, len(resp.Answers))
+	for i, a := range resp.Answers {
+		answers[i] = dto.UserAnswerDTO{
+			QuestionID:  a.QuestionId,
+			Answer:      a.Answer,
+			IsCorrect:   a.IsCorrect,
+			Score:       a.Score,
+			TimeSpentMs: a.TimeSpentMs,
+		}
+	}
+
+	c.JSON(http.StatusOK, dto.GetParticipantAnswersResponse{
+		Instance:  instance,
+		Questions: questions,
+		Answers:   answers,
+	})
+}
+
+// GradeAnswer godoc
+// @Summary Grade a participant's answer for a question
+// @Tags Quiz Review
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Instance ID"
+// @Param request body dto.GradeAnswerRequest true "Grade data"
+// @Success 200 {object} dto.GradeAnswerResponse
+// @Router /quizzes/instances/{id}/grade [post]
+func (h *QuizHandler) GradeAnswer(c *gin.Context) {
+	userID := c.GetString("user_id")
+	instanceID := c.Param("id")
+
+	var req dto.GradeAnswerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	_, err := h.quizClient.GradeAnswer(c.Request.Context(), &pb.GradeAnswerRequest{
+		InstanceId:    instanceID,
+		UserId:        userID,
+		ParticipantId: req.ParticipantID,
+		QuestionId:    req.QuestionID,
+		Score:         req.Score,
+	})
+	if err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.GradeAnswerResponse{})
+}
+
+// ReviewAnswer godoc
+// @Summary Get AI review for an open question answer
+// @Tags Quiz Review
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Instance ID"
+// @Param request body dto.ReviewAnswerRequest true "Review request"
+// @Success 200 {object} dto.ReviewAnswerResponse
+// @Router /quizzes/instances/{id}/review [post]
+func (h *QuizHandler) ReviewAnswer(c *gin.Context) {
+	userID := c.GetString("user_id")
+	instanceID := c.Param("id")
+
+	var req dto.ReviewAnswerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	answersResp, err := h.quizClient.GetParticipantAnswers(c.Request.Context(), &pb.GetParticipantAnswersRequest{
+		InstanceId:    instanceID,
+		UserId:        userID,
+		ParticipantId: req.ParticipantID,
+	})
+	if err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	var questionText, correctText, studentAnswer string
+	var maxScore int32
+	questionFound := false
+	isOpenType := false
+	for _, q := range answersResp.Questions {
+		if q.Id == req.QuestionID {
+			questionText = q.Text
+			maxScore = q.MaxScore
+			questionFound = true
+			if oa := q.GetOpenAnswer(); oa != nil {
+				correctText = oa.CorrectText
+				isOpenType = true
+			}
+			break
+		}
+	}
+
+	if !questionFound {
+		dto.JsonError(c, errors.ErrQuestionNotFound)
+		return
+	}
+
+	if !isOpenType {
+		dto.JsonError(c, errors.ErrReviewOnlyForOpen)
+		return
+	}
+
+	for _, a := range answersResp.Answers {
+		if a.QuestionId == req.QuestionID {
+			studentAnswer = a.Answer
+			break
+		}
+	}
+
+	if studentAnswer == "" {
+		dto.JsonError(c, errors.ErrAnswerNotFound)
+		return
+	}
+
+	mlResp, err := h.mlClient.ReviewAnswer(c.Request.Context(), &pb.ReviewAnswerRequest{
+		QuestionText:  questionText,
+		CorrectText:   correctText,
+		StudentAnswer: studentAnswer,
+		MaxScore:      maxScore,
+	})
+	if err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.ReviewAnswerResponse{
+		Feedback:       mlResp.Feedback,
+		SuggestedScore: mlResp.SuggestedScore,
+	})
+}
+
+// PublishResults godoc
+// @Summary Publish quiz results (notify participants)
+// @Tags Quiz Review
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Instance ID"
+// @Success 200 {object} dto.PublishResultsResponse
+// @Router /quizzes/instances/{id}/publish [post]
+func (h *QuizHandler) PublishResults(c *gin.Context) {
+	userID := c.GetString("user_id")
+	instanceID := c.Param("id")
+
+	_, err := h.quizClient.PublishResults(c.Request.Context(), &pb.PublishResultsRequest{
+		InstanceId: instanceID,
+		UserId:     userID,
+	})
+	if err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.PublishResultsResponse{})
 }
 
 func questionInputToProto(q *dto.QuestionInput) *pb.QuestionInput {

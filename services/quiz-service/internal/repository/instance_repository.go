@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"quiz-service/internal/constants"
@@ -11,6 +12,24 @@ import (
 
 	"github.com/google/uuid"
 )
+
+type ParticipantSession struct {
+	UserID     string
+	Status     string
+	Score      int
+	Answers    string // JSON
+	StartedAt  time.Time
+	FinishedAt sql.NullTime
+}
+
+type SessionAnswer struct {
+	QuestionID  string `json:"question_id"`
+	Answer      string `json:"answer"`
+	IsCorrect   bool   `json:"is_correct"`
+	Score       int    `json:"score"`
+	TimeSpentMs int64  `json:"time_spent_ms"`
+	Graded      bool   `json:"graded"`
+}
 
 type InstanceRepository struct {
 	db *sql.DB
@@ -401,4 +420,99 @@ func (r *InstanceRepository) GetInstanceByAccessCode(ctx context.Context, access
 	}
 
 	return instance, nil
+}
+
+func (r *InstanceRepository) GetInstanceParticipants(ctx context.Context, instanceID string) ([]*ParticipantSession, error) {
+	query := `
+		SELECT gs.user_id, gs.status, gs.score, gs.answers, gs.started_at, gs.finished_at
+		FROM game_sessions gs
+		WHERE gs.instance_id = $1
+		ORDER BY gs.started_at ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query, instanceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sessions []*ParticipantSession
+	for rows.Next() {
+		s := &ParticipantSession{}
+		if err := rows.Scan(&s.UserID, &s.Status, &s.Score, &s.Answers, &s.StartedAt, &s.FinishedAt); err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, s)
+	}
+	return sessions, rows.Err()
+}
+
+func (r *InstanceRepository) GetParticipantAnswers(ctx context.Context, instanceID, userID string) (*ParticipantSession, error) {
+	query := `
+		SELECT gs.user_id, gs.status, gs.score, gs.answers, gs.started_at, gs.finished_at
+		FROM game_sessions gs
+		WHERE gs.instance_id = $1 AND gs.user_id = $2
+	`
+	s := &ParticipantSession{}
+	err := r.db.QueryRowContext(ctx, query, instanceID, userID).Scan(
+		&s.UserID, &s.Status, &s.Score, &s.Answers, &s.StartedAt, &s.FinishedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("participant not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+func (r *InstanceRepository) GradeAnswer(ctx context.Context, instanceID, userID, questionID string, score int) error {
+	var answersJSON string
+	query := `SELECT answers FROM game_sessions WHERE instance_id = $1 AND user_id = $2`
+	if err := r.db.QueryRowContext(ctx, query, instanceID, userID).Scan(&answersJSON); err != nil {
+		return fmt.Errorf("participant not found: %w", err)
+	}
+
+	var answers []SessionAnswer
+	if err := json.Unmarshal([]byte(answersJSON), &answers); err != nil {
+		return fmt.Errorf("failed to parse answers: %w", err)
+	}
+
+	found := false
+	for i, a := range answers {
+		if a.QuestionID == questionID {
+			answers[i].Score = score
+			answers[i].IsCorrect = score > 0
+			answers[i].Graded = true
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("answer for question not found")
+	}
+
+	updatedJSON, err := json.Marshal(answers)
+	if err != nil {
+		return fmt.Errorf("failed to marshal answers: %w", err)
+	}
+
+	updateQuery := `UPDATE game_sessions SET answers = $1 WHERE instance_id = $2 AND user_id = $3`
+	_, err = r.db.ExecContext(ctx, updateQuery, string(updatedJSON), instanceID, userID)
+	return err
+}
+
+func (r *InstanceRepository) UpdateInstanceStatus(ctx context.Context, instanceID, status string) error {
+	query := `UPDATE quiz_instances SET status = $1 WHERE id = $2`
+	result, err := r.db.ExecContext(ctx, query, status, instanceID)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("instance not found")
+	}
+	return nil
 }
