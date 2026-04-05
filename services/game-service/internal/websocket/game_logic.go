@@ -235,7 +235,7 @@ func (h *Hub) sendQuestion(client *Client, quizData *models.QuizData, questionIn
 
 	stKey := redisStartTimeKey(quizData.QuizType, client.InstanceID, client.UserID, questionIndex)
 	if h.redisClient != nil {
-		h.redisClient.GetClient().SetNX(ctx, stKey, time.Now().UnixMilli(), 1*time.Hour)
+		h.redisClient.SetNX(ctx, stKey, time.Now().UnixMilli(), 1*time.Hour)
 	}
 
 	duration := h.remainingDuration(ctx, question, stKey)

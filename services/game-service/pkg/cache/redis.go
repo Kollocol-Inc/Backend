@@ -58,6 +58,10 @@ func (c *RedisClient) Exists(ctx context.Context, keys ...string) (int64, error)
 	return c.client.Exists(ctx, keys...).Result()
 }
 
+func (c *RedisClient) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	return c.client.SetNX(ctx, key, value, expiration).Err()
+}
+
 func (c *RedisClient) GetClient() *redis.Client {
 	return c.client
 }

@@ -23,17 +23,46 @@ type ClientMessage struct {
 	Message Message
 }
 
+type QuizClientInterface interface {
+	GetInstance(ctx context.Context, instanceID, userID string) (*pb.GetInstanceResponse, error)
+}
+
+type UserClientInterface interface {
+	GetProfile(ctx context.Context, userID string) (*pb.User, error)
+	GetByEmail(ctx context.Context, email string) (*pb.User, error)
+}
+
+type RedisClientInterface interface {
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error
+	Get(ctx context.Context, key string) (string, error)
+	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) error
+}
+
+type SessionRepoInterface interface {
+	CreateSession(ctx context.Context, session *models.GameSession) error
+	GetSession(ctx context.Context, instanceID, userID string) (*models.GameSession, error)
+	UpdateSession(ctx context.Context, session *models.GameSession) error
+	GetSessionsByInstance(ctx context.Context, instanceID string) ([]*models.GameSession, error)
+	SessionExists(ctx context.Context, instanceID, userID string) (bool, error)
+	DeleteSession(ctx context.Context, instanceID, userID string) error
+	UpdateSessionStatus(ctx context.Context, instanceID, userID, status string) error
+}
+
+type DBExecer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
 type Hub struct {
 	clients       map[string]map[*Client]bool
 	Register      chan *Client
 	Unregister    chan *Client
 	HandleMessage chan *ClientMessage
 
-	quizClient  *client.QuizClient
-	userClient  *client.UserClient
-	redisClient *cache.RedisClient
-	sessionRepo *repository.SessionRepository
-	db          *sql.DB
+	quizClient  QuizClientInterface
+	userClient  UserClientInterface
+	redisClient RedisClientInterface
+	sessionRepo SessionRepoInterface
+	db          DBExecer
 
 	mu sync.RWMutex
 
@@ -60,6 +89,28 @@ func NewHub(
 		redisClient:    redisClient,
 		sessionRepo:    sessionRepo,
 		db:             db,
+		questionTimers:     make(map[string]*time.Timer),
+		frozenParticipants: make(map[string][]User),
+	}
+}
+
+func NewHubWithDeps(
+	quizClient QuizClientInterface,
+	userClient UserClientInterface,
+	redisClient RedisClientInterface,
+	sessionRepo SessionRepoInterface,
+	db DBExecer,
+) *Hub {
+	return &Hub{
+		clients:            make(map[string]map[*Client]bool),
+		Register:           make(chan *Client),
+		Unregister:         make(chan *Client),
+		HandleMessage:      make(chan *ClientMessage),
+		quizClient:         quizClient,
+		userClient:         userClient,
+		redisClient:        redisClient,
+		sessionRepo:        sessionRepo,
+		db:                 db,
 		questionTimers:     make(map[string]*time.Timer),
 		frozenParticipants: make(map[string][]User),
 	}
