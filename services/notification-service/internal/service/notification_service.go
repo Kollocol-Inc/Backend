@@ -14,15 +14,35 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
+type NotificationRepo interface {
+	CreateNotification(ctx context.Context, notification *repository.Notification) error
+	GetNotifications(ctx context.Context, userID string, limit, offset int) ([]*repository.Notification, int, error)
+	MarkAsRead(ctx context.Context, notificationID, userID string) error
+	DeleteNotification(ctx context.Context, notificationID, userID string) error
+}
+
+type EmailSender interface {
+	SendEmail(data email.EmailData) error
+	SendAuthCode(emailAddr, code string) error
+	SendGroupInvite(emailAddr, groupName, inviterName string) error
+}
+
 type NotificationService struct {
 	pb.UnimplementedNotificationServiceServer
-	repo       *repository.NotificationRepository
-	smtpClient *email.SMTPClient
+	repo       NotificationRepo
+	smtpClient EmailSender
 }
 
 func NewNotificationService(db *sql.DB, smtpClient *email.SMTPClient) *NotificationService {
 	return &NotificationService{
 		repo:       repository.NewNotificationRepository(db),
+		smtpClient: smtpClient,
+	}
+}
+
+func NewNotificationServiceWithDeps(repo NotificationRepo, smtpClient EmailSender) *NotificationService {
+	return &NotificationService{
+		repo:       repo,
 		smtpClient: smtpClient,
 	}
 }
