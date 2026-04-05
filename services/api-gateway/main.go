@@ -15,6 +15,7 @@ import (
 	_ "api-gateway/docs"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
@@ -80,6 +81,7 @@ func main() {
 	router.Use(middleware.CORS())
 	router.Use(middleware.ErrorHandler())
 
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":  "ok",

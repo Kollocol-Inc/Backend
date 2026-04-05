@@ -363,6 +363,34 @@ services:
     networks:
       - kollocol-network
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    depends_on:
+      - api-gateway
+    networks:
+      - kollocol-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    depends_on:
+      - prometheus
+    networks:
+      - kollocol-network
+
 networks:
   kollocol-network:
     driver: bridge
@@ -373,3 +401,5 @@ volumes:
   redis-data:
   rabbitmq-data:
   minio-data:
+  prometheus-data:
+  grafana-data:
