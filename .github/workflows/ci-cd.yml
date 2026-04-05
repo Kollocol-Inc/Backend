@@ -69,6 +69,17 @@ jobs:
     needs: [build-and-push, test]
 
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy configs to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          source: "docker-compose.prod.yml,monitoring/"
+          target: ${{ secrets.VM_DEPLOY_PATH }}
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
         with:
