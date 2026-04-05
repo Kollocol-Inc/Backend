@@ -28,9 +28,6 @@ go.work
 .env*
 !.env.example
 
-# Swagger generated files
-services/api-gateway/docs/
-
 ### macOS ###
 # General
 .DS_Store
