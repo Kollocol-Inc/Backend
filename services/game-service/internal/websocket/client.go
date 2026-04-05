@@ -139,3 +139,8 @@ func (c *Client) SendMessage(msgType MessageType, payload any) {
 func (c *Client) SendError(message string) {
 	c.SendMessage(MessageTypeError, ErrorPayload{Message: message})
 }
+
+func (c *Client) SendErrorAndClose(message string) {
+	c.SendMessage(MessageTypeError, ErrorPayload{Message: message})
+	close(c.Send)
+}

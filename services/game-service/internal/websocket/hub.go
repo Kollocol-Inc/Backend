@@ -140,8 +140,8 @@ func (h *Hub) registerClient(client *Client) {
 
 	for existing := range h.clients[client.InstanceID] {
 		if existing.UserID == client.UserID {
+			existing.SendErrorAndClose("Session replaced by another device")
 			delete(h.clients[client.InstanceID], existing)
-			close(existing.Send)
 			log.Printf("Closing duplicate connection: user=%s, instance=%s", client.UserID, client.InstanceID)
 			break
 		}
@@ -496,8 +496,7 @@ func (h *Hub) handleKick(client *Client, payload any) {
 		return
 	}
 
-	close(targetClient.Send)
-	targetClient.Conn.Close()
+	targetClient.SendErrorAndClose("You have been kicked")
 
 	delete(clients, targetClient)
 	clientCount := len(clients)
