@@ -80,6 +80,7 @@ func main() {
 	router.Use(gin.Recovery())
 	router.Use(middleware.CORS())
 	router.Use(middleware.ErrorHandler())
+	router.Use(middleware.Metrics())
 
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	router.GET("/health", func(c *gin.Context) {
