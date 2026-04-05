@@ -1,0 +1,28 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['api-gateway:8080']
+
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['auth-service:8080']
+
+  - job_name: 'user-service'
+    static_configs:
+      - targets: ['user-service:8080']
+
+  - job_name: 'quiz-service'
+    static_configs:
+      - targets: ['quiz-service:8080']
+
+  - job_name: 'game-service'
+    static_configs:
+      - targets: ['game-service:8080']
+
+  - job_name: 'notification-service'
+    static_configs:
+      - targets: ['notification-service:8080']
