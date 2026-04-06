@@ -66,7 +66,8 @@ func main() {
 
 	authHandler := handlers.NewAuthHandler(authClient)
 	userHandler := handlers.NewUserHandler(userClient)
-	quizHandler := handlers.NewQuizHandler(quizClient, mlClient)
+	gameClient := client.NewGameClient(cfg.Game.Host, cfg.Game.Port)
+	quizHandler := handlers.NewQuizHandler(quizClient, mlClient, gameClient)
 	notificationHandler := handlers.NewNotificationHandler(notificationClient)
 	mlHandler := handlers.NewMLHandler(mlClient)
 	gameHandler := handlers.NewGameHandler(cfg.Game.Host, cfg.Game.Port)
@@ -140,6 +141,7 @@ func main() {
 		quizzesGroup.GET("/instances/hosting", quizHandler.GetHostingInstances)
 		quizzesGroup.GET("/instances/participating", quizHandler.GetParticipatingInstances)
 		quizzesGroup.GET("/instances/:id", quizHandler.GetInstance)
+		quizzesGroup.DELETE("/instances/:id", quizHandler.DeleteInstance)
 		quizzesGroup.GET("/instances/:id/participants", quizHandler.GetInstanceParticipants)
 		quizzesGroup.GET("/instances/:id/participants/:userId/answers", quizHandler.GetParticipantAnswers)
 		quizzesGroup.POST("/instances/:id/grade", quizHandler.GradeAnswer)

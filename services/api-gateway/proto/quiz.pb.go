@@ -2078,11 +2078,99 @@ func (x *GetParticipatingInstancesResponse) GetInstances() []*ParticipatingInsta
 	return nil
 }
 
+type DeleteInstanceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	InstanceId    string                 `protobuf:"bytes,1,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteInstanceRequest) Reset() {
+	*x = DeleteInstanceRequest{}
+	mi := &file_quiz_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteInstanceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteInstanceRequest) ProtoMessage() {}
+
+func (x *DeleteInstanceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quiz_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteInstanceRequest.ProtoReflect.Descriptor instead.
+func (*DeleteInstanceRequest) Descriptor() ([]byte, []int) {
+	return file_quiz_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *DeleteInstanceRequest) GetInstanceId() string {
+	if x != nil {
+		return x.InstanceId
+	}
+	return ""
+}
+
+func (x *DeleteInstanceRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type DeleteInstanceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteInstanceResponse) Reset() {
+	*x = DeleteInstanceResponse{}
+	mi := &file_quiz_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteInstanceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteInstanceResponse) ProtoMessage() {}
+
+func (x *DeleteInstanceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_quiz_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteInstanceResponse.ProtoReflect.Descriptor instead.
+func (*DeleteInstanceResponse) Descriptor() ([]byte, []int) {
+	return file_quiz_proto_rawDescGZIP(), []int{32}
+}
+
 type ParticipantInfo struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	UserId           string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	SessionStatus    string                 `protobuf:"bytes,2,opt,name=session_status,json=sessionStatus,proto3" json:"session_status,omitempty"` // "joined", "in_progress", "finished"
-	ReviewStatus     string                 `protobuf:"bytes,3,opt,name=review_status,json=reviewStatus,proto3" json:"review_status,omitempty"`    // "pending_review", "reviewed"
+	ReviewStatus     string                 `protobuf:"bytes,3,opt,name=review_status,json=reviewStatus,proto3" json:"review_status,omitempty"`    // "not_finished", "pending_review", "reviewed"
 	TotalScore       int32                  `protobuf:"varint,4,opt,name=total_score,json=totalScore,proto3" json:"total_score,omitempty"`
 	MaxPossibleScore int32                  `protobuf:"varint,5,opt,name=max_possible_score,json=maxPossibleScore,proto3" json:"max_possible_score,omitempty"`
 	unknownFields    protoimpl.UnknownFields
@@ -2091,7 +2179,7 @@ type ParticipantInfo struct {
 
 func (x *ParticipantInfo) Reset() {
 	*x = ParticipantInfo{}
-	mi := &file_quiz_proto_msgTypes[31]
+	mi := &file_quiz_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2103,7 +2191,7 @@ func (x *ParticipantInfo) String() string {
 func (*ParticipantInfo) ProtoMessage() {}
 
 func (x *ParticipantInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_quiz_proto_msgTypes[31]
+	mi := &file_quiz_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2116,7 +2204,7 @@ func (x *ParticipantInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ParticipantInfo.ProtoReflect.Descriptor instead.
 func (*ParticipantInfo) Descriptor() ([]byte, []int) {
-	return file_quiz_proto_rawDescGZIP(), []int{31}
+	return file_quiz_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ParticipantInfo) GetUserId() string {
@@ -2164,7 +2252,7 @@ type GetInstanceParticipantsRequest struct {
 
 func (x *GetInstanceParticipantsRequest) Reset() {
 	*x = GetInstanceParticipantsRequest{}
-	mi := &file_quiz_proto_msgTypes[32]
+	mi := &file_quiz_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2176,7 +2264,7 @@ func (x *GetInstanceParticipantsRequest) String() string {
 func (*GetInstanceParticipantsRequest) ProtoMessage() {}
 
 func (x *GetInstanceParticipantsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quiz_proto_msgTypes[32]
+	mi := &file_quiz_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2189,7 +2277,7 @@ func (x *GetInstanceParticipantsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInstanceParticipantsRequest.ProtoReflect.Descriptor instead.
 func (*GetInstanceParticipantsRequest) Descriptor() ([]byte, []int) {
-	return file_quiz_proto_rawDescGZIP(), []int{32}
+	return file_quiz_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *GetInstanceParticipantsRequest) GetInstanceId() string {
@@ -2215,7 +2303,7 @@ type GetInstanceParticipantsResponse struct {
 
 func (x *GetInstanceParticipantsResponse) Reset() {
 	*x = GetInstanceParticipantsResponse{}
-	mi := &file_quiz_proto_msgTypes[33]
+	mi := &file_quiz_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2227,7 +2315,7 @@ func (x *GetInstanceParticipantsResponse) String() string {
 func (*GetInstanceParticipantsResponse) ProtoMessage() {}
 
 func (x *GetInstanceParticipantsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quiz_proto_msgTypes[33]
+	mi := &file_quiz_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2240,7 +2328,7 @@ func (x *GetInstanceParticipantsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInstanceParticipantsResponse.ProtoReflect.Descriptor instead.
 func (*GetInstanceParticipantsResponse) Descriptor() ([]byte, []int) {
-	return file_quiz_proto_rawDescGZIP(), []int{33}
+	return file_quiz_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *GetInstanceParticipantsResponse) GetParticipants() []*ParticipantInfo {
@@ -2263,7 +2351,7 @@ type AnswerInfo struct {
 
 func (x *AnswerInfo) Reset() {
 	*x = AnswerInfo{}
-	mi := &file_quiz_proto_msgTypes[34]
+	mi := &file_quiz_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2275,7 +2363,7 @@ func (x *AnswerInfo) String() string {
 func (*AnswerInfo) ProtoMessage() {}
 
 func (x *AnswerInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_quiz_proto_msgTypes[34]
+	mi := &file_quiz_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2288,7 +2376,7 @@ func (x *AnswerInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnswerInfo.ProtoReflect.Descriptor instead.
 func (*AnswerInfo) Descriptor() ([]byte, []int) {
-	return file_quiz_proto_rawDescGZIP(), []int{34}
+	return file_quiz_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *AnswerInfo) GetQuestionId() string {
@@ -2337,7 +2425,7 @@ type GetParticipantAnswersRequest struct {
 
 func (x *GetParticipantAnswersRequest) Reset() {
 	*x = GetParticipantAnswersRequest{}
-	mi := &file_quiz_proto_msgTypes[35]
+	mi := &file_quiz_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2349,7 +2437,7 @@ func (x *GetParticipantAnswersRequest) String() string {
 func (*GetParticipantAnswersRequest) ProtoMessage() {}
 
 func (x *GetParticipantAnswersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quiz_proto_msgTypes[35]
+	mi := &file_quiz_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2362,7 +2450,7 @@ func (x *GetParticipantAnswersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetParticipantAnswersRequest.ProtoReflect.Descriptor instead.
 func (*GetParticipantAnswersRequest) Descriptor() ([]byte, []int) {
-	return file_quiz_proto_rawDescGZIP(), []int{35}
+	return file_quiz_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *GetParticipantAnswersRequest) GetInstanceId() string {
@@ -2397,7 +2485,7 @@ type GetParticipantAnswersResponse struct {
 
 func (x *GetParticipantAnswersResponse) Reset() {
 	*x = GetParticipantAnswersResponse{}
-	mi := &file_quiz_proto_msgTypes[36]
+	mi := &file_quiz_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2409,7 +2497,7 @@ func (x *GetParticipantAnswersResponse) String() string {
 func (*GetParticipantAnswersResponse) ProtoMessage() {}
 
 func (x *GetParticipantAnswersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quiz_proto_msgTypes[36]
+	mi := &file_quiz_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2422,7 +2510,7 @@ func (x *GetParticipantAnswersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetParticipantAnswersResponse.ProtoReflect.Descriptor instead.
 func (*GetParticipantAnswersResponse) Descriptor() ([]byte, []int) {
-	return file_quiz_proto_rawDescGZIP(), []int{36}
+	return file_quiz_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *GetParticipantAnswersResponse) GetInstance() *QuizInstance {
@@ -2459,7 +2547,7 @@ type GradeAnswerRequest struct {
 
 func (x *GradeAnswerRequest) Reset() {
 	*x = GradeAnswerRequest{}
-	mi := &file_quiz_proto_msgTypes[37]
+	mi := &file_quiz_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2471,7 +2559,7 @@ func (x *GradeAnswerRequest) String() string {
 func (*GradeAnswerRequest) ProtoMessage() {}
 
 func (x *GradeAnswerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quiz_proto_msgTypes[37]
+	mi := &file_quiz_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2484,7 +2572,7 @@ func (x *GradeAnswerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GradeAnswerRequest.ProtoReflect.Descriptor instead.
 func (*GradeAnswerRequest) Descriptor() ([]byte, []int) {
-	return file_quiz_proto_rawDescGZIP(), []int{37}
+	return file_quiz_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *GradeAnswerRequest) GetInstanceId() string {
@@ -2530,7 +2618,7 @@ type GradeAnswerResponse struct {
 
 func (x *GradeAnswerResponse) Reset() {
 	*x = GradeAnswerResponse{}
-	mi := &file_quiz_proto_msgTypes[38]
+	mi := &file_quiz_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2542,7 +2630,7 @@ func (x *GradeAnswerResponse) String() string {
 func (*GradeAnswerResponse) ProtoMessage() {}
 
 func (x *GradeAnswerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quiz_proto_msgTypes[38]
+	mi := &file_quiz_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2555,7 +2643,7 @@ func (x *GradeAnswerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GradeAnswerResponse.ProtoReflect.Descriptor instead.
 func (*GradeAnswerResponse) Descriptor() ([]byte, []int) {
-	return file_quiz_proto_rawDescGZIP(), []int{38}
+	return file_quiz_proto_rawDescGZIP(), []int{40}
 }
 
 type PublishResultsRequest struct {
@@ -2568,7 +2656,7 @@ type PublishResultsRequest struct {
 
 func (x *PublishResultsRequest) Reset() {
 	*x = PublishResultsRequest{}
-	mi := &file_quiz_proto_msgTypes[39]
+	mi := &file_quiz_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2580,7 +2668,7 @@ func (x *PublishResultsRequest) String() string {
 func (*PublishResultsRequest) ProtoMessage() {}
 
 func (x *PublishResultsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quiz_proto_msgTypes[39]
+	mi := &file_quiz_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2593,7 +2681,7 @@ func (x *PublishResultsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishResultsRequest.ProtoReflect.Descriptor instead.
 func (*PublishResultsRequest) Descriptor() ([]byte, []int) {
-	return file_quiz_proto_rawDescGZIP(), []int{39}
+	return file_quiz_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *PublishResultsRequest) GetInstanceId() string {
@@ -2618,7 +2706,7 @@ type PublishResultsResponse struct {
 
 func (x *PublishResultsResponse) Reset() {
 	*x = PublishResultsResponse{}
-	mi := &file_quiz_proto_msgTypes[40]
+	mi := &file_quiz_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2630,7 +2718,7 @@ func (x *PublishResultsResponse) String() string {
 func (*PublishResultsResponse) ProtoMessage() {}
 
 func (x *PublishResultsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quiz_proto_msgTypes[40]
+	mi := &file_quiz_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2643,7 +2731,7 @@ func (x *PublishResultsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishResultsResponse.ProtoReflect.Descriptor instead.
 func (*PublishResultsResponse) Descriptor() ([]byte, []int) {
-	return file_quiz_proto_rawDescGZIP(), []int{40}
+	return file_quiz_proto_rawDescGZIP(), []int{42}
 }
 
 var File_quiz_proto protoreflect.FileDescriptor
@@ -2806,7 +2894,12 @@ const file_quiz_proto_rawDesc = "" +
 	"\binstance\x18\x01 \x01(\v2\x12.quiz.QuizInstanceR\binstance\x12%\n" +
 	"\x0esession_status\x18\x02 \x01(\tR\rsessionStatus\"^\n" +
 	"!GetParticipatingInstancesResponse\x129\n" +
-	"\tinstances\x18\x01 \x03(\v2\x1b.quiz.ParticipatingInstanceR\tinstances\"\xc5\x01\n" +
+	"\tinstances\x18\x01 \x03(\v2\x1b.quiz.ParticipatingInstanceR\tinstances\"Q\n" +
+	"\x15DeleteInstanceRequest\x12\x1f\n" +
+	"\vinstance_id\x18\x01 \x01(\tR\n" +
+	"instanceId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x18\n" +
+	"\x16DeleteInstanceResponse\"\xc5\x01\n" +
 	"\x0fParticipantInfo\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12%\n" +
 	"\x0esession_status\x18\x02 \x01(\tR\rsessionStatus\x12#\n" +
@@ -2851,7 +2944,7 @@ const file_quiz_proto_rawDesc = "" +
 	"\vinstance_id\x18\x01 \x01(\tR\n" +
 	"instanceId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x18\n" +
-	"\x16PublishResultsResponse2\x9d\t\n" +
+	"\x16PublishResultsResponse2\xea\t\n" +
 	"\vQuizService\x12K\n" +
 	"\x0eCreateTemplate\x12\x1b.quiz.CreateTemplateRequest\x1a\x1c.quiz.CreateTemplateResponse\x12B\n" +
 	"\vGetTemplate\x12\x18.quiz.GetTemplateRequest\x1a\x19.quiz.GetTemplateResponse\x12E\n" +
@@ -2862,7 +2955,8 @@ const file_quiz_proto_rawDesc = "" +
 	"\vGetInstance\x12\x18.quiz.GetInstanceRequest\x1a\x19.quiz.GetInstanceResponse\x12f\n" +
 	"\x17GetInstanceByAccessCode\x12$.quiz.GetInstanceByAccessCodeRequest\x1a%.quiz.GetInstanceByAccessCodeResponse\x12Z\n" +
 	"\x13GetHostingInstances\x12 .quiz.GetHostingInstancesRequest\x1a!.quiz.GetHostingInstancesResponse\x12l\n" +
-	"\x19GetParticipatingInstances\x12&.quiz.GetParticipatingInstancesRequest\x1a'.quiz.GetParticipatingInstancesResponse\x12f\n" +
+	"\x19GetParticipatingInstances\x12&.quiz.GetParticipatingInstancesRequest\x1a'.quiz.GetParticipatingInstancesResponse\x12K\n" +
+	"\x0eDeleteInstance\x12\x1b.quiz.DeleteInstanceRequest\x1a\x1c.quiz.DeleteInstanceResponse\x12f\n" +
 	"\x17GetInstanceParticipants\x12$.quiz.GetInstanceParticipantsRequest\x1a%.quiz.GetInstanceParticipantsResponse\x12`\n" +
 	"\x15GetParticipantAnswers\x12\".quiz.GetParticipantAnswersRequest\x1a#.quiz.GetParticipantAnswersResponse\x12B\n" +
 	"\vGradeAnswer\x12\x18.quiz.GradeAnswerRequest\x1a\x19.quiz.GradeAnswerResponse\x12K\n" +
@@ -2880,7 +2974,7 @@ func file_quiz_proto_rawDescGZIP() []byte {
 	return file_quiz_proto_rawDescData
 }
 
-var file_quiz_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
+var file_quiz_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
 var file_quiz_proto_goTypes = []any{
 	(*QuizTemplate)(nil),                      // 0: quiz.QuizTemplate
 	(*QuizSyncSettings)(nil),                  // 1: quiz.QuizSyncSettings
@@ -2913,29 +3007,31 @@ var file_quiz_proto_goTypes = []any{
 	(*GetParticipatingInstancesRequest)(nil),  // 28: quiz.GetParticipatingInstancesRequest
 	(*ParticipatingInstance)(nil),             // 29: quiz.ParticipatingInstance
 	(*GetParticipatingInstancesResponse)(nil), // 30: quiz.GetParticipatingInstancesResponse
-	(*ParticipantInfo)(nil),                   // 31: quiz.ParticipantInfo
-	(*GetInstanceParticipantsRequest)(nil),    // 32: quiz.GetInstanceParticipantsRequest
-	(*GetInstanceParticipantsResponse)(nil),   // 33: quiz.GetInstanceParticipantsResponse
-	(*AnswerInfo)(nil),                        // 34: quiz.AnswerInfo
-	(*GetParticipantAnswersRequest)(nil),      // 35: quiz.GetParticipantAnswersRequest
-	(*GetParticipantAnswersResponse)(nil),     // 36: quiz.GetParticipantAnswersResponse
-	(*GradeAnswerRequest)(nil),                // 37: quiz.GradeAnswerRequest
-	(*GradeAnswerResponse)(nil),               // 38: quiz.GradeAnswerResponse
-	(*PublishResultsRequest)(nil),             // 39: quiz.PublishResultsRequest
-	(*PublishResultsResponse)(nil),            // 40: quiz.PublishResultsResponse
-	(*timestamppb.Timestamp)(nil),             // 41: google.protobuf.Timestamp
+	(*DeleteInstanceRequest)(nil),             // 31: quiz.DeleteInstanceRequest
+	(*DeleteInstanceResponse)(nil),            // 32: quiz.DeleteInstanceResponse
+	(*ParticipantInfo)(nil),                   // 33: quiz.ParticipantInfo
+	(*GetInstanceParticipantsRequest)(nil),    // 34: quiz.GetInstanceParticipantsRequest
+	(*GetInstanceParticipantsResponse)(nil),   // 35: quiz.GetInstanceParticipantsResponse
+	(*AnswerInfo)(nil),                        // 36: quiz.AnswerInfo
+	(*GetParticipantAnswersRequest)(nil),      // 37: quiz.GetParticipantAnswersRequest
+	(*GetParticipantAnswersResponse)(nil),     // 38: quiz.GetParticipantAnswersResponse
+	(*GradeAnswerRequest)(nil),                // 39: quiz.GradeAnswerRequest
+	(*GradeAnswerResponse)(nil),               // 40: quiz.GradeAnswerResponse
+	(*PublishResultsRequest)(nil),             // 41: quiz.PublishResultsRequest
+	(*PublishResultsResponse)(nil),            // 42: quiz.PublishResultsResponse
+	(*timestamppb.Timestamp)(nil),             // 43: google.protobuf.Timestamp
 }
 var file_quiz_proto_depIdxs = []int32{
-	41, // 0: quiz.QuizTemplate.created_at:type_name -> google.protobuf.Timestamp
-	41, // 1: quiz.QuizTemplate.updated_at:type_name -> google.protobuf.Timestamp
+	43, // 0: quiz.QuizTemplate.created_at:type_name -> google.protobuf.Timestamp
+	43, // 1: quiz.QuizTemplate.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: quiz.QuizTemplate.sync_settings:type_name -> quiz.QuizSyncSettings
 	2,  // 3: quiz.QuizTemplate.async_settings:type_name -> quiz.QuizAsyncSettings
 	3,  // 4: quiz.Question.single_choice:type_name -> quiz.SingleChoice
 	4,  // 5: quiz.Question.multiple_choice:type_name -> quiz.MultipleChoice
 	5,  // 6: quiz.Question.open_answer:type_name -> quiz.OpenAnswer
-	41, // 7: quiz.QuizInstance.created_at:type_name -> google.protobuf.Timestamp
-	41, // 8: quiz.QuizInstance.start_time:type_name -> google.protobuf.Timestamp
-	41, // 9: quiz.QuizInstance.deadline:type_name -> google.protobuf.Timestamp
+	43, // 7: quiz.QuizInstance.created_at:type_name -> google.protobuf.Timestamp
+	43, // 8: quiz.QuizInstance.start_time:type_name -> google.protobuf.Timestamp
+	43, // 9: quiz.QuizInstance.deadline:type_name -> google.protobuf.Timestamp
 	1,  // 10: quiz.QuizInstance.sync_settings:type_name -> quiz.QuizSyncSettings
 	2,  // 11: quiz.QuizInstance.async_settings:type_name -> quiz.QuizAsyncSettings
 	9,  // 12: quiz.CreateTemplateRequest.questions:type_name -> quiz.QuestionInput
@@ -2956,7 +3052,7 @@ var file_quiz_proto_depIdxs = []int32{
 	2,  // 27: quiz.UpdateTemplateRequest.async_settings:type_name -> quiz.QuizAsyncSettings
 	0,  // 28: quiz.UpdateTemplateResponse.template:type_name -> quiz.QuizTemplate
 	6,  // 29: quiz.UpdateTemplateResponse.questions:type_name -> quiz.Question
-	41, // 30: quiz.CreateInstanceRequest.deadline:type_name -> google.protobuf.Timestamp
+	43, // 30: quiz.CreateInstanceRequest.deadline:type_name -> google.protobuf.Timestamp
 	7,  // 31: quiz.CreateInstanceResponse.instance:type_name -> quiz.QuizInstance
 	7,  // 32: quiz.GetInstanceResponse.instance:type_name -> quiz.QuizInstance
 	6,  // 33: quiz.GetInstanceResponse.questions:type_name -> quiz.Question
@@ -2964,10 +3060,10 @@ var file_quiz_proto_depIdxs = []int32{
 	7,  // 35: quiz.GetHostingInstancesResponse.instances:type_name -> quiz.QuizInstance
 	7,  // 36: quiz.ParticipatingInstance.instance:type_name -> quiz.QuizInstance
 	29, // 37: quiz.GetParticipatingInstancesResponse.instances:type_name -> quiz.ParticipatingInstance
-	31, // 38: quiz.GetInstanceParticipantsResponse.participants:type_name -> quiz.ParticipantInfo
+	33, // 38: quiz.GetInstanceParticipantsResponse.participants:type_name -> quiz.ParticipantInfo
 	7,  // 39: quiz.GetParticipantAnswersResponse.instance:type_name -> quiz.QuizInstance
 	6,  // 40: quiz.GetParticipantAnswersResponse.questions:type_name -> quiz.Question
-	34, // 41: quiz.GetParticipantAnswersResponse.answers:type_name -> quiz.AnswerInfo
+	36, // 41: quiz.GetParticipantAnswersResponse.answers:type_name -> quiz.AnswerInfo
 	8,  // 42: quiz.QuizService.CreateTemplate:input_type -> quiz.CreateTemplateRequest
 	11, // 43: quiz.QuizService.GetTemplate:input_type -> quiz.GetTemplateRequest
 	13, // 44: quiz.QuizService.GetTemplates:input_type -> quiz.GetTemplatesRequest
@@ -2978,26 +3074,28 @@ var file_quiz_proto_depIdxs = []int32{
 	24, // 49: quiz.QuizService.GetInstanceByAccessCode:input_type -> quiz.GetInstanceByAccessCodeRequest
 	26, // 50: quiz.QuizService.GetHostingInstances:input_type -> quiz.GetHostingInstancesRequest
 	28, // 51: quiz.QuizService.GetParticipatingInstances:input_type -> quiz.GetParticipatingInstancesRequest
-	32, // 52: quiz.QuizService.GetInstanceParticipants:input_type -> quiz.GetInstanceParticipantsRequest
-	35, // 53: quiz.QuizService.GetParticipantAnswers:input_type -> quiz.GetParticipantAnswersRequest
-	37, // 54: quiz.QuizService.GradeAnswer:input_type -> quiz.GradeAnswerRequest
-	39, // 55: quiz.QuizService.PublishResults:input_type -> quiz.PublishResultsRequest
-	10, // 56: quiz.QuizService.CreateTemplate:output_type -> quiz.CreateTemplateResponse
-	12, // 57: quiz.QuizService.GetTemplate:output_type -> quiz.GetTemplateResponse
-	15, // 58: quiz.QuizService.GetTemplates:output_type -> quiz.GetTemplatesResponse
-	17, // 59: quiz.QuizService.UpdateTemplate:output_type -> quiz.UpdateTemplateResponse
-	19, // 60: quiz.QuizService.DeleteTemplate:output_type -> quiz.DeleteTemplateResponse
-	21, // 61: quiz.QuizService.CreateInstance:output_type -> quiz.CreateInstanceResponse
-	23, // 62: quiz.QuizService.GetInstance:output_type -> quiz.GetInstanceResponse
-	25, // 63: quiz.QuizService.GetInstanceByAccessCode:output_type -> quiz.GetInstanceByAccessCodeResponse
-	27, // 64: quiz.QuizService.GetHostingInstances:output_type -> quiz.GetHostingInstancesResponse
-	30, // 65: quiz.QuizService.GetParticipatingInstances:output_type -> quiz.GetParticipatingInstancesResponse
-	33, // 66: quiz.QuizService.GetInstanceParticipants:output_type -> quiz.GetInstanceParticipantsResponse
-	36, // 67: quiz.QuizService.GetParticipantAnswers:output_type -> quiz.GetParticipantAnswersResponse
-	38, // 68: quiz.QuizService.GradeAnswer:output_type -> quiz.GradeAnswerResponse
-	40, // 69: quiz.QuizService.PublishResults:output_type -> quiz.PublishResultsResponse
-	56, // [56:70] is the sub-list for method output_type
-	42, // [42:56] is the sub-list for method input_type
+	31, // 52: quiz.QuizService.DeleteInstance:input_type -> quiz.DeleteInstanceRequest
+	34, // 53: quiz.QuizService.GetInstanceParticipants:input_type -> quiz.GetInstanceParticipantsRequest
+	37, // 54: quiz.QuizService.GetParticipantAnswers:input_type -> quiz.GetParticipantAnswersRequest
+	39, // 55: quiz.QuizService.GradeAnswer:input_type -> quiz.GradeAnswerRequest
+	41, // 56: quiz.QuizService.PublishResults:input_type -> quiz.PublishResultsRequest
+	10, // 57: quiz.QuizService.CreateTemplate:output_type -> quiz.CreateTemplateResponse
+	12, // 58: quiz.QuizService.GetTemplate:output_type -> quiz.GetTemplateResponse
+	15, // 59: quiz.QuizService.GetTemplates:output_type -> quiz.GetTemplatesResponse
+	17, // 60: quiz.QuizService.UpdateTemplate:output_type -> quiz.UpdateTemplateResponse
+	19, // 61: quiz.QuizService.DeleteTemplate:output_type -> quiz.DeleteTemplateResponse
+	21, // 62: quiz.QuizService.CreateInstance:output_type -> quiz.CreateInstanceResponse
+	23, // 63: quiz.QuizService.GetInstance:output_type -> quiz.GetInstanceResponse
+	25, // 64: quiz.QuizService.GetInstanceByAccessCode:output_type -> quiz.GetInstanceByAccessCodeResponse
+	27, // 65: quiz.QuizService.GetHostingInstances:output_type -> quiz.GetHostingInstancesResponse
+	30, // 66: quiz.QuizService.GetParticipatingInstances:output_type -> quiz.GetParticipatingInstancesResponse
+	32, // 67: quiz.QuizService.DeleteInstance:output_type -> quiz.DeleteInstanceResponse
+	35, // 68: quiz.QuizService.GetInstanceParticipants:output_type -> quiz.GetInstanceParticipantsResponse
+	38, // 69: quiz.QuizService.GetParticipantAnswers:output_type -> quiz.GetParticipantAnswersResponse
+	40, // 70: quiz.QuizService.GradeAnswer:output_type -> quiz.GradeAnswerResponse
+	42, // 71: quiz.QuizService.PublishResults:output_type -> quiz.PublishResultsResponse
+	57, // [57:72] is the sub-list for method output_type
+	42, // [42:57] is the sub-list for method input_type
 	42, // [42:42] is the sub-list for extension type_name
 	42, // [42:42] is the sub-list for extension extendee
 	0,  // [0:42] is the sub-list for field type_name
@@ -3040,7 +3138,7 @@ func file_quiz_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_quiz_proto_rawDesc), len(file_quiz_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   41,
+			NumMessages:   43,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

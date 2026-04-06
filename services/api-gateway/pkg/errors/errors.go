@@ -108,6 +108,20 @@ var (
 		"Participant has not answered this question",
 		nil,
 	)
+
+	ErrForbidden = New(
+		codes.PermissionDenied,
+		"FORBIDDEN",
+		"You do not have permission to perform this action",
+		nil,
+	)
+
+	ErrGameServiceUnavailable = New(
+		codes.Unavailable,
+		"GAME_SERVICE_UNAVAILABLE",
+		"Failed to terminate active game session",
+		nil,
+	)
 )
 
 var (

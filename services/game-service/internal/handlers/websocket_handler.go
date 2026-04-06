@@ -36,6 +36,17 @@ func NewWebSocketHandler(hub *ws.Hub, cfg *config.Config, quizClient *client.Qui
 	}
 }
 
+func (h *WebSocketHandler) TerminateInstance(c *gin.Context) {
+	instanceID := c.Param("id")
+	if instanceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing instance_id"})
+		return
+	}
+
+	h.hub.TerminateInstance(instanceID)
+	c.Status(http.StatusNoContent)
+}
+
 func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	userID := c.GetHeader("X-User-ID")
 	if userID == "" {

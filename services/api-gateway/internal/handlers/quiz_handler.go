@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -17,12 +18,14 @@ import (
 type QuizHandler struct {
 	quizClient *client.QuizClient
 	mlClient   *client.MLClient
+	gameClient *client.GameClient
 }
 
-func NewQuizHandler(quizClient *client.QuizClient, mlClient *client.MLClient) *QuizHandler {
+func NewQuizHandler(quizClient *client.QuizClient, mlClient *client.MLClient, gameClient *client.GameClient) *QuizHandler {
 	return &QuizHandler{
 		quizClient: quizClient,
 		mlClient:   mlClient,
+		gameClient: gameClient,
 	}
 }
 
@@ -198,6 +201,49 @@ func (h *QuizHandler) DeleteTemplate(c *gin.Context) {
 		UserId:     userID,
 	})
 
+	if err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// DeleteInstance godoc
+// @Summary Delete quiz instance
+// @Tags Quiz
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Instance ID"
+// @Success 204
+// @Router /quizzes/instances/{id} [delete]
+func (h *QuizHandler) DeleteInstance(c *gin.Context) {
+	userID := c.GetString("user_id")
+	instanceID := c.Param("id")
+
+	resp, err := h.quizClient.GetInstance(c.Request.Context(), &pb.GetInstanceRequest{
+		InstanceId: instanceID,
+		UserId:     userID,
+	})
+	if err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+	if resp.Instance.CreatedBy != userID {
+		dto.JsonError(c, errors.ErrForbidden)
+		return
+	}
+
+	if err := h.gameClient.TerminateInstance(c.Request.Context(), instanceID); err != nil {
+		log.Printf("Failed to terminate game instance: %v", err)
+		dto.JsonError(c, errors.ErrGameServiceUnavailable)
+		return
+	}
+
+	_, err = h.quizClient.DeleteInstance(c.Request.Context(), &pb.DeleteInstanceRequest{
+		InstanceId: instanceID,
+		UserId:     userID,
+	})
 	if err != nil {
 		dto.JsonError(c, err)
 		return

@@ -93,3 +93,7 @@ func (c *QuizClient) GradeAnswer(ctx context.Context, req *pb.GradeAnswerRequest
 func (c *QuizClient) PublishResults(ctx context.Context, req *pb.PublishResultsRequest) (*pb.PublishResultsResponse, error) {
 	return c.client.PublishResults(ctx, req)
 }
+
+func (c *QuizClient) DeleteInstance(ctx context.Context, req *pb.DeleteInstanceRequest) (*pb.DeleteInstanceResponse, error) {
+	return c.client.DeleteInstance(ctx, req)
+}

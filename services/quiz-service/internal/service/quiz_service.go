@@ -46,6 +46,7 @@ type InstanceRepo interface {
 	GetParticipantAnswers(ctx context.Context, instanceID, userID string) (*repository.ParticipantSession, error)
 	GradeAnswer(ctx context.Context, instanceID, userID, questionID string, score int) error
 	UpdateInstanceStatus(ctx context.Context, instanceID, status string) error
+	DeleteInstance(ctx context.Context, instanceID, createdBy string) error
 }
 
 type QuizService struct {
@@ -297,6 +298,23 @@ func (s *QuizService) CreateInstance(ctx context.Context, req *pb.CreateInstance
 	return &pb.CreateInstanceResponse{
 		Instance: s.instanceToProto(instance),
 	}, nil
+}
+
+func (s *QuizService) DeleteInstance(ctx context.Context, req *pb.DeleteInstanceRequest) (*pb.DeleteInstanceResponse, error) {
+	instance, err := s.instanceRepo.GetInstanceByID(ctx, req.InstanceId)
+	if err != nil {
+		return nil, errors.New(codes.NotFound, errors.ReasonInstanceNotFound, "Instance not found", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	if instance.CreatedBy != req.UserId {
+		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only the quiz creator can delete the instance", map[string]string{"instance_id": req.InstanceId, "user_id": req.UserId})
+	}
+
+	if err := s.instanceRepo.DeleteInstance(ctx, req.InstanceId, req.UserId); err != nil {
+		return nil, errors.New(codes.Internal, errors.ReasonInstanceDeleteFailed, "Failed to delete instance", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	return &pb.DeleteInstanceResponse{}, nil
 }
 
 func (s *QuizService) GetInstance(ctx context.Context, req *pb.GetInstanceRequest) (*pb.GetInstanceResponse, error) {

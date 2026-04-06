@@ -272,6 +272,20 @@ func (mr *MockInstanceRepoMockRecorder) CreateInstance(ctx, instance any) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateInstance", reflect.TypeOf((*MockInstanceRepo)(nil).CreateInstance), ctx, instance)
 }
 
+// DeleteInstance mocks base method.
+func (m *MockInstanceRepo) DeleteInstance(ctx context.Context, instanceID, createdBy string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteInstance", ctx, instanceID, createdBy)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteInstance indicates an expected call of DeleteInstance.
+func (mr *MockInstanceRepoMockRecorder) DeleteInstance(ctx, instanceID, createdBy any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteInstance", reflect.TypeOf((*MockInstanceRepo)(nil).DeleteInstance), ctx, instanceID, createdBy)
+}
+
 // GetHostingInstances mocks base method.
 func (m *MockInstanceRepo) GetHostingInstances(ctx context.Context, userID, status string) ([]*repository.Instance, error) {
 	m.ctrl.T.Helper()

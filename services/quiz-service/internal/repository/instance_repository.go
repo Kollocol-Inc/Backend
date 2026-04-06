@@ -501,6 +501,22 @@ func (r *InstanceRepository) GradeAnswer(ctx context.Context, instanceID, userID
 	return err
 }
 
+func (r *InstanceRepository) DeleteInstance(ctx context.Context, instanceID, createdBy string) error {
+	query := `DELETE FROM quiz_instances WHERE id = $1 AND created_by = $2`
+	result, err := r.db.ExecContext(ctx, query, instanceID, createdBy)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("instance not found or not owned by user")
+	}
+	return nil
+}
+
 func (r *InstanceRepository) UpdateInstanceStatus(ctx context.Context, instanceID, status string) error {
 	query := `UPDATE quiz_instances SET status = $1 WHERE id = $2`
 	result, err := r.db.ExecContext(ctx, query, status, instanceID)

@@ -1,4 +1,4 @@
-.PHONY: proto proto-python swagger
+.PHONY: proto proto-python swagger test
 
 proto: proto-go proto-python
 
@@ -23,3 +23,11 @@ proto-python:
 
 swagger:
 	swag init -g main.go -d services/api-gateway -o services/api-gateway/docs
+
+test:
+	@for dir in services/*/; do \
+		if [ -f "$$dir/go.mod" ]; then \
+			echo "Testing $$(basename $$dir)..."; \
+			(cd $$dir && go test ./... -v) || exit 1; \
+		fi; \
+	done

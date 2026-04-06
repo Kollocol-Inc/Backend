@@ -99,6 +99,7 @@ func main() {
 
 	wsHandler := handlers.NewWebSocketHandler(hub, cfg, quizClient)
 	router.GET("/ws", wsHandler.HandleWebSocket)
+	router.DELETE("/instances/:id", wsHandler.TerminateInstance)
 
 	httpAddr := ":" + cfg.Server.HTTPPort
 	log.Printf("Game Service HTTP server starting on port %s...", cfg.Server.HTTPPort)

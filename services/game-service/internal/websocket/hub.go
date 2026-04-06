@@ -36,6 +36,8 @@ type RedisClientInterface interface {
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error
 	Get(ctx context.Context, key string) (string, error)
 	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) error
+	Delete(ctx context.Context, keys ...string) error
+	DeleteByPattern(ctx context.Context, pattern string) error
 }
 
 type SessionRepoInterface interface {
@@ -193,6 +195,41 @@ func (h *Hub) unregisterClient(client *Client) {
 	}
 }
 
+func (h *Hub) TerminateInstance(instanceID string) {
+	ctx := context.Background()
+
+	if h.redisClient != nil {
+		h.redisClient.Set(ctx, redisDeletedKey(instanceID), "true", 5*time.Minute)
+	}
+
+	h.mu.Lock()
+	clients := h.clients[instanceID]
+	if clients != nil {
+		for client := range clients {
+			client.SendErrorAndClose("game has been deleted")
+			delete(clients, client)
+		}
+		delete(h.clients, instanceID)
+		delete(h.frozenParticipants, instanceID)
+	}
+	h.mu.Unlock()
+
+	h.cancelAllTimersForInstance(instanceID)
+
+	if h.db != nil {
+		query := `DELETE FROM game_sessions WHERE instance_id = $1`
+		if _, err := h.db.ExecContext(ctx, query, instanceID); err != nil {
+			log.Printf("Failed to delete game_sessions for instance %s: %v", instanceID, err)
+		}
+	}
+
+	if h.redisClient != nil {
+		h.cleanRedisKeys(ctx, instanceID)
+	}
+
+	log.Printf("Instance terminated: %s", instanceID)
+}
+
 func (h *Hub) handleClientMessage(clientMsg *ClientMessage) {
 	client := clientMsg.Client
 	msg := clientMsg.Message
@@ -235,6 +272,15 @@ func (h *Hub) handleClientMessage(clientMsg *ClientMessage) {
 func (h *Hub) handleJoin(client *Client) {
 	log.Printf("Handling join for user %s in instance %s", client.UserID, client.InstanceID)
 	ctx := context.Background()
+
+	if h.isInstanceDeleted(ctx, client.InstanceID) {
+		client.SendError("game has been deleted")
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+			h.Unregister <- client
+		}()
+		return
+	}
 
 	quizResp, err := h.quizClient.GetInstance(ctx, client.InstanceID, client.UserID)
 	if err != nil {

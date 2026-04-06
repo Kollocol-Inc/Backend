@@ -29,6 +29,10 @@ func redisStartTimeKey(quizType, instanceID, userID string, questionIndex int) s
 	return fmt.Sprintf("quiz:%s:user:%s:question:%d:start", instanceID, userID, questionIndex)
 }
 
+func redisDeletedKey(instanceID string) string {
+	return fmt.Sprintf("quiz:%s:deleted", instanceID)
+}
+
 func timerKey(quizType, instanceID, userID string, questionIndex int) string {
 	if quizType == constants.QuizTypeSync {
 		return fmt.Sprintf("%s:%d", instanceID, questionIndex)
@@ -110,6 +114,22 @@ func (h *Hub) getTotalParticipants(ctx context.Context, instanceID string) int {
 	var count int
 	fmt.Sscanf(s, "%d", &count)
 	return count
+}
+
+func (h *Hub) isInstanceDeleted(ctx context.Context, instanceID string) bool {
+	if h.redisClient == nil {
+		return false
+	}
+	val, err := h.redisClient.Get(ctx, redisDeletedKey(instanceID))
+	return err == nil && val == "true"
+}
+
+func (h *Hub) cleanRedisKeys(ctx context.Context, instanceID string) {
+	h.redisClient.Delete(ctx,
+		redisQuizDataKey(instanceID),
+		redisCurrentIndexKey(instanceID),
+		redisTotalParticipantsKey(instanceID),
+	)
 }
 
 func (h *Hub) countAnswerProgress(ctx context.Context, instanceID string, sessions []*models.GameSession, creatorID string, questionIndex int) (total, answered int) {
