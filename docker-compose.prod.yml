@@ -2,6 +2,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: postgres-db
+    restart: unless-stopped
     ports:
       - "${POSTGRES_PORT}:5432"
     environment:
@@ -21,6 +22,7 @@ services:
   pgadmin:
     image: dpage/pgadmin4:9.11
     container_name: pgadmin
+    restart: unless-stopped
     ports:
       - "${PGADMIN_PORT}:80"
     environment:
@@ -37,6 +39,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: redis-cache
+    restart: unless-stopped
     ports:
       - "${REDIS_PORT}:6379"
     volumes:
@@ -53,6 +56,7 @@ services:
   redis-commander:
     image: rediscommander/redis-commander:latest
     container_name: redis-commander
+    restart: unless-stopped
     ports:
       - "${REDIS_COMMANDER_PORT}:8081"
     environment:
@@ -66,6 +70,7 @@ services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: rabbitmq-broker
+    restart: unless-stopped
     ports:
       - "${RABBITMQ_PORT}:5672"
       - "${RABBITMQ_MANAGEMENT_PORT}:15672"
@@ -85,6 +90,7 @@ services:
   minio:
     image: minio/minio:latest
     container_name: minio-storage
+    restart: unless-stopped
     ports:
       - "${MINIO_API_PORT}:9000"
       - "${MINIO_CONSOLE_PORT}:9001"
@@ -120,6 +126,7 @@ services:
   mailhog:
     image: mailhog/mailhog:latest
     container_name: mailhog
+    restart: unless-stopped
     ports:
       - "${MAILHOG_SMTP_PORT}:1025"
       - "${MAILHOG_UI_PORT}:8025"
@@ -129,6 +136,7 @@ services:
   api-gateway:
     image: cr.yandex/${YCR_REGISTRY_ID}/api-gateway:latest
     container_name: api-gateway
+    restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
@@ -167,6 +175,7 @@ services:
   auth-service:
     image: cr.yandex/${YCR_REGISTRY_ID}/auth-service:latest
     container_name: auth-service
+    restart: unless-stopped
     ports:
       - "${AUTH_SERVICE_PORT}:50051"
       - "${AUTH_SERVICE_HTTP_PORT}:8080"
@@ -204,6 +213,7 @@ services:
   user-service:
     image: cr.yandex/${YCR_REGISTRY_ID}/user-service:latest
     container_name: user-service
+    restart: unless-stopped
     ports:
       - "${USER_SERVICE_PORT}:50051"
       - "${USER_SERVICE_HTTP_PORT}:8080"
@@ -240,6 +250,7 @@ services:
   quiz-service:
     image: cr.yandex/${YCR_REGISTRY_ID}/quiz-service:latest
     container_name: quiz-service
+    restart: unless-stopped
     ports:
       - "${QUIZ_SERVICE_PORT}:50051"
       - "${QUIZ_SERVICE_HTTP_PORT}:8080"
@@ -270,6 +281,7 @@ services:
   game-service:
     image: cr.yandex/${YCR_REGISTRY_ID}/game-service:latest
     container_name: game-service
+    restart: unless-stopped
     ports:
       - "${GAME_SERVICE_HTTP_PORT}:8080"
     environment:
@@ -308,6 +320,7 @@ services:
   notification-service:
     image: cr.yandex/${YCR_REGISTRY_ID}/notification-service:latest
     container_name: notification-service
+    restart: unless-stopped
     ports:
       - "${NOTIFICATION_SERVICE_PORT}:50051"
       - "${NOTIFICATION_SERVICE_HTTP_PORT}:8080"
@@ -347,6 +360,7 @@ services:
   ml-service:
     image: cr.yandex/${YCR_REGISTRY_ID}/ml-service:latest
     container_name: ml-service
+    restart: unless-stopped
     ports:
       - "${ML_SERVICE_PORT}:50051"
     environment:
@@ -366,6 +380,7 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
+    restart: unless-stopped
     ports:
       - "9090:9090"
     volumes:
@@ -379,6 +394,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
+    restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
