@@ -17,13 +17,15 @@ import (
 
 type QuizHandler struct {
 	quizClient *client.QuizClient
+	userClient *client.UserClient
 	mlClient   *client.MLClient
 	gameClient *client.GameClient
 }
 
-func NewQuizHandler(quizClient *client.QuizClient, mlClient *client.MLClient, gameClient *client.GameClient) *QuizHandler {
+func NewQuizHandler(quizClient *client.QuizClient, userClient *client.UserClient, mlClient *client.MLClient, gameClient *client.GameClient) *QuizHandler {
 	return &QuizHandler{
 		quizClient: quizClient,
+		userClient: userClient,
 		mlClient:   mlClient,
 		gameClient: gameClient,
 	}
@@ -344,7 +346,7 @@ func (h *QuizHandler) GetInstance(c *gin.Context) {
 // @Tags Quiz
 // @Produce json
 // @Security BearerAuth
-// @Param status query string false "Instance status filter" Enums(waiting,active,pending_review,reviewed)
+// @Param status query string false "Instance status filter" Enums(waiting,active,pending_review,reviewed,published_results)
 // @Success 200 {object} dto.GetHostingInstancesResponse
 // @Router /quizzes/instances/hosting [get]
 func (h *QuizHandler) GetHostingInstances(c *gin.Context) {
@@ -435,10 +437,39 @@ func (h *QuizHandler) GetInstanceParticipants(c *gin.Context) {
 		return
 	}
 
+	userIDs := make([]string, len(resp.Participants))
+	for i, p := range resp.Participants {
+		userIDs[i] = p.UserId
+	}
+
+	userMap := make(map[string]*pb.User)
+	if len(userIDs) > 0 {
+		usersResp, err := h.userClient.GetUsersByIDs(c.Request.Context(), userIDs)
+		if err != nil {
+			log.Printf("Failed to fetch users for participants: %v", err)
+		} else {
+			for _, u := range usersResp.Users {
+				userMap[u.Id] = u
+			}
+		}
+	}
+
 	participants := make([]dto.ParticipantDTO, len(resp.Participants))
 	for i, p := range resp.Participants {
+		var userDTO dto.UserDTO
+		if u, ok := userMap[p.UserId]; ok {
+			userDTO = dto.UserDTO{
+				ID:        u.Id,
+				Email:     u.Email,
+				FirstName: u.FirstName,
+				LastName:  u.LastName,
+				AvatarURL: u.AvatarUrl,
+			}
+		} else {
+			userDTO = dto.UserDTO{ID: p.UserId}
+		}
 		participants[i] = dto.ParticipantDTO{
-			UserID:           p.UserId,
+			User:             userDTO,
 			SessionStatus:    p.SessionStatus,
 			ReviewStatus:     p.ReviewStatus,
 			TotalScore:       p.TotalScore,

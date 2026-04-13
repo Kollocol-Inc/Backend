@@ -87,6 +87,21 @@ func (mr *MockUserRepoMockRecorder) GetUsersByEmailsMap(ctx, emails any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersByEmailsMap", reflect.TypeOf((*MockUserRepo)(nil).GetUsersByEmailsMap), ctx, emails)
 }
 
+// GetUsersByIDs mocks base method.
+func (m *MockUserRepo) GetUsersByIDs(ctx context.Context, userIDs []string) ([]*repository.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUsersByIDs", ctx, userIDs)
+	ret0, _ := ret[0].([]*repository.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUsersByIDs indicates an expected call of GetUsersByIDs.
+func (mr *MockUserRepoMockRecorder) GetUsersByIDs(ctx, userIDs any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersByIDs", reflect.TypeOf((*MockUserRepo)(nil).GetUsersByIDs), ctx, userIDs)
+}
+
 // UpdateUser mocks base method.
 func (m *MockUserRepo) UpdateUser(ctx context.Context, user *repository.User) error {
 	m.ctrl.T.Helper()

@@ -392,11 +392,12 @@ func (mr *MockInstanceRepoMockRecorder) GetParticipatingInstances(ctx, userID, s
 }
 
 // GradeAnswer mocks base method.
-func (m *MockInstanceRepo) GradeAnswer(ctx context.Context, instanceID, userID, questionID string, score int) error {
+func (m *MockInstanceRepo) GradeAnswer(ctx context.Context, instanceID, userID, questionID string, score int) (int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GradeAnswer", ctx, instanceID, userID, questionID, score)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GradeAnswer indicates an expected call of GradeAnswer.

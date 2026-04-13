@@ -67,7 +67,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authClient)
 	userHandler := handlers.NewUserHandler(userClient)
 	gameClient := client.NewGameClient(cfg.Game.Host, cfg.Game.Port)
-	quizHandler := handlers.NewQuizHandler(quizClient, mlClient, gameClient)
+	quizHandler := handlers.NewQuizHandler(quizClient, userClient, mlClient, gameClient)
 	notificationHandler := handlers.NewNotificationHandler(notificationClient)
 	mlHandler := handlers.NewMLHandler(mlClient)
 	gameHandler := handlers.NewGameHandler(cfg.Game.Host, cfg.Game.Port)
