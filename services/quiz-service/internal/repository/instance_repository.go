@@ -465,21 +465,23 @@ func (r *InstanceRepository) GetParticipantAnswers(ctx context.Context, instance
 	return s, nil
 }
 
-func (r *InstanceRepository) GradeAnswer(ctx context.Context, instanceID, userID, questionID string, score int) error {
+func (r *InstanceRepository) GradeAnswer(ctx context.Context, instanceID, userID, questionID string, score int) (int, error) {
 	var answersJSON string
 	query := `SELECT answers FROM game_sessions WHERE instance_id = $1 AND user_id = $2`
 	if err := r.db.QueryRowContext(ctx, query, instanceID, userID).Scan(&answersJSON); err != nil {
-		return fmt.Errorf("participant not found: %w", err)
+		return 0, fmt.Errorf("participant not found: %w", err)
 	}
 
 	var answers []SessionAnswer
 	if err := json.Unmarshal([]byte(answersJSON), &answers); err != nil {
-		return fmt.Errorf("failed to parse answers: %w", err)
+		return 0, fmt.Errorf("failed to parse answers: %w", err)
 	}
 
 	found := false
+	oldScore := 0
 	for i, a := range answers {
 		if a.QuestionID == questionID {
+			oldScore = a.Score
 			answers[i].Score = score
 			answers[i].IsCorrect = score > 0
 			answers[i].Graded = true
@@ -488,17 +490,33 @@ func (r *InstanceRepository) GradeAnswer(ctx context.Context, instanceID, userID
 		}
 	}
 	if !found {
-		return fmt.Errorf("answer for question not found")
+		return 0, fmt.Errorf("answer for question not found")
 	}
 
 	updatedJSON, err := json.Marshal(answers)
 	if err != nil {
-		return fmt.Errorf("failed to marshal answers: %w", err)
+		return 0, fmt.Errorf("failed to marshal answers: %w", err)
 	}
 
 	updateQuery := `UPDATE game_sessions SET answers = $1 WHERE instance_id = $2 AND user_id = $3`
 	_, err = r.db.ExecContext(ctx, updateQuery, string(updatedJSON), instanceID, userID)
-	return err
+	return oldScore, err
+}
+
+func (r *InstanceRepository) DeleteInstance(ctx context.Context, instanceID, createdBy string) error {
+	query := `DELETE FROM quiz_instances WHERE id = $1 AND created_by = $2`
+	result, err := r.db.ExecContext(ctx, query, instanceID, createdBy)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("instance not found or not owned by user")
+	}
+	return nil
 }
 
 func (r *InstanceRepository) UpdateInstanceStatus(ctx context.Context, instanceID, status string) error {

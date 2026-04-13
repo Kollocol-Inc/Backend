@@ -137,6 +137,39 @@ func (m *MockRedisClientInterface) EXPECT() *MockRedisClientInterfaceMockRecorde
 	return m.recorder
 }
 
+// Delete mocks base method.
+func (m *MockRedisClientInterface) Delete(ctx context.Context, keys ...string) error {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx}
+	for _, a := range keys {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Delete", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockRedisClientInterfaceMockRecorder) Delete(ctx any, keys ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx}, keys...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockRedisClientInterface)(nil).Delete), varargs...)
+}
+
+// DeleteByPattern mocks base method.
+func (m *MockRedisClientInterface) DeleteByPattern(ctx context.Context, pattern string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteByPattern", ctx, pattern)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteByPattern indicates an expected call of DeleteByPattern.
+func (mr *MockRedisClientInterfaceMockRecorder) DeleteByPattern(ctx, pattern any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByPattern", reflect.TypeOf((*MockRedisClientInterface)(nil).DeleteByPattern), ctx, pattern)
+}
+
 // Get mocks base method.
 func (m *MockRedisClientInterface) Get(ctx context.Context, key string) (string, error) {
 	m.ctrl.T.Helper()

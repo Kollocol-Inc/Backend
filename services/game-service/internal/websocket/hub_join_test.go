@@ -7,6 +7,7 @@ import (
 	"game-service/internal/constants"
 	pb "game-service/proto"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -45,6 +46,7 @@ func TestHandleJoin_Success(t *testing.T) {
 	env := newTestHubWithMocks(t)
 	client := newTestClient(env.hub, "user-1", "inst-1", false)
 
+	env.redisClient.EXPECT().Get(gomock.Any(), "quiz:inst-1:deleted").Return("", redis.Nil)
 	resp := makeQuizInstanceResponse(constants.InstanceStatusWaiting, constants.QuizTypeSync, "creator-1")
 	env.quizClient.EXPECT().GetInstance(gomock.Any(), "inst-1", "user-1").Return(resp, nil)
 	env.redisClient.EXPECT().Set(gomock.Any(), "quiz:inst-1:data", gomock.Any(), gomock.Any()).Return(nil)
@@ -66,6 +68,7 @@ func TestHandleJoin_QuizFinished(t *testing.T) {
 	env := newTestHubWithMocks(t)
 	client := newTestClient(env.hub, "user-1", "inst-1", false)
 
+	env.redisClient.EXPECT().Get(gomock.Any(), "quiz:inst-1:deleted").Return("", redis.Nil)
 	resp := makeQuizInstanceResponse(constants.InstanceStatusPendingReview, constants.QuizTypeSync, "creator-1")
 	env.quizClient.EXPECT().GetInstance(gomock.Any(), "inst-1", "user-1").Return(resp, nil)
 
@@ -80,6 +83,7 @@ func TestHandleJoin_CreatorAsyncRejected(t *testing.T) {
 	env := newTestHubWithMocks(t)
 	client := newTestClient(env.hub, "creator-1", "inst-1", true)
 
+	env.redisClient.EXPECT().Get(gomock.Any(), "quiz:inst-1:deleted").Return("", redis.Nil)
 	resp := makeQuizInstanceResponse(constants.InstanceStatusActive, constants.QuizTypeAsync, "creator-1")
 	env.quizClient.EXPECT().GetInstance(gomock.Any(), "inst-1", "creator-1").Return(resp, nil)
 	env.redisClient.EXPECT().Set(gomock.Any(), "quiz:inst-1:data", gomock.Any(), gomock.Any()).Return(nil)
@@ -95,6 +99,7 @@ func TestHandleJoin_LateSyncJoinRejected(t *testing.T) {
 	env := newTestHubWithMocks(t)
 	client := newTestClient(env.hub, "user-1", "inst-1", false)
 
+	env.redisClient.EXPECT().Get(gomock.Any(), "quiz:inst-1:deleted").Return("", redis.Nil)
 	resp := makeQuizInstanceResponse(constants.InstanceStatusActive, constants.QuizTypeSync, "creator-1")
 	env.quizClient.EXPECT().GetInstance(gomock.Any(), "inst-1", "user-1").Return(resp, nil)
 	env.redisClient.EXPECT().Set(gomock.Any(), "quiz:inst-1:data", gomock.Any(), gomock.Any()).Return(nil)
@@ -111,6 +116,7 @@ func TestHandleJoin_GetInstanceFails(t *testing.T) {
 	env := newTestHubWithMocks(t)
 	client := newTestClient(env.hub, "user-1", "inst-1", false)
 
+	env.redisClient.EXPECT().Get(gomock.Any(), "quiz:inst-1:deleted").Return("", redis.Nil)
 	env.quizClient.EXPECT().GetInstance(gomock.Any(), "inst-1", "user-1").Return(nil, assert.AnError)
 
 	registerClientToHub(env.hub, client)
@@ -124,6 +130,7 @@ func TestHandleJoin_ExistingSession(t *testing.T) {
 	env := newTestHubWithMocks(t)
 	client := newTestClient(env.hub, "user-1", "inst-1", false)
 
+	env.redisClient.EXPECT().Get(gomock.Any(), "quiz:inst-1:deleted").Return("", redis.Nil)
 	resp := makeQuizInstanceResponse(constants.InstanceStatusWaiting, constants.QuizTypeSync, "creator-1")
 	env.quizClient.EXPECT().GetInstance(gomock.Any(), "inst-1", "user-1").Return(resp, nil)
 	env.redisClient.EXPECT().Set(gomock.Any(), "quiz:inst-1:data", gomock.Any(), gomock.Any()).Return(nil)

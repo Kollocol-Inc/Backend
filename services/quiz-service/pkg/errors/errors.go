@@ -29,6 +29,7 @@ const (
 	ReasonQuestionDeleteFailed  = "QUESTION_DELETE_FAILED"
 	ReasonInstanceNotFound      = "INSTANCE_NOT_FOUND"
 	ReasonInstanceCreateFailed  = "INSTANCE_CREATE_FAILED"
+	ReasonInstanceDeleteFailed  = "INSTANCE_DELETE_FAILED"
 	ReasonAccessDenied          = "ACCESS_DENIED"
 	ReasonInvalidFilter         = "INVALID_FILTER"
 	ReasonSettingsMarshalFailed = "SETTINGS_MARSHAL_FAILED"

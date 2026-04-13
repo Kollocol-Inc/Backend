@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -16,13 +17,17 @@ import (
 
 type QuizHandler struct {
 	quizClient *client.QuizClient
+	userClient *client.UserClient
 	mlClient   *client.MLClient
+	gameClient *client.GameClient
 }
 
-func NewQuizHandler(quizClient *client.QuizClient, mlClient *client.MLClient) *QuizHandler {
+func NewQuizHandler(quizClient *client.QuizClient, userClient *client.UserClient, mlClient *client.MLClient, gameClient *client.GameClient) *QuizHandler {
 	return &QuizHandler{
 		quizClient: quizClient,
+		userClient: userClient,
 		mlClient:   mlClient,
+		gameClient: gameClient,
 	}
 }
 
@@ -206,6 +211,49 @@ func (h *QuizHandler) DeleteTemplate(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// DeleteInstance godoc
+// @Summary Delete quiz instance
+// @Tags Quiz
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Instance ID"
+// @Success 204
+// @Router /quizzes/instances/{id} [delete]
+func (h *QuizHandler) DeleteInstance(c *gin.Context) {
+	userID := c.GetString("user_id")
+	instanceID := c.Param("id")
+
+	resp, err := h.quizClient.GetInstance(c.Request.Context(), &pb.GetInstanceRequest{
+		InstanceId: instanceID,
+		UserId:     userID,
+	})
+	if err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+	if resp.Instance.CreatedBy != userID {
+		dto.JsonError(c, errors.ErrForbidden)
+		return
+	}
+
+	if err := h.gameClient.TerminateInstance(c.Request.Context(), instanceID); err != nil {
+		log.Printf("Failed to terminate game instance: %v", err)
+		dto.JsonError(c, errors.ErrGameServiceUnavailable)
+		return
+	}
+
+	_, err = h.quizClient.DeleteInstance(c.Request.Context(), &pb.DeleteInstanceRequest{
+		InstanceId: instanceID,
+		UserId:     userID,
+	})
+	if err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 // CreateInstance godoc
 // @Summary Create quiz instance (start quiz)
 // @Tags Quiz
@@ -298,7 +346,7 @@ func (h *QuizHandler) GetInstance(c *gin.Context) {
 // @Tags Quiz
 // @Produce json
 // @Security BearerAuth
-// @Param status query string false "Instance status filter" Enums(waiting,active,pending_review,reviewed)
+// @Param status query string false "Instance status filter" Enums(waiting,active,pending_review,reviewed,published_results)
 // @Success 200 {object} dto.GetHostingInstancesResponse
 // @Router /quizzes/instances/hosting [get]
 func (h *QuizHandler) GetHostingInstances(c *gin.Context) {
@@ -389,10 +437,39 @@ func (h *QuizHandler) GetInstanceParticipants(c *gin.Context) {
 		return
 	}
 
+	userIDs := make([]string, len(resp.Participants))
+	for i, p := range resp.Participants {
+		userIDs[i] = p.UserId
+	}
+
+	userMap := make(map[string]*pb.User)
+	if len(userIDs) > 0 {
+		usersResp, err := h.userClient.GetUsersByIDs(c.Request.Context(), userIDs)
+		if err != nil {
+			log.Printf("Failed to fetch users for participants: %v", err)
+		} else {
+			for _, u := range usersResp.Users {
+				userMap[u.Id] = u
+			}
+		}
+	}
+
 	participants := make([]dto.ParticipantDTO, len(resp.Participants))
 	for i, p := range resp.Participants {
+		var userDTO dto.UserDTO
+		if u, ok := userMap[p.UserId]; ok {
+			userDTO = dto.UserDTO{
+				ID:        u.Id,
+				Email:     u.Email,
+				FirstName: u.FirstName,
+				LastName:  u.LastName,
+				AvatarURL: u.AvatarUrl,
+			}
+		} else {
+			userDTO = dto.UserDTO{ID: p.UserId}
+		}
 		participants[i] = dto.ParticipantDTO{
-			UserID:           p.UserId,
+			User:             userDTO,
 			SessionStatus:    p.SessionStatus,
 			ReviewStatus:     p.ReviewStatus,
 			TotalScore:       p.TotalScore,

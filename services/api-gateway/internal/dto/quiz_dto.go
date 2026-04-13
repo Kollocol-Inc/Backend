@@ -82,7 +82,7 @@ type InstanceDTO struct {
 	Title          string `json:"title" example:"Class Quiz — March"`
 	AccessCode     string `json:"access_code" example:"481623"`
 	GroupID        string `json:"group_id,omitempty" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Status         string `json:"status" enums:"waiting,active,pending_review,reviewed" example:"waiting"`
+	Status         string `json:"status" enums:"waiting,active,pending_review,reviewed,published_results" example:"waiting"`
 	QuizType       string `json:"quiz_type" enums:"sync,async" example:"sync"`
 	Settings       any    `json:"settings" swaggertype:"object"`
 	CreatedAt      string `json:"created_at" example:"2024-01-15T10:30:00Z"`
@@ -123,11 +123,11 @@ type UserAnswerDTO struct {
 }
 
 type ParticipantDTO struct {
-	UserID           string `json:"user_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	SessionStatus    string `json:"session_status" enums:"joined,in_progress,finished" example:"finished"`
-	ReviewStatus     string `json:"review_status" enums:"pending_review,reviewed" example:"pending_review"`
-	TotalScore       int32  `json:"total_score" example:"8"`
-	MaxPossibleScore int32  `json:"max_possible_score" example:"10"`
+	User             UserDTO `json:"user"`
+	SessionStatus    string  `json:"session_status" enums:"joined,in_progress,finished" example:"finished"`
+	ReviewStatus     string  `json:"review_status" enums:"pending_review,reviewed" example:"pending_review"`
+	TotalScore       int32   `json:"total_score" example:"8"`
+	MaxPossibleScore int32   `json:"max_possible_score" example:"10"`
 }
 
 type GetInstanceParticipantsResponse struct {

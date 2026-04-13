@@ -190,6 +190,34 @@ func (s *NotificationService) HandleQuizResultsReady(ctx context.Context, data [
 	return nil
 }
 
+func (s *NotificationService) HandleGradeChanged(ctx context.Context, data []byte) error {
+	var event struct {
+		InstanceID    string `json:"instance_id"`
+		ParticipantID string `json:"participant_id"`
+		Title         string `json:"title"`
+	}
+
+	if err := json.Unmarshal(data, &event); err != nil {
+		return err
+	}
+
+	log.Printf("Processing quiz.grade_changed event for instance %s, participant %s", event.InstanceID, event.ParticipantID)
+
+	notification := &repository.Notification{
+		UserID:  event.ParticipantID,
+		Type:    "grade_changed",
+		Title:   "Grade Updated",
+		Content: event.Title,
+		IsRead:  false,
+	}
+
+	if err := s.repo.CreateNotification(ctx, notification); err != nil {
+		log.Printf("Failed to create grade_changed notification for user %s: %v", event.ParticipantID, err)
+	}
+
+	return nil
+}
+
 func (s *NotificationService) HandleSendEmail(ctx context.Context, data []byte) error {
 	var event struct {
 		To       string `json:"to"`

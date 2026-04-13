@@ -1629,6 +1629,94 @@ func (x *CheckGroupMembershipResponse) GetRole() string {
 	return ""
 }
 
+type GetUsersByIDsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserIds       []string               `protobuf:"bytes,1,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUsersByIDsRequest) Reset() {
+	*x = GetUsersByIDsRequest{}
+	mi := &file_user_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUsersByIDsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUsersByIDsRequest) ProtoMessage() {}
+
+func (x *GetUsersByIDsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUsersByIDsRequest.ProtoReflect.Descriptor instead.
+func (*GetUsersByIDsRequest) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *GetUsersByIDsRequest) GetUserIds() []string {
+	if x != nil {
+		return x.UserIds
+	}
+	return nil
+}
+
+type GetUsersByIDsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Users         []*User                `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUsersByIDsResponse) Reset() {
+	*x = GetUsersByIDsResponse{}
+	mi := &file_user_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUsersByIDsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUsersByIDsResponse) ProtoMessage() {}
+
+func (x *GetUsersByIDsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUsersByIDsResponse.ProtoReflect.Descriptor instead.
+func (*GetUsersByIDsResponse) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *GetUsersByIDsResponse) GetUsers() []*User {
+	if x != nil {
+		return x.Users
+	}
+	return nil
+}
+
 var File_user_proto protoreflect.FileDescriptor
 
 const file_user_proto_rawDesc = "" +
@@ -1750,7 +1838,12 @@ const file_user_proto_rawDesc = "" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\"O\n" +
 	"\x1cCheckGroupMembershipResponse\x12\x1b\n" +
 	"\tis_member\x18\x01 \x01(\bR\bisMember\x12\x12\n" +
-	"\x04role\x18\x02 \x01(\tR\x04role2\xed\a\n" +
+	"\x04role\x18\x02 \x01(\tR\x04role\"1\n" +
+	"\x14GetUsersByIDsRequest\x12\x19\n" +
+	"\buser_ids\x18\x01 \x03(\tR\auserIds\"9\n" +
+	"\x15GetUsersByIDsResponse\x12 \n" +
+	"\x05users\x18\x01 \x03(\v2\n" +
+	".user.UserR\x05users2\xb7\b\n" +
 	"\vUserService\x129\n" +
 	"\bRegister\x12\x15.user.RegisterRequest\x1a\x16.user.RegisterResponse\x12?\n" +
 	"\n" +
@@ -1765,7 +1858,8 @@ const file_user_proto_rawDesc = "" +
 	"\bGetGroup\x12\x15.user.GetGroupRequest\x1a\x16.user.GetGroupResponse\x12B\n" +
 	"\vUpdateGroup\x12\x18.user.UpdateGroupRequest\x1a\x19.user.UpdateGroupResponse\x12B\n" +
 	"\vDeleteGroup\x12\x18.user.DeleteGroupRequest\x1a\x19.user.DeleteGroupResponse\x12]\n" +
-	"\x14CheckGroupMembership\x12!.user.CheckGroupMembershipRequest\x1a\".user.CheckGroupMembershipResponseB\x14Z\x12user-service/protob\x06proto3"
+	"\x14CheckGroupMembership\x12!.user.CheckGroupMembershipRequest\x1a\".user.CheckGroupMembershipResponse\x12H\n" +
+	"\rGetUsersByIDs\x12\x1a.user.GetUsersByIDsRequest\x1a\x1b.user.GetUsersByIDsResponseB\x14Z\x12user-service/protob\x06proto3"
 
 var (
 	file_user_proto_rawDescOnce sync.Once
@@ -1779,7 +1873,7 @@ func file_user_proto_rawDescGZIP() []byte {
 	return file_user_proto_rawDescData
 }
 
-var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
+var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
 var file_user_proto_goTypes = []any{
 	(*User)(nil),                               // 0: user.User
 	(*NotificationSettings)(nil),               // 1: user.NotificationSettings
@@ -1811,6 +1905,8 @@ var file_user_proto_goTypes = []any{
 	(*DeleteGroupResponse)(nil),                // 27: user.DeleteGroupResponse
 	(*CheckGroupMembershipRequest)(nil),        // 28: user.CheckGroupMembershipRequest
 	(*CheckGroupMembershipResponse)(nil),       // 29: user.CheckGroupMembershipResponse
+	(*GetUsersByIDsRequest)(nil),               // 30: user.GetUsersByIDsRequest
+	(*GetUsersByIDsResponse)(nil),              // 31: user.GetUsersByIDsResponse
 }
 var file_user_proto_depIdxs = []int32{
 	2,  // 0: user.GroupWithMembers.group:type_name -> user.Group
@@ -1825,37 +1921,40 @@ var file_user_proto_depIdxs = []int32{
 	2,  // 9: user.GetGroupsResponse.groups:type_name -> user.Group
 	3,  // 10: user.GetGroupResponse.group:type_name -> user.GroupWithMembers
 	2,  // 11: user.UpdateGroupResponse.group:type_name -> user.Group
-	4,  // 12: user.UserService.Register:input_type -> user.RegisterRequest
-	6,  // 13: user.UserService.GetProfile:input_type -> user.GetProfileRequest
-	8,  // 14: user.UserService.GetProfileByEmail:input_type -> user.GetProfileByEmailRequest
-	10, // 15: user.UserService.UpdateProfile:input_type -> user.UpdateProfileRequest
-	12, // 16: user.UserService.DeleteAvatar:input_type -> user.DeleteAvatarRequest
-	14, // 17: user.UserService.GetNotificationSettings:input_type -> user.GetNotificationSettingsRequest
-	16, // 18: user.UserService.UpdateNotificationSettings:input_type -> user.UpdateNotificationSettingsRequest
-	18, // 19: user.UserService.CreateGroup:input_type -> user.CreateGroupRequest
-	20, // 20: user.UserService.GetGroups:input_type -> user.GetGroupsRequest
-	22, // 21: user.UserService.GetGroup:input_type -> user.GetGroupRequest
-	24, // 22: user.UserService.UpdateGroup:input_type -> user.UpdateGroupRequest
-	26, // 23: user.UserService.DeleteGroup:input_type -> user.DeleteGroupRequest
-	28, // 24: user.UserService.CheckGroupMembership:input_type -> user.CheckGroupMembershipRequest
-	5,  // 25: user.UserService.Register:output_type -> user.RegisterResponse
-	7,  // 26: user.UserService.GetProfile:output_type -> user.GetProfileResponse
-	9,  // 27: user.UserService.GetProfileByEmail:output_type -> user.GetProfileByEmailResponse
-	11, // 28: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResponse
-	13, // 29: user.UserService.DeleteAvatar:output_type -> user.DeleteAvatarResponse
-	15, // 30: user.UserService.GetNotificationSettings:output_type -> user.GetNotificationSettingsResponse
-	17, // 31: user.UserService.UpdateNotificationSettings:output_type -> user.UpdateNotificationSettingsResponse
-	19, // 32: user.UserService.CreateGroup:output_type -> user.CreateGroupResponse
-	21, // 33: user.UserService.GetGroups:output_type -> user.GetGroupsResponse
-	23, // 34: user.UserService.GetGroup:output_type -> user.GetGroupResponse
-	25, // 35: user.UserService.UpdateGroup:output_type -> user.UpdateGroupResponse
-	27, // 36: user.UserService.DeleteGroup:output_type -> user.DeleteGroupResponse
-	29, // 37: user.UserService.CheckGroupMembership:output_type -> user.CheckGroupMembershipResponse
-	25, // [25:38] is the sub-list for method output_type
-	12, // [12:25] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	0,  // 12: user.GetUsersByIDsResponse.users:type_name -> user.User
+	4,  // 13: user.UserService.Register:input_type -> user.RegisterRequest
+	6,  // 14: user.UserService.GetProfile:input_type -> user.GetProfileRequest
+	8,  // 15: user.UserService.GetProfileByEmail:input_type -> user.GetProfileByEmailRequest
+	10, // 16: user.UserService.UpdateProfile:input_type -> user.UpdateProfileRequest
+	12, // 17: user.UserService.DeleteAvatar:input_type -> user.DeleteAvatarRequest
+	14, // 18: user.UserService.GetNotificationSettings:input_type -> user.GetNotificationSettingsRequest
+	16, // 19: user.UserService.UpdateNotificationSettings:input_type -> user.UpdateNotificationSettingsRequest
+	18, // 20: user.UserService.CreateGroup:input_type -> user.CreateGroupRequest
+	20, // 21: user.UserService.GetGroups:input_type -> user.GetGroupsRequest
+	22, // 22: user.UserService.GetGroup:input_type -> user.GetGroupRequest
+	24, // 23: user.UserService.UpdateGroup:input_type -> user.UpdateGroupRequest
+	26, // 24: user.UserService.DeleteGroup:input_type -> user.DeleteGroupRequest
+	28, // 25: user.UserService.CheckGroupMembership:input_type -> user.CheckGroupMembershipRequest
+	30, // 26: user.UserService.GetUsersByIDs:input_type -> user.GetUsersByIDsRequest
+	5,  // 27: user.UserService.Register:output_type -> user.RegisterResponse
+	7,  // 28: user.UserService.GetProfile:output_type -> user.GetProfileResponse
+	9,  // 29: user.UserService.GetProfileByEmail:output_type -> user.GetProfileByEmailResponse
+	11, // 30: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResponse
+	13, // 31: user.UserService.DeleteAvatar:output_type -> user.DeleteAvatarResponse
+	15, // 32: user.UserService.GetNotificationSettings:output_type -> user.GetNotificationSettingsResponse
+	17, // 33: user.UserService.UpdateNotificationSettings:output_type -> user.UpdateNotificationSettingsResponse
+	19, // 34: user.UserService.CreateGroup:output_type -> user.CreateGroupResponse
+	21, // 35: user.UserService.GetGroups:output_type -> user.GetGroupsResponse
+	23, // 36: user.UserService.GetGroup:output_type -> user.GetGroupResponse
+	25, // 37: user.UserService.UpdateGroup:output_type -> user.UpdateGroupResponse
+	27, // 38: user.UserService.DeleteGroup:output_type -> user.DeleteGroupResponse
+	29, // 39: user.UserService.CheckGroupMembership:output_type -> user.CheckGroupMembershipResponse
+	31, // 40: user.UserService.GetUsersByIDs:output_type -> user.GetUsersByIDsResponse
+	27, // [27:41] is the sub-list for method output_type
+	13, // [13:27] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_user_proto_init() }
@@ -1870,7 +1969,7 @@ func file_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_proto_rawDesc), len(file_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   30,
+			NumMessages:   32,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

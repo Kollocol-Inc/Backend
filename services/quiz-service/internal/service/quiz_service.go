@@ -8,6 +8,7 @@ import (
 	"log"
 	"time"
 
+	"quiz-service/internal/constants"
 	"quiz-service/internal/repository"
 	"quiz-service/pkg/errors"
 	pb "quiz-service/proto"
@@ -44,8 +45,9 @@ type InstanceRepo interface {
 	GetParticipatingInstances(ctx context.Context, userID, sessionStatus string) ([]*repository.ParticipatingInstance, error)
 	GetInstanceParticipants(ctx context.Context, instanceID string) ([]*repository.ParticipantSession, error)
 	GetParticipantAnswers(ctx context.Context, instanceID, userID string) (*repository.ParticipantSession, error)
-	GradeAnswer(ctx context.Context, instanceID, userID, questionID string, score int) error
+	GradeAnswer(ctx context.Context, instanceID, userID, questionID string, score int) (int, error)
 	UpdateInstanceStatus(ctx context.Context, instanceID, status string) error
+	DeleteInstance(ctx context.Context, instanceID, createdBy string) error
 }
 
 type QuizService struct {
@@ -297,6 +299,23 @@ func (s *QuizService) CreateInstance(ctx context.Context, req *pb.CreateInstance
 	return &pb.CreateInstanceResponse{
 		Instance: s.instanceToProto(instance),
 	}, nil
+}
+
+func (s *QuizService) DeleteInstance(ctx context.Context, req *pb.DeleteInstanceRequest) (*pb.DeleteInstanceResponse, error) {
+	instance, err := s.instanceRepo.GetInstanceByID(ctx, req.InstanceId)
+	if err != nil {
+		return nil, errors.New(codes.NotFound, errors.ReasonInstanceNotFound, "Instance not found", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	if instance.CreatedBy != req.UserId {
+		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only the quiz creator can delete the instance", map[string]string{"instance_id": req.InstanceId, "user_id": req.UserId})
+	}
+
+	if err := s.instanceRepo.DeleteInstance(ctx, req.InstanceId, req.UserId); err != nil {
+		return nil, errors.New(codes.Internal, errors.ReasonInstanceDeleteFailed, "Failed to delete instance", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	return &pb.DeleteInstanceResponse{}, nil
 }
 
 func (s *QuizService) GetInstance(ctx context.Context, req *pb.GetInstanceRequest) (*pb.GetInstanceResponse, error) {
@@ -651,8 +670,13 @@ func (s *QuizService) GradeAnswer(ctx context.Context, req *pb.GradeAnswerReques
 		return nil, errors.New(codes.InvalidArgument, errors.ReasonInvalidScore, "Score must be between 0 and max_score", map[string]string{"max_score": fmt.Sprintf("%d", maxScore)})
 	}
 
-	if err := s.instanceRepo.GradeAnswer(ctx, req.InstanceId, req.ParticipantId, req.QuestionId, int(req.Score)); err != nil {
+	oldScore, err := s.instanceRepo.GradeAnswer(ctx, req.InstanceId, req.ParticipantId, req.QuestionId, int(req.Score))
+	if err != nil {
 		return nil, errors.New(codes.Internal, errors.ReasonGradeFailed, "Failed to grade answer", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	if instance.Status == constants.InstanceStatusPublishedResults && oldScore != int(req.Score) {
+		s.publishGradeChanged(ctx, instance, req.ParticipantId)
 	}
 
 	return &pb.GradeAnswerResponse{}, nil
@@ -700,7 +724,7 @@ func (s *QuizService) PublishResults(ctx context.Context, req *pb.PublishResults
 		}
 	}
 
-	if err := s.instanceRepo.UpdateInstanceStatus(ctx, req.InstanceId, "reviewed"); err != nil {
+	if err := s.instanceRepo.UpdateInstanceStatus(ctx, req.InstanceId, constants.InstanceStatusPublishedResults); err != nil {
 		return nil, errors.New(codes.Internal, errors.ReasonPublishFailed, "Failed to update instance status", map[string]string{"instance_id": req.InstanceId})
 	}
 
@@ -739,6 +763,34 @@ func (s *QuizService) publishQuizResults(ctx context.Context, instance *reposito
 
 	if err := s.mqPublisher.Publish(ctx, "quiz.results_ready", eventJSON); err != nil {
 		log.Printf("Failed to publish quiz_results_ready event: %v", err)
+	}
+}
+
+func (s *QuizService) publishGradeChanged(ctx context.Context, instance *repository.Instance, participantID string) {
+	if s.mqPublisher == nil {
+		return
+	}
+
+	type GradeChangedEvent struct {
+		InstanceID    string `json:"instance_id"`
+		ParticipantID string `json:"participant_id"`
+		Title         string `json:"title"`
+	}
+
+	event := GradeChangedEvent{
+		InstanceID:    instance.ID,
+		ParticipantID: participantID,
+		Title:         instance.Title,
+	}
+
+	eventJSON, err := json.Marshal(event)
+	if err != nil {
+		log.Printf("Failed to marshal quiz.grade_changed event: %v", err)
+		return
+	}
+
+	if err := s.mqPublisher.Publish(ctx, "quiz.grade_changed", eventJSON); err != nil {
+		log.Printf("Failed to publish quiz.grade_changed event: %v", err)
 	}
 }
 

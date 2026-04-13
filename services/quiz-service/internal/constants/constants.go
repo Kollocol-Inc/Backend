@@ -1,11 +1,12 @@
 package constants
 
 const (
-	InstanceStatusWaiting       = "waiting"        // Sync quiz: waiting for participants to join
-	InstanceStatusActive        = "active"          // Quiz is in progress (sync: started, async: available)
-	InstanceStatusFinished      = "finished"        // Quiz has ended
-	InstanceStatusPendingReview = "pending_review"  // Quiz ended, awaiting teacher review
-	InstanceStatusReviewed      = "reviewed"        // Quiz reviewed and results published
+	InstanceStatusWaiting          = "waiting"           // Sync quiz: waiting for participants to join
+	InstanceStatusActive           = "active"            // Quiz is in progress (sync: started, async: available)
+	InstanceStatusFinished         = "finished"          // Quiz has ended
+	InstanceStatusPendingReview    = "pending_review"    // Quiz ended, awaiting teacher review
+	InstanceStatusReviewed         = "reviewed"          // Quiz reviewed by teacher
+	InstanceStatusPublishedResults = "published_results" // Results published to participants
 )
 
 const (

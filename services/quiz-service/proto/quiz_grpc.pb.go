@@ -29,6 +29,7 @@ const (
 	QuizService_GetInstanceByAccessCode_FullMethodName   = "/quiz.QuizService/GetInstanceByAccessCode"
 	QuizService_GetHostingInstances_FullMethodName       = "/quiz.QuizService/GetHostingInstances"
 	QuizService_GetParticipatingInstances_FullMethodName = "/quiz.QuizService/GetParticipatingInstances"
+	QuizService_DeleteInstance_FullMethodName            = "/quiz.QuizService/DeleteInstance"
 	QuizService_GetInstanceParticipants_FullMethodName   = "/quiz.QuizService/GetInstanceParticipants"
 	QuizService_GetParticipantAnswers_FullMethodName     = "/quiz.QuizService/GetParticipantAnswers"
 	QuizService_GradeAnswer_FullMethodName               = "/quiz.QuizService/GradeAnswer"
@@ -49,6 +50,7 @@ type QuizServiceClient interface {
 	GetInstanceByAccessCode(ctx context.Context, in *GetInstanceByAccessCodeRequest, opts ...grpc.CallOption) (*GetInstanceByAccessCodeResponse, error)
 	GetHostingInstances(ctx context.Context, in *GetHostingInstancesRequest, opts ...grpc.CallOption) (*GetHostingInstancesResponse, error)
 	GetParticipatingInstances(ctx context.Context, in *GetParticipatingInstancesRequest, opts ...grpc.CallOption) (*GetParticipatingInstancesResponse, error)
+	DeleteInstance(ctx context.Context, in *DeleteInstanceRequest, opts ...grpc.CallOption) (*DeleteInstanceResponse, error)
 	GetInstanceParticipants(ctx context.Context, in *GetInstanceParticipantsRequest, opts ...grpc.CallOption) (*GetInstanceParticipantsResponse, error)
 	GetParticipantAnswers(ctx context.Context, in *GetParticipantAnswersRequest, opts ...grpc.CallOption) (*GetParticipantAnswersResponse, error)
 	GradeAnswer(ctx context.Context, in *GradeAnswerRequest, opts ...grpc.CallOption) (*GradeAnswerResponse, error)
@@ -163,6 +165,16 @@ func (c *quizServiceClient) GetParticipatingInstances(ctx context.Context, in *G
 	return out, nil
 }
 
+func (c *quizServiceClient) DeleteInstance(ctx context.Context, in *DeleteInstanceRequest, opts ...grpc.CallOption) (*DeleteInstanceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteInstanceResponse)
+	err := c.cc.Invoke(ctx, QuizService_DeleteInstance_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *quizServiceClient) GetInstanceParticipants(ctx context.Context, in *GetInstanceParticipantsRequest, opts ...grpc.CallOption) (*GetInstanceParticipantsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetInstanceParticipantsResponse)
@@ -217,6 +229,7 @@ type QuizServiceServer interface {
 	GetInstanceByAccessCode(context.Context, *GetInstanceByAccessCodeRequest) (*GetInstanceByAccessCodeResponse, error)
 	GetHostingInstances(context.Context, *GetHostingInstancesRequest) (*GetHostingInstancesResponse, error)
 	GetParticipatingInstances(context.Context, *GetParticipatingInstancesRequest) (*GetParticipatingInstancesResponse, error)
+	DeleteInstance(context.Context, *DeleteInstanceRequest) (*DeleteInstanceResponse, error)
 	GetInstanceParticipants(context.Context, *GetInstanceParticipantsRequest) (*GetInstanceParticipantsResponse, error)
 	GetParticipantAnswers(context.Context, *GetParticipantAnswersRequest) (*GetParticipantAnswersResponse, error)
 	GradeAnswer(context.Context, *GradeAnswerRequest) (*GradeAnswerResponse, error)
@@ -260,6 +273,9 @@ func (UnimplementedQuizServiceServer) GetHostingInstances(context.Context, *GetH
 }
 func (UnimplementedQuizServiceServer) GetParticipatingInstances(context.Context, *GetParticipatingInstancesRequest) (*GetParticipatingInstancesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetParticipatingInstances not implemented")
+}
+func (UnimplementedQuizServiceServer) DeleteInstance(context.Context, *DeleteInstanceRequest) (*DeleteInstanceResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteInstance not implemented")
 }
 func (UnimplementedQuizServiceServer) GetInstanceParticipants(context.Context, *GetInstanceParticipantsRequest) (*GetInstanceParticipantsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetInstanceParticipants not implemented")
@@ -474,6 +490,24 @@ func _QuizService_GetParticipatingInstances_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _QuizService_DeleteInstance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteInstanceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QuizServiceServer).DeleteInstance(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: QuizService_DeleteInstance_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QuizServiceServer).DeleteInstance(ctx, req.(*DeleteInstanceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _QuizService_GetInstanceParticipants_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetInstanceParticipantsRequest)
 	if err := dec(in); err != nil {
@@ -592,6 +626,10 @@ var QuizService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetParticipatingInstances",
 			Handler:    _QuizService_GetParticipatingInstances_Handler,
+		},
+		{
+			MethodName: "DeleteInstance",
+			Handler:    _QuizService_DeleteInstance_Handler,
 		},
 		{
 			MethodName: "GetInstanceParticipants",

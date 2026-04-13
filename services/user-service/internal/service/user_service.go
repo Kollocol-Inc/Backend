@@ -24,6 +24,7 @@ type UserRepo interface {
 	GetUserByEmail(ctx context.Context, email string) (*repository.User, error)
 	UpdateUser(ctx context.Context, user *repository.User) error
 	GetUsersByEmailsMap(ctx context.Context, emails []string) (map[string]*repository.User, error)
+	GetUsersByIDs(ctx context.Context, userIDs []string) ([]*repository.User, error)
 }
 
 type SettingsRepo interface {
@@ -577,6 +578,23 @@ func (s *UserService) uploadAvatar(ctx context.Context, userID, filename string,
 	}
 
 	return s.s3Client.GetPublicURL(constants.AvatarBucketName, objectName), nil
+}
+
+func (s *UserService) GetUsersByIDs(ctx context.Context, req *pb.GetUsersByIDsRequest) (*pb.GetUsersByIDsResponse, error) {
+	users, err := s.userRepo.GetUsersByIDs(ctx, req.UserIds)
+	if err != nil {
+		log.Printf("Failed to get users by IDs: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonUserNotFound, "Failed to get users", nil)
+	}
+
+	protoUsers := make([]*pb.User, len(users))
+	for i, user := range users {
+		protoUsers[i] = s.userToProto(user)
+	}
+
+	return &pb.GetUsersByIDsResponse{
+		Users: protoUsers,
+	}, nil
 }
 
 func (s *UserService) deleteAvatarFile(ctx context.Context, avatarURL string) error {

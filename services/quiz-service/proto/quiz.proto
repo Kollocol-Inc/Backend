@@ -18,6 +18,7 @@ service QuizService {
   rpc GetInstanceByAccessCode(GetInstanceByAccessCodeRequest) returns (GetInstanceByAccessCodeResponse);
   rpc GetHostingInstances(GetHostingInstancesRequest) returns (GetHostingInstancesResponse);
   rpc GetParticipatingInstances(GetParticipatingInstancesRequest) returns (GetParticipatingInstancesResponse);
+  rpc DeleteInstance(DeleteInstanceRequest) returns (DeleteInstanceResponse);
 
   rpc GetInstanceParticipants(GetInstanceParticipantsRequest) returns (GetInstanceParticipantsResponse);
   rpc GetParticipantAnswers(GetParticipantAnswersRequest) returns (GetParticipantAnswersResponse);
@@ -221,6 +222,14 @@ message ParticipatingInstance {
 
 message GetParticipatingInstancesResponse {
   repeated ParticipatingInstance instances = 1;
+}
+
+message DeleteInstanceRequest {
+  string instance_id = 1;
+  string user_id = 2;
+}
+
+message DeleteInstanceResponse {
 }
 
 message ParticipantInfo {
