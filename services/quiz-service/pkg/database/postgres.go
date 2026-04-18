@@ -1,14 +1,20 @@
 package database
 
 import (
-	"context"
 	"database/sql"
+	"embed"
 	"fmt"
 
 	"quiz-service/config"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/lib/pq"
 )
+
+//go:embed migrations/*.sql
+var migrationsFS embed.FS
 
 type PostgresClient struct {
 	db     *sql.DB
@@ -47,96 +53,24 @@ func (c *PostgresClient) GetDB() *sql.DB {
 	return c.db
 }
 
-func (c *PostgresClient) InitSchema(ctx context.Context) error {
-	createQuizTemplatesTable := `
-		CREATE TABLE IF NOT EXISTS quiz_templates (
-			id VARCHAR(255) PRIMARY KEY,
-			owner_id VARCHAR(255) NOT NULL,
-			title VARCHAR(255) NOT NULL,
-			quiz_type VARCHAR(50) NOT NULL,
-			settings JSONB NOT NULL DEFAULT '{}',
-			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		);
-		CREATE INDEX IF NOT EXISTS idx_quiz_templates_owner_id ON quiz_templates(owner_id);
-	`
-
-	createQuestionsTable := `
-		CREATE TABLE IF NOT EXISTS questions (
-			id VARCHAR(255) PRIMARY KEY,
-			text TEXT NOT NULL,
-			type VARCHAR(50) NOT NULL,
-			correct_answer JSONB NOT NULL DEFAULT '{}',
-			max_score INTEGER NOT NULL DEFAULT 0,
-			time_limit_sec INTEGER NOT NULL DEFAULT 0
-		);
-	`
-
-	createTemplateQuestionsTable := `
-		CREATE TABLE IF NOT EXISTS template_questions (
-			template_id VARCHAR(255) NOT NULL,
-			question_id VARCHAR(255) NOT NULL,
-			order_index INTEGER NOT NULL,
-			PRIMARY KEY (template_id, question_id),
-			FOREIGN KEY (template_id) REFERENCES quiz_templates(id) ON DELETE CASCADE,
-			FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
-		);
-		CREATE INDEX IF NOT EXISTS idx_template_questions_template_id ON template_questions(template_id);
-	`
-
-	createQuizInstancesTable := `
-		CREATE TABLE IF NOT EXISTS quiz_instances (
-			id VARCHAR(255) PRIMARY KEY,
-			template_id VARCHAR(255),
-			title VARCHAR(255) NOT NULL,
-			access_code VARCHAR(50) NOT NULL,
-			status VARCHAR(50) NOT NULL,
-			group_id VARCHAR(255),
-			created_by VARCHAR(255) NOT NULL,
-			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			start_time TIMESTAMP,
-			deadline TIMESTAMP,
-			quiz_type VARCHAR(50) NOT NULL DEFAULT 'sync',
-			settings JSONB NOT NULL DEFAULT '{}',
-			total_time INTEGER NOT NULL,
-			total_questions INTEGER NOT NULL,
-			FOREIGN KEY (template_id) REFERENCES quiz_templates(id) ON DELETE SET NULL
-		);
-		CREATE INDEX IF NOT EXISTS idx_quiz_instances_template_id ON quiz_instances(template_id);
-		CREATE INDEX IF NOT EXISTS idx_quiz_instances_access_code ON quiz_instances(access_code);
-		CREATE INDEX IF NOT EXISTS idx_quiz_instances_group_id ON quiz_instances(group_id);
-	`
-
-	createInstanceQuestionsTable := `
-		CREATE TABLE IF NOT EXISTS instance_questions (
-			instance_id VARCHAR(255) NOT NULL,
-			question_id VARCHAR(255) NOT NULL,
-			order_index INTEGER NOT NULL,
-			PRIMARY KEY (instance_id, question_id),
-			FOREIGN KEY (instance_id) REFERENCES quiz_instances(id) ON DELETE CASCADE,
-			FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
-		);
-		CREATE INDEX IF NOT EXISTS idx_instance_questions_instance_id ON instance_questions(instance_id);
-	`
-
-	if _, err := c.db.ExecContext(ctx, createQuizTemplatesTable); err != nil {
-		return fmt.Errorf("failed to create quiz_templates table: %w", err)
+func (c *PostgresClient) RunMigrations() error {
+	sourceDriver, err := iofs.New(migrationsFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("failed to create migration source: %w", err)
 	}
 
-	if _, err := c.db.ExecContext(ctx, createQuestionsTable); err != nil {
-		return fmt.Errorf("failed to create questions table: %w", err)
+	dbDriver, err := postgres.WithInstance(c.db, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to create migration db driver: %w", err)
 	}
 
-	if _, err := c.db.ExecContext(ctx, createTemplateQuestionsTable); err != nil {
-		return fmt.Errorf("failed to create template_questions table: %w", err)
+	m, err := migrate.NewWithInstance("iofs", sourceDriver, "postgres", dbDriver)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
 
-	if _, err := c.db.ExecContext(ctx, createQuizInstancesTable); err != nil {
-		return fmt.Errorf("failed to create quiz_instances table: %w", err)
-	}
-
-	if _, err := c.db.ExecContext(ctx, createInstanceQuestionsTable); err != nil {
-		return fmt.Errorf("failed to create instance_questions table: %w", err)
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	return nil

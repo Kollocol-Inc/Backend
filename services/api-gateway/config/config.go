@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -46,8 +47,9 @@ type NotificationServiceConfig struct {
 }
 
 type MLServiceConfig struct {
-	Host string
-	Port string
+	Host    string
+	Port    string
+	Enabled bool
 }
 
 type JWTConfig struct {
@@ -81,8 +83,9 @@ func Load() *Config {
 			Port: getEnv("NOTIFICATION_SERVICE_PORT", "50051"),
 		},
 		ML: MLServiceConfig{
-			Host: getEnv("ML_SERVICE_HOST", "localhost"),
-			Port: getEnv("ML_SERVICE_PORT", "50051"),
+			Host:    getEnv("ML_SERVICE_HOST", "localhost"),
+			Port:    getEnv("ML_SERVICE_PORT", "50051"),
+			Enabled: getEnvBool("AI_FEATURES_ENABLED", true),
 		},
 		JWT: JWTConfig{
 			Secret: getEnv("JWT_SECRET", "test-secret-key"),
@@ -93,6 +96,13 @@ func Load() *Config {
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		return strings.EqualFold(value, "true") || value == "1"
 	}
 	return defaultValue
 }

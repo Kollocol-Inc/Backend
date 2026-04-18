@@ -1,14 +1,20 @@
 package database
 
 import (
-	"context"
 	"database/sql"
+	"embed"
 	"fmt"
 
 	"auth-service/config"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/lib/pq"
 )
+
+//go:embed migrations/*.sql
+var migrationsFS embed.FS
 
 type PostgresClient struct {
 	db     *sql.DB
@@ -47,38 +53,24 @@ func (c *PostgresClient) GetDB() *sql.DB {
 	return c.db
 }
 
-func (c *PostgresClient) InitSchema(ctx context.Context) error {
-	createUsersTable := `
-		CREATE TABLE IF NOT EXISTS users (
-			id VARCHAR(255) PRIMARY KEY,
-			email VARCHAR(255) UNIQUE NOT NULL,
-			first_name VARCHAR(255) NOT NULL DEFAULT '',
-			last_name VARCHAR(255) NOT NULL DEFAULT '',
-			avatar_url TEXT NOT NULL DEFAULT '',
-			is_registered BOOLEAN NOT NULL DEFAULT false,
-			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		);
-		CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-	`
-
-	createRefreshTokensTable := `
-		CREATE TABLE IF NOT EXISTS refresh_tokens (
-			token_hash VARCHAR(255) PRIMARY KEY,
-			user_id VARCHAR(255) NOT NULL,
-			expires_at TIMESTAMP NOT NULL,
-			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-		);
-		CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
-		CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
-	`
-
-	if _, err := c.db.ExecContext(ctx, createUsersTable); err != nil {
-		return fmt.Errorf("failed to create users table: %w", err)
+func (c *PostgresClient) RunMigrations() error {
+	sourceDriver, err := iofs.New(migrationsFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("failed to create migration source: %w", err)
 	}
 
-	if _, err := c.db.ExecContext(ctx, createRefreshTokensTable); err != nil {
-		return fmt.Errorf("failed to create refresh_tokens table: %w", err)
+	dbDriver, err := postgres.WithInstance(c.db, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to create migration db driver: %w", err)
+	}
+
+	m, err := migrate.NewWithInstance("iofs", sourceDriver, "postgres", dbDriver)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	return nil

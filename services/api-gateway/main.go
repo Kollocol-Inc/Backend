@@ -70,6 +70,7 @@ func main() {
 	quizHandler := handlers.NewQuizHandler(quizClient, userClient, mlClient, gameClient)
 	notificationHandler := handlers.NewNotificationHandler(notificationClient)
 	mlHandler := handlers.NewMLHandler(mlClient)
+	aiBanHandler := handlers.NewAIBanHandler(authClient)
 	gameHandler := handlers.NewGameHandler(cfg.Game.Host, cfg.Game.Port)
 
 	if os.Getenv("GIN_MODE") == "" {
@@ -145,7 +146,7 @@ func main() {
 		quizzesGroup.GET("/instances/:id/participants", quizHandler.GetInstanceParticipants)
 		quizzesGroup.GET("/instances/:id/participants/:userId/answers", quizHandler.GetParticipantAnswers)
 		quizzesGroup.POST("/instances/:id/grade", quizHandler.GradeAnswer)
-		quizzesGroup.POST("/instances/:id/review", quizHandler.ReviewAnswer)
+		quizzesGroup.POST("/instances/:id/review", middleware.AIFeatureGuard(cfg.ML.Enabled, authClient), quizHandler.ReviewAnswer)
 		quizzesGroup.POST("/instances/:id/publish", quizHandler.PublishResults)
 	}
 
@@ -159,10 +160,21 @@ func main() {
 
 	mlGroup := router.Group("/ml")
 	mlGroup.Use(middleware.JWTAuth(authClient))
+	mlGroup.Use(middleware.AIFeatureGuard(cfg.ML.Enabled, authClient))
 	{
 		mlGroup.POST("/paraphrase", mlHandler.Paraphrase)
 		mlGroup.POST("/generate/template", mlHandler.GenerateTemplate)
 		mlGroup.POST("/generate/template/questions", mlHandler.GenerateQuestions)
+	}
+
+	aiBansGroup := router.Group("admin/ai")
+	aiBansGroup.Use(middleware.JWTAuth(authClient))
+	aiBansGroup.Use(middleware.RequireAdmin())
+	{
+		aiBansGroup.POST("/bans", aiBanHandler.CreateAIBan)
+		aiBansGroup.GET("/bans", aiBanHandler.ListAIBans)
+		aiBansGroup.GET("/bans/:userId", aiBanHandler.GetAIBan)
+		aiBansGroup.DELETE("/bans/:userId", aiBanHandler.DeleteAIBan)
 	}
 
 	router.GET("/ws", middleware.JWTAuthWS(authClient), gameHandler.ProxyWebSocket)

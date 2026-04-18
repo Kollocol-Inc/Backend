@@ -16,6 +16,7 @@ import (
 	"auth-service/pkg/messaging"
 	"auth-service/pkg/validator"
 	pb "auth-service/proto"
+
 	"google.golang.org/grpc/codes"
 )
 
@@ -39,27 +40,38 @@ type MessagePublisher interface {
 	Publish(ctx context.Context, queueName string, body []byte) error
 }
 
+type AIBanRepository interface {
+	CreateAIBan(ctx context.Context, ban *repository.AIBan) (*repository.AIBan, error)
+	DeleteAIBan(ctx context.Context, userID string) error
+	GetAIBan(ctx context.Context, userID string) (*repository.AIBan, error)
+	ListAIBans(ctx context.Context) ([]*repository.AIBan, error)
+	IsAIBanned(ctx context.Context, userID string) (bool, string, error)
+}
+
 type AuthService struct {
 	pb.UnimplementedAuthServiceServer
-	authRepo   AuthRepository
-	userRepo   UserRepository
-	rabbitMQ   MessagePublisher
-	jwtSecret  string
+	authRepo  AuthRepository
+	userRepo  UserRepository
+	aiBanRepo AIBanRepository
+	rabbitMQ  MessagePublisher
+	jwtSecret string
 }
 
 func NewAuthService(redis *cache.RedisClient, db *sql.DB, rabbitMQ *messaging.RabbitMQClient, jwtSecret string) *AuthService {
 	return &AuthService{
 		authRepo:  repository.NewAuthRepository(redis, db),
 		userRepo:  repository.NewUserRepository(db),
+		aiBanRepo: repository.NewAIBanRepository(db),
 		rabbitMQ:  rabbitMQ,
 		jwtSecret: jwtSecret,
 	}
 }
 
-func NewAuthServiceWithDeps(authRepo AuthRepository, userRepo UserRepository, rabbitMQ MessagePublisher, jwtSecret string) *AuthService {
+func NewAuthServiceWithDeps(authRepo AuthRepository, userRepo UserRepository, aiBanRepo AIBanRepository, rabbitMQ MessagePublisher, jwtSecret string) *AuthService {
 	return &AuthService{
 		authRepo:  authRepo,
 		userRepo:  userRepo,
+		aiBanRepo: aiBanRepo,
 		rabbitMQ:  rabbitMQ,
 		jwtSecret: jwtSecret,
 	}
@@ -126,7 +138,7 @@ func (s *AuthService) VerifyCode(ctx context.Context, req *pb.VerifyCodeRequest)
 		return nil, errors.New(codes.Internal, errors.ReasonUserProcessFailed, "Failed to process user", map[string]string{"email": email})
 	}
 
-	tokens, err := jwt.GenerateTokenPair(user.ID, user.Email, s.jwtSecret)
+	tokens, err := jwt.GenerateTokenPair(user.ID, user.Email, user.Role, s.jwtSecret)
 	if err != nil {
 		log.Printf("Failed to generate tokens: %v", err)
 		return nil, errors.New(codes.Internal, errors.ReasonTokenGenerationFailed, "Failed to generate tokens", map[string]string{"email": email, "user_id": user.ID})
@@ -164,7 +176,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, req *pb.RefreshTokenRequ
 		return nil, errors.New(codes.Unauthenticated, errors.ReasonTokenExpired, "Refresh token expired", nil)
 	}
 
-	newTokens, err := jwt.GenerateTokenPair(claims.UserID, claims.Email, s.jwtSecret)
+	newTokens, err := jwt.GenerateTokenPair(claims.UserID, claims.Email, claims.Role, s.jwtSecret)
 	if err != nil {
 		log.Printf("Failed to generate new tokens: %v", err)
 		return nil, errors.New(codes.Internal, errors.ReasonTokenGenerationFailed, "Failed to generate new tokens", map[string]string{"email": claims.Email, "user_id": claims.UserID})
@@ -226,6 +238,110 @@ func (s *AuthService) ValidateToken(ctx context.Context, req *pb.ValidateTokenRe
 	return &pb.ValidateTokenResponse{
 		UserId: claims.UserID,
 		Email:  claims.Email,
+		Role:   claims.Role,
+	}, nil
+}
+
+func (s *AuthService) CreateAIBan(ctx context.Context, req *pb.CreateAIBanRequest) (*pb.CreateAIBanResponse, error) {
+	if req.UserId == "" {
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonUserIDRequired, "User ID is required", nil)
+	}
+
+	ban, err := s.aiBanRepo.CreateAIBan(ctx, &repository.AIBan{
+		UserID:    req.UserId,
+		Reason:    req.Reason,
+		BannedBy:  req.BannedBy,
+		CreatedAt: time.Now(),
+	})
+	if err != nil {
+		log.Printf("Failed to create AI ban: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonAIBanCreateFailed, "Failed to create AI ban", nil)
+	}
+
+	return &pb.CreateAIBanResponse{
+		Ban: &pb.AIBan{
+			UserId:    ban.UserID,
+			Reason:    ban.Reason,
+			BannedBy:  ban.BannedBy,
+			CreatedAt: ban.CreatedAt.Unix(),
+		},
+	}, nil
+}
+
+func (s *AuthService) DeleteAIBan(ctx context.Context, req *pb.DeleteAIBanRequest) (*pb.DeleteAIBanResponse, error) {
+	if req.UserId == "" {
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonUserIDRequired, "User ID is required", nil)
+	}
+
+	if err := s.aiBanRepo.DeleteAIBan(ctx, req.UserId); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New(codes.NotFound, errors.ReasonAIBanNotFound, "AI ban not found", map[string]string{"user_id": req.UserId})
+		}
+		log.Printf("Failed to delete AI ban: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonAIBanDeleteFailed, "Failed to delete AI ban", nil)
+	}
+
+	return &pb.DeleteAIBanResponse{}, nil
+}
+
+func (s *AuthService) GetAIBan(ctx context.Context, req *pb.GetAIBanRequest) (*pb.GetAIBanResponse, error) {
+	if req.UserId == "" {
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonUserIDRequired, "User ID is required", nil)
+	}
+
+	ban, err := s.aiBanRepo.GetAIBan(ctx, req.UserId)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New(codes.NotFound, errors.ReasonAIBanNotFound, "AI ban not found", map[string]string{"user_id": req.UserId})
+		}
+		log.Printf("Failed to get AI ban: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonAIBanCheckFailed, "Failed to get AI ban", nil)
+	}
+
+	return &pb.GetAIBanResponse{
+		Ban: &pb.AIBan{
+			UserId:    ban.UserID,
+			Reason:    ban.Reason,
+			BannedBy:  ban.BannedBy,
+			CreatedAt: ban.CreatedAt.Unix(),
+		},
+	}, nil
+}
+
+func (s *AuthService) ListAIBans(ctx context.Context, req *pb.ListAIBansRequest) (*pb.ListAIBansResponse, error) {
+	bans, err := s.aiBanRepo.ListAIBans(ctx)
+	if err != nil {
+		log.Printf("Failed to list AI bans: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonAIBanListFailed, "Failed to list AI bans", nil)
+	}
+
+	pbBans := make([]*pb.AIBan, len(bans))
+	for i, ban := range bans {
+		pbBans[i] = &pb.AIBan{
+			UserId:    ban.UserID,
+			Reason:    ban.Reason,
+			BannedBy:  ban.BannedBy,
+			CreatedAt: ban.CreatedAt.Unix(),
+		}
+	}
+
+	return &pb.ListAIBansResponse{Bans: pbBans}, nil
+}
+
+func (s *AuthService) CheckAIBan(ctx context.Context, req *pb.CheckAIBanRequest) (*pb.CheckAIBanResponse, error) {
+	if req.UserId == "" {
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonUserIDRequired, "User ID is required", nil)
+	}
+
+	isBanned, reason, err := s.aiBanRepo.IsAIBanned(ctx, req.UserId)
+	if err != nil {
+		log.Printf("Failed to check AI ban: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonAIBanCheckFailed, "Failed to check AI ban status", nil)
+	}
+
+	return &pb.CheckAIBanResponse{
+		IsBanned: isBanned,
+		Reason:   reason,
 	}, nil
 }
 

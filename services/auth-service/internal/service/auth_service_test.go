@@ -24,7 +24,7 @@ func setupTest(t *testing.T) (*AuthService, *mocks.MockAuthRepository, *mocks.Mo
 	userRepo := mocks.NewMockUserRepository(ctrl)
 	publisher := mocks.NewMockMessagePublisher(ctrl)
 
-	svc := NewAuthServiceWithDeps(authRepo, userRepo, publisher, testJWTSecret)
+	svc := NewAuthServiceWithDeps(authRepo, userRepo, nil, publisher, testJWTSecret)
 	return svc, authRepo, userRepo, publisher
 }
 
@@ -217,7 +217,7 @@ func TestRefreshToken_Success(t *testing.T) {
 	svc, authRepo, _, _ := setupTest(t)
 	ctx := context.Background()
 
-	pair, err := jwt.GenerateTokenPair("user-123", "test@example.com", testJWTSecret)
+	pair, err := jwt.GenerateTokenPair("user-123", "test@example.com", "user", testJWTSecret)
 	require.NoError(t, err)
 
 	storedToken := &repository.RefreshToken{
@@ -255,7 +255,7 @@ func TestRefreshToken_NotFoundInDB(t *testing.T) {
 	svc, authRepo, _, _ := setupTest(t)
 	ctx := context.Background()
 
-	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", testJWTSecret)
+	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", "user", testJWTSecret)
 
 	authRepo.EXPECT().GetRefreshToken(ctx, pair.RefreshToken).Return(nil, fmt.Errorf("not found"))
 
@@ -270,7 +270,7 @@ func TestRefreshToken_Expired(t *testing.T) {
 	svc, authRepo, _, _ := setupTest(t)
 	ctx := context.Background()
 
-	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", testJWTSecret)
+	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", "user", testJWTSecret)
 
 	storedToken := &repository.RefreshToken{
 		TokenHash: "hash",
@@ -293,7 +293,7 @@ func TestLogout_Success(t *testing.T) {
 	svc, authRepo, _, _ := setupTest(t)
 	ctx := context.Background()
 
-	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", testJWTSecret)
+	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", "user", testJWTSecret)
 
 	authRepo.EXPECT().AddToBlacklist(ctx, gomock.Any()).Return(nil)
 	authRepo.EXPECT().DeleteRefreshToken(ctx, pair.RefreshToken).Return(nil)
@@ -310,7 +310,7 @@ func TestLogout_WithoutRefreshToken(t *testing.T) {
 	svc, authRepo, _, _ := setupTest(t)
 	ctx := context.Background()
 
-	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", testJWTSecret)
+	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", "user", testJWTSecret)
 
 	authRepo.EXPECT().AddToBlacklist(ctx, gomock.Any()).Return(nil)
 
@@ -337,7 +337,7 @@ func TestLogout_BlacklistFails(t *testing.T) {
 	svc, authRepo, _, _ := setupTest(t)
 	ctx := context.Background()
 
-	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", testJWTSecret)
+	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", "user", testJWTSecret)
 
 	authRepo.EXPECT().AddToBlacklist(ctx, gomock.Any()).Return(fmt.Errorf("redis error"))
 
@@ -352,7 +352,7 @@ func TestValidateToken_Success(t *testing.T) {
 	svc, authRepo, _, _ := setupTest(t)
 	ctx := context.Background()
 
-	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", testJWTSecret)
+	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", "user", testJWTSecret)
 
 	authRepo.EXPECT().IsBlacklisted(ctx, gomock.Any()).Return(false, nil)
 
@@ -379,7 +379,7 @@ func TestValidateToken_Blacklisted(t *testing.T) {
 	svc, authRepo, _, _ := setupTest(t)
 	ctx := context.Background()
 
-	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", testJWTSecret)
+	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", "user", testJWTSecret)
 
 	authRepo.EXPECT().IsBlacklisted(ctx, gomock.Any()).Return(true, nil)
 
@@ -394,7 +394,7 @@ func TestValidateToken_BlacklistCheckFails(t *testing.T) {
 	svc, authRepo, _, _ := setupTest(t)
 	ctx := context.Background()
 
-	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", testJWTSecret)
+	pair, _ := jwt.GenerateTokenPair("user-123", "test@example.com", "user", testJWTSecret)
 
 	authRepo.EXPECT().IsBlacklisted(ctx, gomock.Any()).Return(false, fmt.Errorf("redis error"))
 

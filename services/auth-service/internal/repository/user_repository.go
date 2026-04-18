@@ -16,6 +16,7 @@ type User struct {
 	LastName     string
 	AvatarURL    string
 	IsRegistered bool
+	Role         string
 	CreatedAt    time.Time
 }
 
@@ -31,7 +32,7 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 
 func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	query := `
-		SELECT id, email, first_name, last_name, avatar_url, is_registered, created_at
+		SELECT id, email, first_name, last_name, avatar_url, is_registered, role, created_at
 		FROM users
 		WHERE email = $1
 	`
@@ -44,6 +45,7 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*Use
 		&user.LastName,
 		&user.AvatarURL,
 		&user.IsRegistered,
+		&user.Role,
 		&user.CreatedAt,
 	)
 
@@ -65,18 +67,19 @@ func (r *UserRepository) CreateUser(ctx context.Context, email string) (*User, e
 		LastName:     "",
 		AvatarURL:    "",
 		IsRegistered: false,
+		Role:         "user",
 		CreatedAt:    time.Now(),
 	}
 
 	query := `
-		INSERT INTO users (id, email, first_name, last_name, avatar_url, is_registered, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO users (id, email, first_name, last_name, avatar_url, is_registered, role, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (email) DO UPDATE SET
 			first_name = EXCLUDED.first_name,
 			last_name = EXCLUDED.last_name,
 			avatar_url = EXCLUDED.avatar_url,
 			is_registered = EXCLUDED.is_registered
-		RETURNING id, email, first_name, last_name, avatar_url, is_registered, created_at
+		RETURNING id, email, first_name, last_name, avatar_url, is_registered, role, created_at
 	`
 
 	err := r.db.QueryRowContext(ctx, query,
@@ -86,6 +89,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, email string) (*User, e
 		user.LastName,
 		user.AvatarURL,
 		user.IsRegistered,
+		user.Role,
 		user.CreatedAt,
 	).Scan(
 		&user.ID,
@@ -94,6 +98,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, email string) (*User, e
 		&user.LastName,
 		&user.AvatarURL,
 		&user.IsRegistered,
+		&user.Role,
 		&user.CreatedAt,
 	)
 

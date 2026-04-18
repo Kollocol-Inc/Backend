@@ -24,6 +24,11 @@ const (
 	AuthService_RefreshToken_FullMethodName  = "/auth.AuthService/RefreshToken"
 	AuthService_Logout_FullMethodName        = "/auth.AuthService/Logout"
 	AuthService_ValidateToken_FullMethodName = "/auth.AuthService/ValidateToken"
+	AuthService_CreateAIBan_FullMethodName   = "/auth.AuthService/CreateAIBan"
+	AuthService_DeleteAIBan_FullMethodName   = "/auth.AuthService/DeleteAIBan"
+	AuthService_GetAIBan_FullMethodName      = "/auth.AuthService/GetAIBan"
+	AuthService_ListAIBans_FullMethodName    = "/auth.AuthService/ListAIBans"
+	AuthService_CheckAIBan_FullMethodName    = "/auth.AuthService/CheckAIBan"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -35,6 +40,11 @@ type AuthServiceClient interface {
 	RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error)
 	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
 	ValidateToken(ctx context.Context, in *ValidateTokenRequest, opts ...grpc.CallOption) (*ValidateTokenResponse, error)
+	CreateAIBan(ctx context.Context, in *CreateAIBanRequest, opts ...grpc.CallOption) (*CreateAIBanResponse, error)
+	DeleteAIBan(ctx context.Context, in *DeleteAIBanRequest, opts ...grpc.CallOption) (*DeleteAIBanResponse, error)
+	GetAIBan(ctx context.Context, in *GetAIBanRequest, opts ...grpc.CallOption) (*GetAIBanResponse, error)
+	ListAIBans(ctx context.Context, in *ListAIBansRequest, opts ...grpc.CallOption) (*ListAIBansResponse, error)
+	CheckAIBan(ctx context.Context, in *CheckAIBanRequest, opts ...grpc.CallOption) (*CheckAIBanResponse, error)
 }
 
 type authServiceClient struct {
@@ -95,6 +105,56 @@ func (c *authServiceClient) ValidateToken(ctx context.Context, in *ValidateToken
 	return out, nil
 }
 
+func (c *authServiceClient) CreateAIBan(ctx context.Context, in *CreateAIBanRequest, opts ...grpc.CallOption) (*CreateAIBanResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateAIBanResponse)
+	err := c.cc.Invoke(ctx, AuthService_CreateAIBan_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) DeleteAIBan(ctx context.Context, in *DeleteAIBanRequest, opts ...grpc.CallOption) (*DeleteAIBanResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteAIBanResponse)
+	err := c.cc.Invoke(ctx, AuthService_DeleteAIBan_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) GetAIBan(ctx context.Context, in *GetAIBanRequest, opts ...grpc.CallOption) (*GetAIBanResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAIBanResponse)
+	err := c.cc.Invoke(ctx, AuthService_GetAIBan_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) ListAIBans(ctx context.Context, in *ListAIBansRequest, opts ...grpc.CallOption) (*ListAIBansResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAIBansResponse)
+	err := c.cc.Invoke(ctx, AuthService_ListAIBans_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) CheckAIBan(ctx context.Context, in *CheckAIBanRequest, opts ...grpc.CallOption) (*CheckAIBanResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CheckAIBanResponse)
+	err := c.cc.Invoke(ctx, AuthService_CheckAIBan_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility.
@@ -104,6 +164,11 @@ type AuthServiceServer interface {
 	RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error)
 	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
 	ValidateToken(context.Context, *ValidateTokenRequest) (*ValidateTokenResponse, error)
+	CreateAIBan(context.Context, *CreateAIBanRequest) (*CreateAIBanResponse, error)
+	DeleteAIBan(context.Context, *DeleteAIBanRequest) (*DeleteAIBanResponse, error)
+	GetAIBan(context.Context, *GetAIBanRequest) (*GetAIBanResponse, error)
+	ListAIBans(context.Context, *ListAIBansRequest) (*ListAIBansResponse, error)
+	CheckAIBan(context.Context, *CheckAIBanRequest) (*CheckAIBanResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -128,6 +193,21 @@ func (UnimplementedAuthServiceServer) Logout(context.Context, *LogoutRequest) (*
 }
 func (UnimplementedAuthServiceServer) ValidateToken(context.Context, *ValidateTokenRequest) (*ValidateTokenResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ValidateToken not implemented")
+}
+func (UnimplementedAuthServiceServer) CreateAIBan(context.Context, *CreateAIBanRequest) (*CreateAIBanResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateAIBan not implemented")
+}
+func (UnimplementedAuthServiceServer) DeleteAIBan(context.Context, *DeleteAIBanRequest) (*DeleteAIBanResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteAIBan not implemented")
+}
+func (UnimplementedAuthServiceServer) GetAIBan(context.Context, *GetAIBanRequest) (*GetAIBanResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAIBan not implemented")
+}
+func (UnimplementedAuthServiceServer) ListAIBans(context.Context, *ListAIBansRequest) (*ListAIBansResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAIBans not implemented")
+}
+func (UnimplementedAuthServiceServer) CheckAIBan(context.Context, *CheckAIBanRequest) (*CheckAIBanResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CheckAIBan not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
@@ -240,6 +320,96 @@ func _AuthService_ValidateToken_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_CreateAIBan_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateAIBanRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).CreateAIBan(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_CreateAIBan_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).CreateAIBan(ctx, req.(*CreateAIBanRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_DeleteAIBan_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteAIBanRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).DeleteAIBan(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_DeleteAIBan_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).DeleteAIBan(ctx, req.(*DeleteAIBanRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_GetAIBan_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAIBanRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).GetAIBan(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_GetAIBan_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).GetAIBan(ctx, req.(*GetAIBanRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_ListAIBans_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAIBansRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).ListAIBans(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_ListAIBans_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).ListAIBans(ctx, req.(*ListAIBansRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_CheckAIBan_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckAIBanRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).CheckAIBan(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_CheckAIBan_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).CheckAIBan(ctx, req.(*CheckAIBanRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -266,6 +436,26 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ValidateToken",
 			Handler:    _AuthService_ValidateToken_Handler,
+		},
+		{
+			MethodName: "CreateAIBan",
+			Handler:    _AuthService_CreateAIBan_Handler,
+		},
+		{
+			MethodName: "DeleteAIBan",
+			Handler:    _AuthService_DeleteAIBan_Handler,
+		},
+		{
+			MethodName: "GetAIBan",
+			Handler:    _AuthService_GetAIBan_Handler,
+		},
+		{
+			MethodName: "ListAIBans",
+			Handler:    _AuthService_ListAIBans_Handler,
+		},
+		{
+			MethodName: "CheckAIBan",
+			Handler:    _AuthService_CheckAIBan_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

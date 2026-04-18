@@ -73,3 +73,23 @@ func (c *AuthClient) ValidateToken(ctx context.Context, accessToken string) (*pb
 		AccessToken: accessToken,
 	})
 }
+
+func (c *AuthClient) CreateAIBan(ctx context.Context, req *pb.CreateAIBanRequest) (*pb.CreateAIBanResponse, error) {
+	return c.client.CreateAIBan(ctx, req)
+}
+
+func (c *AuthClient) DeleteAIBan(ctx context.Context, userID string) (*pb.DeleteAIBanResponse, error) {
+	return c.client.DeleteAIBan(ctx, &pb.DeleteAIBanRequest{UserId: userID})
+}
+
+func (c *AuthClient) GetAIBan(ctx context.Context, userID string) (*pb.GetAIBanResponse, error) {
+	return c.client.GetAIBan(ctx, &pb.GetAIBanRequest{UserId: userID})
+}
+
+func (c *AuthClient) ListAIBans(ctx context.Context) (*pb.ListAIBansResponse, error) {
+	return c.client.ListAIBans(ctx, &pb.ListAIBansRequest{})
+}
+
+func (c *AuthClient) CheckAIBan(ctx context.Context, userID string) (*pb.CheckAIBanResponse, error) {
+	return c.client.CheckAIBan(ctx, &pb.CheckAIBanRequest{UserId: userID})
+}

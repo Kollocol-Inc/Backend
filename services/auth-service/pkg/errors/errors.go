@@ -37,4 +37,11 @@ const (
 	ReasonTokenRevoked          = "TOKEN_REVOKED"
 	ReasonTokenValidationFailed = "TOKEN_VALIDATION_FAILED"
 	ReasonBlacklistAddFailed    = "BLACKLIST_ADD_FAILED"
+
+	ReasonAIBanCreateFailed = "AI_BAN_CREATE_FAILED"
+	ReasonAIBanDeleteFailed = "AI_BAN_DELETE_FAILED"
+	ReasonAIBanNotFound     = "AI_BAN_NOT_FOUND"
+	ReasonAIBanListFailed   = "AI_BAN_LIST_FAILED"
+	ReasonAIBanCheckFailed  = "AI_BAN_CHECK_FAILED"
+	ReasonUserIDRequired    = "USER_ID_REQUIRED"
 )

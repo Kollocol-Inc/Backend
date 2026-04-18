@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"notification-service/config"
 	"notification-service/internal/service"
@@ -34,13 +33,11 @@ func main() {
 	log.Println("Connected to PostgreSQL")
 	defer pgClient.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	if err := pgClient.InitSchema(ctx); err != nil {
-		log.Printf("Warning: Failed to initialize PostgreSQL schema: %v", err)
+	if err := pgClient.RunMigrations(); err != nil {
+		log.Printf("Warning: Failed to run migrations: %v", err)
 	} else {
-		log.Println("PostgreSQL schema initialized")
+		log.Println("Database migrations applied")
 	}
-	cancel()
 
 	rabbitClient, err := messaging.NewRabbitMQClient(&cfg.RabbitMQ)
 	if err != nil {

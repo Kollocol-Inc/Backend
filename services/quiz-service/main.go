@@ -1,14 +1,12 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"quiz-service/config"
 	"quiz-service/internal/client"
@@ -35,13 +33,11 @@ func main() {
 	log.Println("Connected to PostgreSQL")
 	defer pgClient.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	if err := pgClient.InitSchema(ctx); err != nil {
-		log.Printf("Warning: Failed to initialize PostgreSQL schema: %v", err)
+	if err := pgClient.RunMigrations(); err != nil {
+		log.Printf("Warning: Failed to run migrations: %v", err)
 	} else {
-		log.Println("PostgreSQL schema initialized")
+		log.Println("Database migrations applied")
 	}
-	cancel()
 
 	redisClient, err := cache.NewRedisClient(&cfg.Redis)
 	if err != nil {
