@@ -422,14 +422,14 @@ func (r *InstanceRepository) GetInstanceByAccessCode(ctx context.Context, access
 	return instance, nil
 }
 
-func (r *InstanceRepository) GetInstanceParticipants(ctx context.Context, instanceID string) ([]*ParticipantSession, error) {
+func (r *InstanceRepository) GetInstanceParticipants(ctx context.Context, instanceID, excludeUserID string) ([]*ParticipantSession, error) {
 	query := `
 		SELECT gs.user_id, gs.status, gs.score, gs.answers, gs.started_at, gs.finished_at
 		FROM game_sessions gs
-		WHERE gs.instance_id = $1
+		WHERE gs.instance_id = $1 AND gs.user_id != $2
 		ORDER BY gs.started_at ASC
 	`
-	rows, err := r.db.QueryContext(ctx, query, instanceID)
+	rows, err := r.db.QueryContext(ctx, query, instanceID, excludeUserID)
 	if err != nil {
 		return nil, err
 	}

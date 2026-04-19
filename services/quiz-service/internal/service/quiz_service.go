@@ -43,7 +43,7 @@ type InstanceRepo interface {
 	GetInstanceByID(ctx context.Context, instanceID string) (*repository.Instance, error)
 	GetHostingInstances(ctx context.Context, userID, status string) ([]*repository.Instance, error)
 	GetParticipatingInstances(ctx context.Context, userID, sessionStatus string) ([]*repository.ParticipatingInstance, error)
-	GetInstanceParticipants(ctx context.Context, instanceID string) ([]*repository.ParticipantSession, error)
+	GetInstanceParticipants(ctx context.Context, instanceID, excludeUserID string) ([]*repository.ParticipantSession, error)
 	GetParticipantAnswers(ctx context.Context, instanceID, userID string) (*repository.ParticipantSession, error)
 	GradeAnswer(ctx context.Context, instanceID, userID, questionID string, score int) (int, error)
 	UpdateInstanceStatus(ctx context.Context, instanceID, status string) error
@@ -547,7 +547,7 @@ func (s *QuizService) GetInstanceParticipants(ctx context.Context, req *pb.GetIn
 		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only the quiz creator can view participants", map[string]string{"instance_id": req.InstanceId})
 	}
 
-	sessions, err := s.instanceRepo.GetInstanceParticipants(ctx, req.InstanceId)
+	sessions, err := s.instanceRepo.GetInstanceParticipants(ctx, req.InstanceId, instance.CreatedBy)
 	if err != nil {
 		return nil, errors.New(codes.Internal, errors.ReasonInstanceNotFound, "Failed to get participants", map[string]string{"instance_id": req.InstanceId})
 	}
@@ -693,7 +693,7 @@ func (s *QuizService) PublishResults(ctx context.Context, req *pb.PublishResults
 		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only the quiz creator can publish results", map[string]string{"instance_id": req.InstanceId})
 	}
 
-	sessions, err := s.instanceRepo.GetInstanceParticipants(ctx, req.InstanceId)
+	sessions, err := s.instanceRepo.GetInstanceParticipants(ctx, req.InstanceId, instance.CreatedBy)
 	if err != nil {
 		return nil, errors.New(codes.Internal, errors.ReasonPublishFailed, "Failed to get participants", map[string]string{"instance_id": req.InstanceId})
 	}
