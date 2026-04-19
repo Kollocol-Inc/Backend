@@ -152,6 +152,20 @@ func (mr *MockEmailSenderMockRecorder) SendEmail(data any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendEmail", reflect.TypeOf((*MockEmailSender)(nil).SendEmail), data)
 }
 
+// SendGradeChanged mocks base method.
+func (m *MockEmailSender) SendGradeChanged(emailAddr, quizTitle string, score, maxScore int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendGradeChanged", emailAddr, quizTitle, score, maxScore)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendGradeChanged indicates an expected call of SendGradeChanged.
+func (mr *MockEmailSenderMockRecorder) SendGradeChanged(emailAddr, quizTitle, score, maxScore any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendGradeChanged", reflect.TypeOf((*MockEmailSender)(nil).SendGradeChanged), emailAddr, quizTitle, score, maxScore)
+}
+
 // SendGroupInvite mocks base method.
 func (m *MockEmailSender) SendGroupInvite(emailAddr, groupName, inviterName string) error {
 	m.ctrl.T.Helper()
@@ -164,4 +178,18 @@ func (m *MockEmailSender) SendGroupInvite(emailAddr, groupName, inviterName stri
 func (mr *MockEmailSenderMockRecorder) SendGroupInvite(emailAddr, groupName, inviterName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendGroupInvite", reflect.TypeOf((*MockEmailSender)(nil).SendGroupInvite), emailAddr, groupName, inviterName)
+}
+
+// SendQuizResults mocks base method.
+func (m *MockEmailSender) SendQuizResults(emailAddr, quizTitle string, score, maxScore int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendQuizResults", emailAddr, quizTitle, score, maxScore)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendQuizResults indicates an expected call of SendQuizResults.
+func (mr *MockEmailSenderMockRecorder) SendQuizResults(emailAddr, quizTitle, score, maxScore any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendQuizResults", reflect.TypeOf((*MockEmailSender)(nil).SendQuizResults), emailAddr, quizTitle, score, maxScore)
 }

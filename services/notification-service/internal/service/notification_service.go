@@ -11,6 +11,7 @@ import (
 	"notification-service/pkg/email"
 	"notification-service/pkg/errors"
 	pb "notification-service/proto"
+
 	"google.golang.org/grpc/codes"
 )
 
@@ -25,6 +26,8 @@ type EmailSender interface {
 	SendEmail(data email.EmailData) error
 	SendAuthCode(emailAddr, code string) error
 	SendGroupInvite(emailAddr, groupName, inviterName string) error
+	SendQuizResults(emailAddr, quizTitle string, score, maxScore int) error
+	SendGradeChanged(emailAddr, quizTitle string, score, maxScore int) error
 }
 
 type NotificationService struct {
@@ -162,9 +165,14 @@ func (s *NotificationService) HandleQuizCreated(ctx context.Context, data []byte
 
 func (s *NotificationService) HandleQuizResultsReady(ctx context.Context, data []byte) error {
 	var event struct {
-		InstanceID     string   `json:"instance_id"`
-		ParticipantIDs []string `json:"participant_ids"`
-		Title          string   `json:"title"`
+		InstanceID   string `json:"instance_id"`
+		Title        string `json:"title"`
+		Participants []struct {
+			UserID   string `json:"user_id"`
+			Email    string `json:"email"`
+			Score    int    `json:"score"`
+			MaxScore int    `json:"max_score"`
+		} `json:"participants"`
 	}
 
 	if err := json.Unmarshal(data, &event); err != nil {
@@ -173,9 +181,9 @@ func (s *NotificationService) HandleQuizResultsReady(ctx context.Context, data [
 
 	log.Printf("Processing quiz_results_ready event for instance %s", event.InstanceID)
 
-	for _, userID := range event.ParticipantIDs {
+	for _, p := range event.Participants {
 		notification := &repository.Notification{
-			UserID:  userID,
+			UserID:  p.UserID,
 			Type:    "quiz_results",
 			Title:   "Quiz Results Ready",
 			Content: event.Title,
@@ -183,7 +191,14 @@ func (s *NotificationService) HandleQuizResultsReady(ctx context.Context, data [
 		}
 
 		if err := s.repo.CreateNotification(ctx, notification); err != nil {
-			log.Printf("Failed to create notification for user %s: %v", userID, err)
+			log.Printf("Failed to create notification for user %s: %v", p.UserID, err)
+		}
+
+		if p.Email == "" {
+			continue
+		}
+		if err := s.smtpClient.SendQuizResults(p.Email, event.Title, p.Score, p.MaxScore); err != nil {
+			log.Printf("Failed to send quiz_results email to %s: %v", p.Email, err)
 		}
 	}
 
@@ -192,9 +207,12 @@ func (s *NotificationService) HandleQuizResultsReady(ctx context.Context, data [
 
 func (s *NotificationService) HandleGradeChanged(ctx context.Context, data []byte) error {
 	var event struct {
-		InstanceID    string `json:"instance_id"`
-		ParticipantID string `json:"participant_id"`
-		Title         string `json:"title"`
+		InstanceID       string `json:"instance_id"`
+		ParticipantID    string `json:"participant_id"`
+		ParticipantEmail string `json:"participant_email"`
+		Title            string `json:"title"`
+		Score            int    `json:"score"`
+		MaxScore         int    `json:"max_score"`
 	}
 
 	if err := json.Unmarshal(data, &event); err != nil {
@@ -213,6 +231,12 @@ func (s *NotificationService) HandleGradeChanged(ctx context.Context, data []byt
 
 	if err := s.repo.CreateNotification(ctx, notification); err != nil {
 		log.Printf("Failed to create grade_changed notification for user %s: %v", event.ParticipantID, err)
+	}
+
+	if event.ParticipantEmail != "" {
+		if err := s.smtpClient.SendGradeChanged(event.ParticipantEmail, event.Title, event.Score, event.MaxScore); err != nil {
+			log.Printf("Failed to send grade_changed email to %s: %v", event.ParticipantEmail, err)
+		}
 	}
 
 	return nil

@@ -23,6 +23,7 @@ type RabbitMQPublisher interface {
 
 type UserClient interface {
 	CheckGroupMembership(ctx context.Context, groupID, userID string) (bool, string, error)
+	GetEmailsByIDs(ctx context.Context, userIDs []string) (map[string]string, error)
 }
 
 type TemplateRepo interface {
@@ -620,15 +621,28 @@ func (s *QuizService) GetParticipantAnswers(ctx context.Context, req *pb.GetPart
 	var answers []repository.SessionAnswer
 	json.Unmarshal([]byte(session.Answers), &answers)
 
-	var answerInfos []*pb.AnswerInfo
+	answersByID := make(map[string]repository.SessionAnswer, len(answers))
 	for _, a := range answers {
+		answersByID[a.QuestionID] = a
+	}
+
+	answerInfos := make([]*pb.AnswerInfo, 0, len(instanceWithQuestions.Questions))
+	for _, q := range instanceWithQuestions.Questions {
+		if a, ok := answersByID[q.ID]; ok {
+			answerInfos = append(answerInfos, &pb.AnswerInfo{
+				QuestionId:  a.QuestionID,
+				Answer:      a.Answer,
+				IsCorrect:   a.IsCorrect,
+				Score:       int32(a.Score),
+				TimeSpentMs: a.TimeSpentMs,
+				IsReviewed:  a.IsReviewed,
+			})
+			continue
+		}
 		answerInfos = append(answerInfos, &pb.AnswerInfo{
-			QuestionId:  a.QuestionID,
-			Answer:      a.Answer,
-			IsCorrect:   a.IsCorrect,
-			Score:       int32(a.Score),
-			TimeSpentMs: a.TimeSpentMs,
-			IsReviewed:  a.IsReviewed,
+			QuestionId:    q.ID,
+			IsReviewed:    true,
+			IsTimeExpired: true,
 		})
 	}
 
@@ -677,7 +691,7 @@ func (s *QuizService) GradeAnswer(ctx context.Context, req *pb.GradeAnswerReques
 	}
 
 	if instance.Status == constants.InstanceStatusPublishedResults && oldScore != int(req.Score) {
-		s.publishGradeChanged(ctx, instance, req.ParticipantId)
+		s.publishGradeChanged(ctx, instance, instanceWithQuestions, req.ParticipantId)
 	}
 
 	return &pb.GradeAnswerResponse{}, nil
@@ -729,31 +743,64 @@ func (s *QuizService) PublishResults(ctx context.Context, req *pb.PublishResults
 		return nil, errors.New(codes.Internal, errors.ReasonPublishFailed, "Failed to update instance status", map[string]string{"instance_id": req.InstanceId})
 	}
 
-	s.publishQuizResults(ctx, instance, sessions)
+	s.publishQuizResults(ctx, instance, instanceWithQuestions, sessions)
 
 	return &pb.PublishResultsResponse{}, nil
 }
 
-func (s *QuizService) publishQuizResults(ctx context.Context, instance *repository.Instance, sessions []*repository.ParticipantSession) {
+func (s *QuizService) publishQuizResults(ctx context.Context, instance *repository.Instance, instanceWithQuestions *repository.InstanceWithQuestions, sessions []*repository.ParticipantSession) {
 	if s.mqPublisher == nil {
 		return
 	}
 
-	type QuizResultsEvent struct {
-		InstanceID     string   `json:"instance_id"`
-		ParticipantIDs []string `json:"participant_ids"`
-		Title          string   `json:"title"`
+	type ParticipantResult struct {
+		UserID   string `json:"user_id"`
+		Email    string `json:"email"`
+		Score    int    `json:"score"`
+		MaxScore int    `json:"max_score"`
 	}
 
-	var participantIDs []string
+	type QuizResultsEvent struct {
+		InstanceID   string              `json:"instance_id"`
+		Title        string              `json:"title"`
+		Participants []ParticipantResult `json:"participants"`
+	}
+
+	maxScore := 0
+	for _, q := range instanceWithQuestions.Questions {
+		maxScore += q.MaxScore
+	}
+
+	userIDs := make([]string, 0, len(sessions))
 	for _, session := range sessions {
-		participantIDs = append(participantIDs, session.UserID)
+		userIDs = append(userIDs, session.UserID)
+	}
+	emailsByID, err := s.userClient.GetEmailsByIDs(ctx, userIDs)
+	if err != nil {
+		log.Printf("Failed to resolve participant emails for quiz_results_ready: %v", err)
+		emailsByID = map[string]string{}
+	}
+
+	participants := make([]ParticipantResult, 0, len(sessions))
+	for _, session := range sessions {
+		var answers []repository.SessionAnswer
+		json.Unmarshal([]byte(session.Answers), &answers)
+		total := 0
+		for _, a := range answers {
+			total += a.Score
+		}
+		participants = append(participants, ParticipantResult{
+			UserID:   session.UserID,
+			Email:    emailsByID[session.UserID],
+			Score:    total,
+			MaxScore: maxScore,
+		})
 	}
 
 	event := QuizResultsEvent{
-		InstanceID:     instance.ID,
-		ParticipantIDs: participantIDs,
-		Title:          instance.Title,
+		InstanceID:   instance.ID,
+		Title:        instance.Title,
+		Participants: participants,
 	}
 
 	eventJSON, err := json.Marshal(event)
@@ -767,30 +814,58 @@ func (s *QuizService) publishQuizResults(ctx context.Context, instance *reposito
 	}
 }
 
-func (s *QuizService) publishGradeChanged(ctx context.Context, instance *repository.Instance, participantID string) {
+func (s *QuizService) publishGradeChanged(ctx context.Context, instance *repository.Instance, instanceWithQuestions *repository.InstanceWithQuestions, participantID string) {
 	if s.mqPublisher == nil {
 		return
 	}
 
 	type GradeChangedEvent struct {
-		InstanceID    string `json:"instance_id"`
-		ParticipantID string `json:"participant_id"`
-		Title         string `json:"title"`
+		InstanceID       string `json:"instance_id"`
+		ParticipantID    string `json:"participant_id"`
+		ParticipantEmail string `json:"participant_email"`
+		Title            string `json:"title"`
+		Score            int    `json:"score"`
+		MaxScore         int    `json:"max_score"`
+	}
+
+	emailsByID, err := s.userClient.GetEmailsByIDs(ctx, []string{participantID})
+	if err != nil {
+		log.Printf("Failed to resolve participant email for quiz.grade_changed: %v", err)
+		emailsByID = map[string]string{}
+	}
+
+	maxScore := 0
+	for _, q := range instanceWithQuestions.Questions {
+		maxScore += q.MaxScore
+	}
+
+	total := 0
+	if session, err := s.instanceRepo.GetParticipantAnswers(ctx, instance.ID, participantID); err == nil {
+		var answers []repository.SessionAnswer
+		json.Unmarshal([]byte(session.Answers), &answers)
+		for _, a := range answers {
+			total += a.Score
+		}
+	} else {
+		log.Printf("Failed to load participant session for quiz.grade_changed: %v", err)
 	}
 
 	event := GradeChangedEvent{
-		InstanceID:    instance.ID,
-		ParticipantID: participantID,
-		Title:         instance.Title,
+		InstanceID:       instance.ID,
+		ParticipantID:    participantID,
+		ParticipantEmail: emailsByID[participantID],
+		Title:            instance.Title,
+		Score:            total,
+		MaxScore:         maxScore,
 	}
 
-	eventJSON, err := json.Marshal(event)
+	eventBytes, err := json.Marshal(event)
 	if err != nil {
 		log.Printf("Failed to marshal quiz.grade_changed event: %v", err)
 		return
 	}
 
-	if err := s.mqPublisher.Publish(ctx, "quiz.grade_changed", eventJSON); err != nil {
+	if err := s.mqPublisher.Publish(ctx, "quiz.grade_changed", eventBytes); err != nil {
 		log.Printf("Failed to publish quiz.grade_changed event: %v", err)
 	}
 }

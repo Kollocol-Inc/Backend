@@ -19,6 +19,7 @@ service UserService {
   rpc UpdateGroup(UpdateGroupRequest) returns (UpdateGroupResponse);
   rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse);
   rpc CheckGroupMembership(CheckGroupMembershipRequest) returns (CheckGroupMembershipResponse);
+  rpc GetUsersByIDs(GetUsersByIDsRequest) returns (GetUsersByIDsResponse);
 }
 
 message User {
@@ -190,4 +191,12 @@ message CheckGroupMembershipRequest {
 message CheckGroupMembershipResponse {
   bool is_member = 1;
   string role = 2; // "owner", "admin", "member", or empty if not a member
+}
+
+message GetUsersByIDsRequest {
+  repeated string user_ids = 1;
+}
+
+message GetUsersByIDsResponse {
+  repeated User users = 1;
 }

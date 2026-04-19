@@ -519,12 +519,13 @@ func (h *QuizHandler) GetParticipantAnswers(c *gin.Context) {
 	answers := make([]dto.UserAnswerDTO, len(resp.Answers))
 	for i, a := range resp.Answers {
 		answers[i] = dto.UserAnswerDTO{
-			QuestionID:  a.QuestionId,
-			Answer:      a.Answer,
-			IsCorrect:   a.IsCorrect,
-			Score:       a.Score,
-			TimeSpentMs: a.TimeSpentMs,
-			IsReviewed:  a.IsReviewed,
+			QuestionID:    a.QuestionId,
+			Answer:        a.Answer,
+			IsCorrect:     a.IsCorrect,
+			Score:         a.Score,
+			TimeSpentMs:   a.TimeSpentMs,
+			IsReviewed:    a.IsReviewed,
+			IsTimeExpired: a.IsTimeExpired,
 		}
 	}
 

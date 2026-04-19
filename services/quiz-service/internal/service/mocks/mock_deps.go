@@ -95,6 +95,21 @@ func (mr *MockUserClientMockRecorder) CheckGroupMembership(ctx, groupID, userID 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckGroupMembership", reflect.TypeOf((*MockUserClient)(nil).CheckGroupMembership), ctx, groupID, userID)
 }
 
+// GetEmailsByIDs mocks base method.
+func (m *MockUserClient) GetEmailsByIDs(ctx context.Context, userIDs []string) (map[string]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEmailsByIDs", ctx, userIDs)
+	ret0, _ := ret[0].(map[string]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEmailsByIDs indicates an expected call of GetEmailsByIDs.
+func (mr *MockUserClientMockRecorder) GetEmailsByIDs(ctx, userIDs any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEmailsByIDs", reflect.TypeOf((*MockUserClient)(nil).GetEmailsByIDs), ctx, userIDs)
+}
+
 // MockTemplateRepo is a mock of TemplateRepo interface.
 type MockTemplateRepo struct {
 	ctrl     *gomock.Controller

@@ -190,7 +190,7 @@ func (c *SMTPClient) SendQuizCreated(email, quizTitle, creatorName string) error
 	})
 }
 
-func (c *SMTPClient) SendQuizResults(email, quizTitle string) error {
+func (c *SMTPClient) SendGradeChanged(email, quizTitle string, score, maxScore int) error {
 	tmpl := `
 <!DOCTYPE html>
 <html>
@@ -199,6 +199,56 @@ func (c *SMTPClient) SendQuizResults(email, quizTitle string) error {
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .highlight { color: #007bff; font-weight: bold; }
+        .score { font-size: 28px; font-weight: bold; color: #007bff; margin: 20px 0; }
+        .footer { margin-top: 30px; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Kollocol - Grade Updated</h2>
+        <p>Your grade for <span class="highlight">{{.QuizTitle}}</span> has been updated.</p>
+        <p>Your current score:</p>
+        <div class="score">{{.Score}} / {{.MaxScore}}</div>
+        <div class="footer">
+            <p>This is an automated message from Kollocol.</p>
+        </div>
+    </div>
+</body>
+</html>
+`
+
+	t, err := template.New("grade_changed").Parse(tmpl)
+	if err != nil {
+		return fmt.Errorf("failed to parse template: %w", err)
+	}
+
+	var body bytes.Buffer
+	data := map[string]any{
+		"QuizTitle": quizTitle,
+		"Score":     score,
+		"MaxScore":  maxScore,
+	}
+	if err := t.Execute(&body, data); err != nil {
+		return fmt.Errorf("failed to execute template: %w", err)
+	}
+
+	return c.SendEmail(EmailData{
+		To:      email,
+		Subject: fmt.Sprintf("Kollocol - Grade Updated: %s (%d/%d)", quizTitle, score, maxScore),
+		Body:    body.String(),
+	})
+}
+
+func (c *SMTPClient) SendQuizResults(email, quizTitle string, score, maxScore int) error {
+	tmpl := `
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .highlight { color: #007bff; font-weight: bold; }
+        .score { font-size: 28px; font-weight: bold; color: #007bff; margin: 20px 0; }
         .footer { margin-top: 30px; font-size: 12px; color: #666; }
     </style>
 </head>
@@ -206,7 +256,8 @@ func (c *SMTPClient) SendQuizResults(email, quizTitle string) error {
     <div class="container">
         <h2>Kollocol - Quiz Results Ready</h2>
         <p>The results for <span class="highlight">{{.QuizTitle}}</span> are now available.</p>
-        <p>Log in to Kollocol to view your results!</p>
+        <p>Your score:</p>
+        <div class="score">{{.Score}} / {{.MaxScore}}</div>
         <div class="footer">
             <p>This is an automated message from Kollocol.</p>
         </div>
@@ -221,8 +272,10 @@ func (c *SMTPClient) SendQuizResults(email, quizTitle string) error {
 	}
 
 	var body bytes.Buffer
-	data := map[string]string{
+	data := map[string]any{
 		"QuizTitle": quizTitle,
+		"Score":     score,
+		"MaxScore":  maxScore,
 	}
 	if err := t.Execute(&body, data); err != nil {
 		return fmt.Errorf("failed to execute template: %w", err)
@@ -230,7 +283,7 @@ func (c *SMTPClient) SendQuizResults(email, quizTitle string) error {
 
 	return c.SendEmail(EmailData{
 		To:      email,
-		Subject: fmt.Sprintf("Kollocol - Results for %s", quizTitle),
+		Subject: fmt.Sprintf("Kollocol - Results for %s (%d/%d)", quizTitle, score, maxScore),
 		Body:    body.String(),
 	})
 }
