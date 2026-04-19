@@ -167,9 +167,11 @@ func TestHandleQuizResultsReady_Success(t *testing.T) {
 	ctx := context.Background()
 
 	event := map[string]any{
-		"instance_id":    "inst-1",
-		"title":          "Math Quiz",
-		"participant_ids": []string{"user-1"},
+		"instance_id": "inst-1",
+		"title":       "Math Quiz",
+		"participants": []map[string]any{
+			{"user_id": "user-1", "email": "", "score": 7, "max_score": 10},
+		},
 	}
 	data, _ := json.Marshal(event)
 

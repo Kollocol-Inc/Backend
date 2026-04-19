@@ -741,6 +741,9 @@ definitions:
       is_reviewed:
         example: true
         type: boolean
+      is_time_expired:
+        example: false
+        type: boolean
       question_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string

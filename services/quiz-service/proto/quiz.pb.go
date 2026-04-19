@@ -2346,6 +2346,7 @@ type AnswerInfo struct {
 	Score         int32                  `protobuf:"varint,4,opt,name=score,proto3" json:"score,omitempty"`
 	TimeSpentMs   int64                  `protobuf:"varint,5,opt,name=time_spent_ms,json=timeSpentMs,proto3" json:"time_spent_ms,omitempty"`
 	IsReviewed    bool                   `protobuf:"varint,6,opt,name=is_reviewed,json=isReviewed,proto3" json:"is_reviewed,omitempty"`
+	IsTimeExpired bool                   `protobuf:"varint,7,opt,name=is_time_expired,json=isTimeExpired,proto3" json:"is_time_expired,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2418,6 +2419,13 @@ func (x *AnswerInfo) GetTimeSpentMs() int64 {
 func (x *AnswerInfo) GetIsReviewed() bool {
 	if x != nil {
 		return x.IsReviewed
+	}
+	return false
+}
+
+func (x *AnswerInfo) GetIsTimeExpired() bool {
+	if x != nil {
+		return x.IsTimeExpired
 	}
 	return false
 }
@@ -2920,7 +2928,7 @@ const file_quiz_proto_rawDesc = "" +
 	"instanceId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\"\\\n" +
 	"\x1fGetInstanceParticipantsResponse\x129\n" +
-	"\fparticipants\x18\x01 \x03(\v2\x15.quiz.ParticipantInfoR\fparticipants\"\xbf\x01\n" +
+	"\fparticipants\x18\x01 \x03(\v2\x15.quiz.ParticipantInfoR\fparticipants\"\xe7\x01\n" +
 	"\n" +
 	"AnswerInfo\x12\x1f\n" +
 	"\vquestion_id\x18\x01 \x01(\tR\n" +
@@ -2931,7 +2939,8 @@ const file_quiz_proto_rawDesc = "" +
 	"\x05score\x18\x04 \x01(\x05R\x05score\x12\"\n" +
 	"\rtime_spent_ms\x18\x05 \x01(\x03R\vtimeSpentMs\x12\x1f\n" +
 	"\vis_reviewed\x18\x06 \x01(\bR\n" +
-	"isReviewed\"\x7f\n" +
+	"isReviewed\x12&\n" +
+	"\x0fis_time_expired\x18\a \x01(\bR\risTimeExpired\"\x7f\n" +
 	"\x1cGetParticipantAnswersRequest\x12\x1f\n" +
 	"\vinstance_id\x18\x01 \x01(\tR\n" +
 	"instanceId\x12\x17\n" +

@@ -115,12 +115,13 @@ type GetHostingInstancesResponse struct {
 }
 
 type UserAnswerDTO struct {
-	QuestionID  string `json:"question_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Answer      string `json:"answer" example:"0"`
-	IsCorrect   bool   `json:"is_correct" example:"true"`
-	Score       int32  `json:"score" example:"1"`
-	TimeSpentMs int64  `json:"time_spent_ms" example:"5000"`
-	IsReviewed  bool   `json:"is_reviewed" example:"true"`
+	QuestionID    string `json:"question_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Answer        string `json:"answer" example:"0"`
+	IsCorrect     bool   `json:"is_correct" example:"true"`
+	Score         int32  `json:"score" example:"1"`
+	TimeSpentMs   int64  `json:"time_spent_ms" example:"5000"`
+	IsReviewed    bool   `json:"is_reviewed" example:"true"`
+	IsTimeExpired bool   `json:"is_time_expired" example:"false"`
 }
 
 type ParticipantDTO struct {

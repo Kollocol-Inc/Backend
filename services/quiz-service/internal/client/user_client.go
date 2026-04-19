@@ -53,3 +53,20 @@ func (c *UserClient) CheckGroupMembership(ctx context.Context, groupID, userID s
 
 	return resp.IsMember, resp.Role, nil
 }
+
+func (c *UserClient) GetEmailsByIDs(ctx context.Context, userIDs []string) (map[string]string, error) {
+	if len(userIDs) == 0 {
+		return map[string]string{}, nil
+	}
+	resp, err := c.client.GetUsersByIDs(ctx, &pb.GetUsersByIDsRequest{UserIds: userIDs})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get users by IDs: %w", err)
+	}
+	emails := make(map[string]string, len(resp.Users))
+	for _, u := range resp.Users {
+		if u.Email != "" {
+			emails[u.Id] = u.Email
+		}
+	}
+	return emails, nil
+}
