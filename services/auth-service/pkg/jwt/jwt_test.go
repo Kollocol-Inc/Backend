@@ -13,7 +13,7 @@ func TestGenerateTokenPair(t *testing.T) {
 	userID := "user-123"
 	email := "test@example.com"
 
-	pair, err := GenerateTokenPair(userID, email, testSecret)
+	pair, err := GenerateTokenPair(userID, email, "user", testSecret)
 	if err != nil {
 		t.Fatalf("GenerateTokenPair() error = %v", err)
 	}
@@ -30,7 +30,7 @@ func TestGenerateTokenPair(t *testing.T) {
 }
 
 func TestValidateAccessToken_Valid(t *testing.T) {
-	pair, err := GenerateTokenPair("user-123", "test@example.com", testSecret)
+	pair, err := GenerateTokenPair("user-123", "test@example.com", "user", testSecret)
 	if err != nil {
 		t.Fatalf("GenerateTokenPair() error = %v", err)
 	}
@@ -52,7 +52,7 @@ func TestValidateAccessToken_Valid(t *testing.T) {
 }
 
 func TestValidateAccessToken_WrongSecret(t *testing.T) {
-	pair, _ := GenerateTokenPair("user-123", "test@example.com", testSecret)
+	pair, _ := GenerateTokenPair("user-123", "test@example.com", "user", testSecret)
 	_, err := ValidateAccessToken(pair.AccessToken, "wrong-secret")
 	if err == nil {
 		t.Error("ValidateAccessToken() should fail with wrong secret")
@@ -86,7 +86,7 @@ func TestValidateAccessToken_InvalidString(t *testing.T) {
 }
 
 func TestValidateRefreshToken_Valid(t *testing.T) {
-	pair, _ := GenerateTokenPair("user-456", "refresh@example.com", testSecret)
+	pair, _ := GenerateTokenPair("user-456", "refresh@example.com", "user", testSecret)
 
 	claims, err := ValidateRefreshToken(pair.RefreshToken, testSecret)
 	if err != nil {
@@ -102,7 +102,7 @@ func TestValidateRefreshToken_Valid(t *testing.T) {
 }
 
 func TestValidateRefreshToken_WrongSecret(t *testing.T) {
-	pair, _ := GenerateTokenPair("user-456", "test@example.com", testSecret)
+	pair, _ := GenerateTokenPair("user-456", "test@example.com", "user", testSecret)
 	_, err := ValidateRefreshToken(pair.RefreshToken, "wrong-secret")
 	if err == nil {
 		t.Error("ValidateRefreshToken() should fail with wrong secret")
@@ -110,7 +110,7 @@ func TestValidateRefreshToken_WrongSecret(t *testing.T) {
 }
 
 func TestExtractJTI(t *testing.T) {
-	pair, _ := GenerateTokenPair("user-789", "jti@example.com", testSecret)
+	pair, _ := GenerateTokenPair("user-789", "jti@example.com", "user", testSecret)
 
 	jti, err := ExtractJTI(pair.AccessToken)
 	if err != nil {
@@ -129,7 +129,7 @@ func TestExtractJTI_InvalidToken(t *testing.T) {
 }
 
 func TestExtractJTI_RefreshTokenHasEmptyJTI(t *testing.T) {
-	pair, _ := GenerateTokenPair("user-789", "jti@example.com", testSecret)
+	pair, _ := GenerateTokenPair("user-789", "jti@example.com", "user", testSecret)
 
 	jti, err := ExtractJTI(pair.RefreshToken)
 	if err != nil {

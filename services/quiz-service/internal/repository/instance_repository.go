@@ -28,7 +28,7 @@ type SessionAnswer struct {
 	IsCorrect   bool   `json:"is_correct"`
 	Score       int    `json:"score"`
 	TimeSpentMs int64  `json:"time_spent_ms"`
-	Graded      bool   `json:"graded"`
+	IsReviewed  bool   `json:"is_reviewed"`
 }
 
 type InstanceRepository struct {
@@ -422,14 +422,14 @@ func (r *InstanceRepository) GetInstanceByAccessCode(ctx context.Context, access
 	return instance, nil
 }
 
-func (r *InstanceRepository) GetInstanceParticipants(ctx context.Context, instanceID string) ([]*ParticipantSession, error) {
+func (r *InstanceRepository) GetInstanceParticipants(ctx context.Context, instanceID, excludeUserID string) ([]*ParticipantSession, error) {
 	query := `
 		SELECT gs.user_id, gs.status, gs.score, gs.answers, gs.started_at, gs.finished_at
 		FROM game_sessions gs
-		WHERE gs.instance_id = $1
+		WHERE gs.instance_id = $1 AND gs.user_id != $2
 		ORDER BY gs.started_at ASC
 	`
-	rows, err := r.db.QueryContext(ctx, query, instanceID)
+	rows, err := r.db.QueryContext(ctx, query, instanceID, excludeUserID)
 	if err != nil {
 		return nil, err
 	}
@@ -484,7 +484,7 @@ func (r *InstanceRepository) GradeAnswer(ctx context.Context, instanceID, userID
 			oldScore = a.Score
 			answers[i].Score = score
 			answers[i].IsCorrect = score > 0
-			answers[i].Graded = true
+			answers[i].IsReviewed = true
 			found = true
 			break
 		}

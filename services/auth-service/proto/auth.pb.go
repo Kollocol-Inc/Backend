@@ -453,6 +453,7 @@ type ValidateTokenResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	Role          string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -501,6 +502,529 @@ func (x *ValidateTokenResponse) GetEmail() string {
 	return ""
 }
 
+func (x *ValidateTokenResponse) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+type AIBan struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	BannedBy      string                 `protobuf:"bytes,3,opt,name=banned_by,json=bannedBy,proto3" json:"banned_by,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AIBan) Reset() {
+	*x = AIBan{}
+	mi := &file_auth_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AIBan) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AIBan) ProtoMessage() {}
+
+func (x *AIBan) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AIBan.ProtoReflect.Descriptor instead.
+func (*AIBan) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *AIBan) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *AIBan) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *AIBan) GetBannedBy() string {
+	if x != nil {
+		return x.BannedBy
+	}
+	return ""
+}
+
+func (x *AIBan) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+type CreateAIBanRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	BannedBy      string                 `protobuf:"bytes,3,opt,name=banned_by,json=bannedBy,proto3" json:"banned_by,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAIBanRequest) Reset() {
+	*x = CreateAIBanRequest{}
+	mi := &file_auth_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAIBanRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAIBanRequest) ProtoMessage() {}
+
+func (x *CreateAIBanRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAIBanRequest.ProtoReflect.Descriptor instead.
+func (*CreateAIBanRequest) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *CreateAIBanRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *CreateAIBanRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *CreateAIBanRequest) GetBannedBy() string {
+	if x != nil {
+		return x.BannedBy
+	}
+	return ""
+}
+
+type CreateAIBanResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ban           *AIBan                 `protobuf:"bytes,1,opt,name=ban,proto3" json:"ban,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAIBanResponse) Reset() {
+	*x = CreateAIBanResponse{}
+	mi := &file_auth_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAIBanResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAIBanResponse) ProtoMessage() {}
+
+func (x *CreateAIBanResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAIBanResponse.ProtoReflect.Descriptor instead.
+func (*CreateAIBanResponse) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CreateAIBanResponse) GetBan() *AIBan {
+	if x != nil {
+		return x.Ban
+	}
+	return nil
+}
+
+type DeleteAIBanRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAIBanRequest) Reset() {
+	*x = DeleteAIBanRequest{}
+	mi := &file_auth_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAIBanRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAIBanRequest) ProtoMessage() {}
+
+func (x *DeleteAIBanRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAIBanRequest.ProtoReflect.Descriptor instead.
+func (*DeleteAIBanRequest) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *DeleteAIBanRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type DeleteAIBanResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAIBanResponse) Reset() {
+	*x = DeleteAIBanResponse{}
+	mi := &file_auth_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAIBanResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAIBanResponse) ProtoMessage() {}
+
+func (x *DeleteAIBanResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAIBanResponse.ProtoReflect.Descriptor instead.
+func (*DeleteAIBanResponse) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{14}
+}
+
+type GetAIBanRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAIBanRequest) Reset() {
+	*x = GetAIBanRequest{}
+	mi := &file_auth_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAIBanRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAIBanRequest) ProtoMessage() {}
+
+func (x *GetAIBanRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAIBanRequest.ProtoReflect.Descriptor instead.
+func (*GetAIBanRequest) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetAIBanRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type GetAIBanResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ban           *AIBan                 `protobuf:"bytes,1,opt,name=ban,proto3" json:"ban,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAIBanResponse) Reset() {
+	*x = GetAIBanResponse{}
+	mi := &file_auth_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAIBanResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAIBanResponse) ProtoMessage() {}
+
+func (x *GetAIBanResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAIBanResponse.ProtoReflect.Descriptor instead.
+func (*GetAIBanResponse) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetAIBanResponse) GetBan() *AIBan {
+	if x != nil {
+		return x.Ban
+	}
+	return nil
+}
+
+type ListAIBansRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAIBansRequest) Reset() {
+	*x = ListAIBansRequest{}
+	mi := &file_auth_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAIBansRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAIBansRequest) ProtoMessage() {}
+
+func (x *ListAIBansRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAIBansRequest.ProtoReflect.Descriptor instead.
+func (*ListAIBansRequest) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{17}
+}
+
+type ListAIBansResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Bans          []*AIBan               `protobuf:"bytes,1,rep,name=bans,proto3" json:"bans,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAIBansResponse) Reset() {
+	*x = ListAIBansResponse{}
+	mi := &file_auth_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAIBansResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAIBansResponse) ProtoMessage() {}
+
+func (x *ListAIBansResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAIBansResponse.ProtoReflect.Descriptor instead.
+func (*ListAIBansResponse) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ListAIBansResponse) GetBans() []*AIBan {
+	if x != nil {
+		return x.Bans
+	}
+	return nil
+}
+
+type CheckAIBanRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CheckAIBanRequest) Reset() {
+	*x = CheckAIBanRequest{}
+	mi := &file_auth_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckAIBanRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckAIBanRequest) ProtoMessage() {}
+
+func (x *CheckAIBanRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckAIBanRequest.ProtoReflect.Descriptor instead.
+func (*CheckAIBanRequest) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *CheckAIBanRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type CheckAIBanResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IsBanned      bool                   `protobuf:"varint,1,opt,name=is_banned,json=isBanned,proto3" json:"is_banned,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CheckAIBanResponse) Reset() {
+	*x = CheckAIBanResponse{}
+	mi := &file_auth_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckAIBanResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckAIBanResponse) ProtoMessage() {}
+
+func (x *CheckAIBanResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckAIBanResponse.ProtoReflect.Descriptor instead.
+func (*CheckAIBanResponse) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *CheckAIBanResponse) GetIsBanned() bool {
+	if x != nil {
+		return x.IsBanned
+	}
+	return false
+}
+
+func (x *CheckAIBanResponse) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 var File_auth_proto protoreflect.FileDescriptor
 
 const file_auth_proto_rawDesc = "" +
@@ -528,17 +1052,52 @@ const file_auth_proto_rawDesc = "" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\"\x10\n" +
 	"\x0eLogoutResponse\"9\n" +
 	"\x14ValidateTokenRequest\x12!\n" +
-	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\"F\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\"Z\n" +
 	"\x15ValidateTokenResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
-	"\x05email\x18\x02 \x01(\tR\x05email2\xc6\x02\n" +
+	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\"t\n" +
+	"\x05AIBan\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x1b\n" +
+	"\tbanned_by\x18\x03 \x01(\tR\bbannedBy\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\x03R\tcreatedAt\"b\n" +
+	"\x12CreateAIBanRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x1b\n" +
+	"\tbanned_by\x18\x03 \x01(\tR\bbannedBy\"4\n" +
+	"\x13CreateAIBanResponse\x12\x1d\n" +
+	"\x03ban\x18\x01 \x01(\v2\v.auth.AIBanR\x03ban\"-\n" +
+	"\x12DeleteAIBanRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x15\n" +
+	"\x13DeleteAIBanResponse\"*\n" +
+	"\x0fGetAIBanRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"1\n" +
+	"\x10GetAIBanResponse\x12\x1d\n" +
+	"\x03ban\x18\x01 \x01(\v2\v.auth.AIBanR\x03ban\"\x13\n" +
+	"\x11ListAIBansRequest\"5\n" +
+	"\x12ListAIBansResponse\x12\x1f\n" +
+	"\x04bans\x18\x01 \x03(\v2\v.auth.AIBanR\x04bans\",\n" +
+	"\x11CheckAIBanRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"I\n" +
+	"\x12CheckAIBanResponse\x12\x1b\n" +
+	"\tis_banned\x18\x01 \x01(\bR\bisBanned\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason2\x8b\x05\n" +
 	"\vAuthService\x120\n" +
 	"\x05Login\x12\x12.auth.LoginRequest\x1a\x13.auth.LoginResponse\x12?\n" +
 	"\n" +
 	"VerifyCode\x12\x17.auth.VerifyCodeRequest\x1a\x18.auth.VerifyCodeResponse\x12E\n" +
 	"\fRefreshToken\x12\x19.auth.RefreshTokenRequest\x1a\x1a.auth.RefreshTokenResponse\x123\n" +
 	"\x06Logout\x12\x13.auth.LogoutRequest\x1a\x14.auth.LogoutResponse\x12H\n" +
-	"\rValidateToken\x12\x1a.auth.ValidateTokenRequest\x1a\x1b.auth.ValidateTokenResponseB\x14Z\x12auth-service/protob\x06proto3"
+	"\rValidateToken\x12\x1a.auth.ValidateTokenRequest\x1a\x1b.auth.ValidateTokenResponse\x12B\n" +
+	"\vCreateAIBan\x12\x18.auth.CreateAIBanRequest\x1a\x19.auth.CreateAIBanResponse\x12B\n" +
+	"\vDeleteAIBan\x12\x18.auth.DeleteAIBanRequest\x1a\x19.auth.DeleteAIBanResponse\x129\n" +
+	"\bGetAIBan\x12\x15.auth.GetAIBanRequest\x1a\x16.auth.GetAIBanResponse\x12?\n" +
+	"\n" +
+	"ListAIBans\x12\x17.auth.ListAIBansRequest\x1a\x18.auth.ListAIBansResponse\x12?\n" +
+	"\n" +
+	"CheckAIBan\x12\x17.auth.CheckAIBanRequest\x1a\x18.auth.CheckAIBanResponseB\x14Z\x12auth-service/protob\x06proto3"
 
 var (
 	file_auth_proto_rawDescOnce sync.Once
@@ -552,7 +1111,7 @@ func file_auth_proto_rawDescGZIP() []byte {
 	return file_auth_proto_rawDescData
 }
 
-var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_auth_proto_goTypes = []any{
 	(*LoginRequest)(nil),          // 0: auth.LoginRequest
 	(*LoginResponse)(nil),         // 1: auth.LoginResponse
@@ -564,23 +1123,47 @@ var file_auth_proto_goTypes = []any{
 	(*LogoutResponse)(nil),        // 7: auth.LogoutResponse
 	(*ValidateTokenRequest)(nil),  // 8: auth.ValidateTokenRequest
 	(*ValidateTokenResponse)(nil), // 9: auth.ValidateTokenResponse
+	(*AIBan)(nil),                 // 10: auth.AIBan
+	(*CreateAIBanRequest)(nil),    // 11: auth.CreateAIBanRequest
+	(*CreateAIBanResponse)(nil),   // 12: auth.CreateAIBanResponse
+	(*DeleteAIBanRequest)(nil),    // 13: auth.DeleteAIBanRequest
+	(*DeleteAIBanResponse)(nil),   // 14: auth.DeleteAIBanResponse
+	(*GetAIBanRequest)(nil),       // 15: auth.GetAIBanRequest
+	(*GetAIBanResponse)(nil),      // 16: auth.GetAIBanResponse
+	(*ListAIBansRequest)(nil),     // 17: auth.ListAIBansRequest
+	(*ListAIBansResponse)(nil),    // 18: auth.ListAIBansResponse
+	(*CheckAIBanRequest)(nil),     // 19: auth.CheckAIBanRequest
+	(*CheckAIBanResponse)(nil),    // 20: auth.CheckAIBanResponse
 }
 var file_auth_proto_depIdxs = []int32{
-	0, // 0: auth.AuthService.Login:input_type -> auth.LoginRequest
-	2, // 1: auth.AuthService.VerifyCode:input_type -> auth.VerifyCodeRequest
-	4, // 2: auth.AuthService.RefreshToken:input_type -> auth.RefreshTokenRequest
-	6, // 3: auth.AuthService.Logout:input_type -> auth.LogoutRequest
-	8, // 4: auth.AuthService.ValidateToken:input_type -> auth.ValidateTokenRequest
-	1, // 5: auth.AuthService.Login:output_type -> auth.LoginResponse
-	3, // 6: auth.AuthService.VerifyCode:output_type -> auth.VerifyCodeResponse
-	5, // 7: auth.AuthService.RefreshToken:output_type -> auth.RefreshTokenResponse
-	7, // 8: auth.AuthService.Logout:output_type -> auth.LogoutResponse
-	9, // 9: auth.AuthService.ValidateToken:output_type -> auth.ValidateTokenResponse
-	5, // [5:10] is the sub-list for method output_type
-	0, // [0:5] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	10, // 0: auth.CreateAIBanResponse.ban:type_name -> auth.AIBan
+	10, // 1: auth.GetAIBanResponse.ban:type_name -> auth.AIBan
+	10, // 2: auth.ListAIBansResponse.bans:type_name -> auth.AIBan
+	0,  // 3: auth.AuthService.Login:input_type -> auth.LoginRequest
+	2,  // 4: auth.AuthService.VerifyCode:input_type -> auth.VerifyCodeRequest
+	4,  // 5: auth.AuthService.RefreshToken:input_type -> auth.RefreshTokenRequest
+	6,  // 6: auth.AuthService.Logout:input_type -> auth.LogoutRequest
+	8,  // 7: auth.AuthService.ValidateToken:input_type -> auth.ValidateTokenRequest
+	11, // 8: auth.AuthService.CreateAIBan:input_type -> auth.CreateAIBanRequest
+	13, // 9: auth.AuthService.DeleteAIBan:input_type -> auth.DeleteAIBanRequest
+	15, // 10: auth.AuthService.GetAIBan:input_type -> auth.GetAIBanRequest
+	17, // 11: auth.AuthService.ListAIBans:input_type -> auth.ListAIBansRequest
+	19, // 12: auth.AuthService.CheckAIBan:input_type -> auth.CheckAIBanRequest
+	1,  // 13: auth.AuthService.Login:output_type -> auth.LoginResponse
+	3,  // 14: auth.AuthService.VerifyCode:output_type -> auth.VerifyCodeResponse
+	5,  // 15: auth.AuthService.RefreshToken:output_type -> auth.RefreshTokenResponse
+	7,  // 16: auth.AuthService.Logout:output_type -> auth.LogoutResponse
+	9,  // 17: auth.AuthService.ValidateToken:output_type -> auth.ValidateTokenResponse
+	12, // 18: auth.AuthService.CreateAIBan:output_type -> auth.CreateAIBanResponse
+	14, // 19: auth.AuthService.DeleteAIBan:output_type -> auth.DeleteAIBanResponse
+	16, // 20: auth.AuthService.GetAIBan:output_type -> auth.GetAIBanResponse
+	18, // 21: auth.AuthService.ListAIBans:output_type -> auth.ListAIBansResponse
+	20, // 22: auth.AuthService.CheckAIBan:output_type -> auth.CheckAIBanResponse
+	13, // [13:23] is the sub-list for method output_type
+	3,  // [3:13] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_auth_proto_init() }
@@ -594,7 +1177,7 @@ func file_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_proto_rawDesc), len(file_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

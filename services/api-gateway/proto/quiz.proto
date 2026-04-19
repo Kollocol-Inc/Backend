@@ -255,6 +255,7 @@ message AnswerInfo {
   bool is_correct = 3;
   int32 score = 4;
   int64 time_spent_ms = 5;
+  bool is_reviewed = 6;
 }
 
 message GetParticipantAnswersRequest {

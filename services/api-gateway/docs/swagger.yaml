@@ -1,11 +1,400 @@
 basePath: /
 definitions:
+  dto.AIBanDTO:
+    properties:
+      banned_by:
+        example: admin-456
+        type: string
+      created_at:
+        example: 1700000000
+        type: integer
+      reason:
+        example: Abuse of AI features
+        type: string
+      user_id:
+        example: user-123
+        type: string
+    type: object
+  dto.CreateAIBanRequest:
+    properties:
+      reason:
+        example: Abuse of AI features
+        type: string
+      user_id:
+        example: user-123
+        type: string
+    required:
+    - user_id
+    type: object
+  dto.CreateAIBanResponse:
+    properties:
+      ban:
+        $ref: '#/definitions/dto.AIBanDTO'
+    type: object
+  dto.CreateGroupRequest:
+    properties:
+      member_emails:
+        example:
+        - user1@example.com
+        - user2@example.com
+        items:
+          type: string
+        type: array
+      name:
+        example: Study Group
+        maxLength: 100
+        minLength: 3
+        type: string
+    required:
+    - name
+    type: object
+  dto.CreateInstanceRequest:
+    properties:
+      deadline:
+        example: "2024-06-01T15:00:00Z"
+        type: string
+      group_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      template_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      title:
+        example: Class Quiz — March
+        type: string
+    required:
+    - template_id
+    - title
+    type: object
+  dto.CreateInstanceResponse:
+    properties:
+      access_code:
+        example: "481623"
+        type: string
+      instance_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  dto.CreateTemplateRequest:
+    properties:
+      questions:
+        items:
+          $ref: '#/definitions/dto.QuestionInput'
+        minItems: 1
+        type: array
+      quiz_type:
+        enum:
+        - sync
+        - async
+        example: sync
+        type: string
+      settings:
+        type: object
+      title:
+        example: Math Quiz
+        type: string
+    required:
+    - questions
+    - quiz_type
+    - title
+    type: object
+  dto.CreateTemplateResponse:
+    properties:
+      template_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  dto.DeleteTemplateResponse:
+    type: object
   dto.ErrorResponse:
     properties:
-      error:
+      metadata:
+        additionalProperties:
+          type: string
+        type: object
+      reason:
         type: string
-      message:
+    type: object
+  dto.GenerateQuestionsMLRequest:
+    properties:
+      questions:
+        items:
+          $ref: '#/definitions/dto.QuestionInput'
+        type: array
+      text:
+        example: Some text
         type: string
+    type: object
+  dto.GenerateQuestionsResponse:
+    properties:
+      questions:
+        items:
+          $ref: '#/definitions/dto.GeneratedQuestionDTO'
+        type: array
+    type: object
+  dto.GenerateTemplateMLRequest:
+    properties:
+      text:
+        example: Math quiz
+        type: string
+    required:
+    - text
+    type: object
+  dto.GeneratedQuestionDTO:
+    properties:
+      correct_answer:
+        example: "0"
+        type: string
+      max_score:
+        example: 1
+        type: integer
+      options:
+        example:
+        - "4"
+        - "3"
+        - "5"
+        - "6"
+        items:
+          type: string
+        type: array
+      text:
+        example: What is 2+2?
+        type: string
+      time_limit_sec:
+        example: 30
+        type: integer
+      type:
+        enum:
+        - single
+        - multiple
+        - open
+        example: single
+        type: string
+    type: object
+  dto.GeneratedTemplateDTO:
+    properties:
+      questions:
+        items:
+          $ref: '#/definitions/dto.GeneratedQuestionDTO'
+        type: array
+      title:
+        example: Math Quiz
+        type: string
+    type: object
+  dto.GetAIBanResponse:
+    properties:
+      ban:
+        $ref: '#/definitions/dto.AIBanDTO'
+    type: object
+  dto.GetGroupsResponse:
+    properties:
+      groups:
+        items:
+          $ref: '#/definitions/dto.GroupDTO'
+        type: array
+    type: object
+  dto.GetHostingInstancesResponse:
+    properties:
+      instances:
+        items:
+          $ref: '#/definitions/dto.InstanceDTO'
+        type: array
+    type: object
+  dto.GetInstanceParticipantsResponse:
+    properties:
+      participants:
+        items:
+          $ref: '#/definitions/dto.ParticipantDTO'
+        type: array
+    type: object
+  dto.GetInstanceResponse:
+    properties:
+      instance:
+        $ref: '#/definitions/dto.InstanceDTO'
+      questions:
+        items:
+          $ref: '#/definitions/dto.QuestionDTO'
+        type: array
+    type: object
+  dto.GetNotificationsResponse:
+    properties:
+      notifications:
+        items:
+          $ref: '#/definitions/dto.NotificationDTO'
+        type: array
+      total:
+        example: 10
+        type: integer
+    type: object
+  dto.GetParticipantAnswersResponse:
+    properties:
+      answers:
+        items:
+          $ref: '#/definitions/dto.UserAnswerDTO'
+        type: array
+      instance:
+        $ref: '#/definitions/dto.InstanceDTO'
+      questions:
+        items:
+          $ref: '#/definitions/dto.QuestionDTO'
+        type: array
+    type: object
+  dto.GetParticipatingInstancesResponse:
+    properties:
+      instances:
+        items:
+          $ref: '#/definitions/dto.ParticipatingInstanceDTO'
+        type: array
+    type: object
+  dto.GetTemplateResponse:
+    properties:
+      template:
+        $ref: '#/definitions/dto.TemplateDTO'
+    type: object
+  dto.GetTemplatesResponse:
+    properties:
+      templates:
+        items:
+          $ref: '#/definitions/dto.TemplateDTO'
+        type: array
+    type: object
+  dto.GradeAnswerRequest:
+    properties:
+      participant_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      question_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      score:
+        example: 1
+        type: integer
+    required:
+    - participant_id
+    - question_id
+    type: object
+  dto.GradeAnswerResponse:
+    type: object
+  dto.GroupDTO:
+    properties:
+      created_at:
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      member_count:
+        example: 5
+        type: integer
+      name:
+        example: Study Group
+        type: string
+      owner_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      updated_at:
+        example: "2024-01-15T10:30:00Z"
+        type: string
+    type: object
+  dto.GroupMemberDTO:
+    properties:
+      avatar_url:
+        example: https://storage.example.com/avatars/user123.jpg
+        type: string
+      email:
+        example: user@example.com
+        type: string
+      first_name:
+        example: John
+        type: string
+      joined_at:
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      last_name:
+        example: Doe
+        type: string
+      user_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  dto.GroupWithMembersDTO:
+    properties:
+      created_at:
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      members:
+        items:
+          $ref: '#/definitions/dto.GroupMemberDTO'
+        type: array
+      name:
+        example: Study Group
+        type: string
+      owner_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      updated_at:
+        example: "2024-01-15T10:30:00Z"
+        type: string
+    type: object
+  dto.InstanceDTO:
+    properties:
+      access_code:
+        example: "481623"
+        type: string
+      created_at:
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      deadline:
+        example: "2024-06-01T15:00:00Z"
+        type: string
+      group_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      host_user_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      quiz_type:
+        enum:
+        - sync
+        - async
+        example: sync
+        type: string
+      settings:
+        type: object
+      status:
+        enum:
+        - waiting
+        - active
+        - pending_review
+        - reviewed
+        - published_results
+        example: waiting
+        type: string
+      template_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      title:
+        example: Class Quiz — March
+        type: string
+      total_questions:
+        example: 5
+        type: integer
+      total_time:
+        example: 360
+        type: integer
+    type: object
+  dto.ListAIBansResponse:
+    properties:
+      bans:
+        items:
+          $ref: '#/definitions/dto.AIBanDTO'
+        type: array
     type: object
   dto.LoginRequest:
     properties:
@@ -16,22 +405,191 @@ definitions:
     - email
     type: object
   dto.LoginResponse:
-    properties:
-      message:
-        example: Verification code sent to email
-        type: string
-      success:
-        example: true
-        type: boolean
     type: object
   dto.LogoutResponse:
+    type: object
+  dto.NotificationDTO:
     properties:
-      message:
-        example: Logged out successfully
+      content:
+        example: Math Quiz
         type: string
-      success:
+      created_at:
+        example: "2025-01-15T10:00:00Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      is_read:
+        example: false
+        type: boolean
+      title:
+        example: New Quiz Available
+        type: string
+      type:
+        enum:
+        - quiz_created
+        - quiz_results
+        example: quiz_created
+        type: string
+      user_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  dto.NotificationSettingsDTO:
+    properties:
+      deadline_reminder:
+        enum:
+        - never
+        - 1h
+        - 3h
+        - 6h
+        - 12h
+        - 24h
+        example: 24h
+        type: string
+      group_invites:
         example: true
         type: boolean
+      new_quizzes:
+        example: true
+        type: boolean
+      quiz_results:
+        example: true
+        type: boolean
+      user_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  dto.ParaphraseRequest:
+    properties:
+      text:
+        example: Some text
+        type: string
+    required:
+    - text
+    type: object
+  dto.ParaphraseResponse:
+    properties:
+      text:
+        example: Some perephrased text
+        type: string
+    type: object
+  dto.ParticipantDTO:
+    properties:
+      max_possible_score:
+        example: 10
+        type: integer
+      review_status:
+        enum:
+        - pending_review
+        - reviewed
+        example: pending_review
+        type: string
+      session_status:
+        enum:
+        - joined
+        - in_progress
+        - finished
+        example: finished
+        type: string
+      total_score:
+        example: 8
+        type: integer
+      user:
+        $ref: '#/definitions/dto.UserDTO'
+    type: object
+  dto.ParticipatingInstanceDTO:
+    properties:
+      instance:
+        $ref: '#/definitions/dto.InstanceDTO'
+      session_status:
+        enum:
+        - not_started
+        - joined
+        - in_progress
+        - finished
+        example: not_started
+        type: string
+    type: object
+  dto.PublishResultsResponse:
+    type: object
+  dto.QuestionDTO:
+    properties:
+      correct_answer:
+        description: 'Format depends on type: single -> integer index (e.g. 0), multiple
+          -> array of indices (e.g. [0,2]), open -> string (e.g. "Math")'
+        example: "0"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      max_score:
+        example: 1
+        type: integer
+      options:
+        description: Present for single and multiple types
+        example:
+        - "4"
+        - "3"
+        - "5"
+        - "6"
+        items:
+          type: string
+        type: array
+      text:
+        example: What is 2+2?
+        type: string
+      time_limit_sec:
+        example: 30
+        type: integer
+      type:
+        enum:
+        - single
+        - multiple
+        - open
+        example: single
+        type: string
+    type: object
+  dto.QuestionInput:
+    properties:
+      correct_answer:
+        description: 'Format depends on type: single -> integer index (e.g. 0), multiple
+          -> array of indices (e.g. [0,2]), open -> string (e.g. "Math")'
+        example: "0"
+        type: string
+      max_score:
+        example: 1
+        type: integer
+      options:
+        description: Required for single and multiple types. Not used for open.
+        example:
+        - "4"
+        - "3"
+        - "5"
+        - "6"
+        items:
+          type: string
+        type: array
+      text:
+        example: What is 2+2?
+        type: string
+      time_limit_sec:
+        example: 30
+        type: integer
+      type:
+        description: Question type. Determines the format of correct_answer and whether
+          options are required.
+        enum:
+        - single
+        - multiple
+        - open
+        example: single
+        type: string
+    required:
+    - correct_answer
+    - max_score
+    - text
+    - type
     type: object
   dto.RefreshTokenRequest:
     properties:
@@ -46,15 +604,176 @@ definitions:
       access_token:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
-      message:
-        example: Token refreshed successfully
-        type: string
       refresh_token:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
-      success:
+    type: object
+  dto.RegisterRequest:
+    properties:
+      first_name:
+        example: John
+        maxLength: 50
+        minLength: 2
+        type: string
+      last_name:
+        example: Doe
+        maxLength: 50
+        minLength: 2
+        type: string
+    required:
+    - first_name
+    - last_name
+    type: object
+  dto.ReviewAnswerRequest:
+    properties:
+      participant_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      question_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    required:
+    - participant_id
+    - question_id
+    type: object
+  dto.ReviewAnswerResponse:
+    properties:
+      feedback:
+        example: The answer is partially correct...
+        type: string
+      suggested_score:
+        example: 1
+        type: integer
+    type: object
+  dto.TemplateDTO:
+    properties:
+      created_at:
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      questions:
+        items:
+          $ref: '#/definitions/dto.QuestionDTO'
+        type: array
+      quiz_type:
+        enum:
+        - sync
+        - async
+        example: sync
+        type: string
+      settings:
+        type: object
+      title:
+        example: Math Quiz
+        type: string
+      total_questions:
+        example: 5
+        type: integer
+      total_time:
+        example: 360
+        type: integer
+      updated_at:
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      user_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  dto.UpdateGroupRequest:
+    properties:
+      member_emails:
+        example:
+        - user3@example.com
+        items:
+          type: string
+        type: array
+      name:
+        example: Study Group
+        maxLength: 100
+        minLength: 3
+        type: string
+    type: object
+  dto.UpdateNotificationSettingsRequest:
+    properties:
+      deadline_reminder:
+        enum:
+        - never
+        - 1h
+        - 3h
+        - 6h
+        - 12h
+        - 24h
+        example: 24h
+        type: string
+      group_invites:
         example: true
         type: boolean
+      new_quizzes:
+        example: true
+        type: boolean
+      quiz_results:
+        example: true
+        type: boolean
+    type: object
+  dto.UpdateProfileRequest:
+    properties:
+      first_name:
+        example: John
+        maxLength: 50
+        minLength: 2
+        type: string
+      last_name:
+        example: Doe
+        maxLength: 50
+        minLength: 2
+        type: string
+    type: object
+  dto.UserAnswerDTO:
+    properties:
+      answer:
+        example: "0"
+        type: string
+      is_correct:
+        example: true
+        type: boolean
+      is_reviewed:
+        example: true
+        type: boolean
+      question_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      score:
+        example: 1
+        type: integer
+      time_spent_ms:
+        example: 5000
+        type: integer
+    type: object
+  dto.UserDTO:
+    properties:
+      avatar_url:
+        example: https://storage.example.com/avatars/user123.jpg
+        type: string
+      created_at:
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      email:
+        example: user@example.com
+        type: string
+      first_name:
+        example: John
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      last_name:
+        example: Doe
+        type: string
+      updated_at:
+        example: "2024-01-15T10:30:00Z"
+        type: string
     type: object
   dto.VerifyCodeRequest:
     properties:
@@ -76,15 +795,9 @@ definitions:
       is_registered:
         example: true
         type: boolean
-      message:
-        example: Login successful
-        type: string
       refresh_token:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
-      success:
-        example: true
-        type: boolean
       user_id:
         example: 6695dde6-8f6e-4973-905f-077ff7d3e2f8
         type: string
@@ -96,6 +809,79 @@ info:
   title: Kollocol API
   version: "1.0"
 paths:
+  /admin/ai/bans:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ListAIBansResponse'
+      security:
+      - BearerAuth: []
+      summary: List all AI bans
+      tags:
+      - AI Bans
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Ban data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateAIBanRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.CreateAIBanResponse'
+      security:
+      - BearerAuth: []
+      summary: Ban a user from AI features
+      tags:
+      - AI Bans
+  /admin/ai/bans/{userId}:
+    delete:
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Remove AI ban for a user
+      tags:
+      - AI Bans
+    get:
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetAIBanResponse'
+      security:
+      - BearerAuth: []
+      summary: Get AI ban for a user
+      tags:
+      - AI Bans
   /auth/login:
     post:
       consumes:
@@ -189,40 +975,6 @@ paths:
       summary: Refresh access token
       tags:
       - auth
-  /auth/resend-code:
-    post:
-      consumes:
-      - application/json
-      description: Resend the verification code to email
-      parameters:
-      - description: Resend code request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.LoginRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dto.LoginResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/dto.ErrorResponse'
-        "429":
-          description: Too Many Requests
-          schema:
-            $ref: '#/definitions/dto.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/dto.ErrorResponse'
-      summary: Resend verification code
-      tags:
-      - auth
   /auth/verify:
     post:
       consumes:
@@ -261,6 +1013,908 @@ paths:
       summary: Verify code and get tokens
       tags:
       - auth
+  /groups:
+    get:
+      description: Get all groups the user is a member of
+      parameters:
+      - default: my
+        description: Filter by membership type
+        enum:
+        - my
+        - created
+        in: query
+        name: filter
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetGroupsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user's groups
+      tags:
+      - groups
+    post:
+      consumes:
+      - application/json
+      description: Create a new group and invite members
+      parameters:
+      - description: Group creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.GroupDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create new group
+      tags:
+      - groups
+  /groups/{id}:
+    delete:
+      description: Delete a group (owner only)
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete group
+      tags:
+      - groups
+    get:
+      description: Get details of a specific group
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GroupWithMembersDTO'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get group details
+      tags:
+      - groups
+    put:
+      consumes:
+      - application/json
+      description: Update group information (owner only)
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Group update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GroupDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update group
+      tags:
+      - groups
+  /ml/generate/template:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Text/topic for template generation
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GenerateTemplateMLRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GeneratedTemplateDTO'
+      security:
+      - BearerAuth: []
+      summary: Generate quiz template from text
+      tags:
+      - ML
+  /ml/generate/template/questions:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Existing questions and/or topic
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GenerateQuestionsMLRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GenerateQuestionsResponse'
+      security:
+      - BearerAuth: []
+      summary: Generate additional questions
+      tags:
+      - ML
+  /ml/paraphrase:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Text to paraphrase
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ParaphraseRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ParaphraseResponse'
+      security:
+      - BearerAuth: []
+      summary: Paraphrase text
+      tags:
+      - ML
+  /notifications:
+    get:
+      description: Get list of notifications for current user
+      parameters:
+      - default: 30
+        description: Limit
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetNotificationsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user notifications
+      tags:
+      - notifications
+  /notifications/{id}:
+    delete:
+      description: Delete a specific notification
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete notification
+      tags:
+      - notifications
+  /notifications/{id}/read:
+    put:
+      description: Mark a specific notification as read
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark notification as read
+      tags:
+      - notifications
+  /quizzes/instances:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Instance data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateInstanceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.CreateInstanceResponse'
+      security:
+      - BearerAuth: []
+      summary: Create quiz instance (start quiz)
+      tags:
+      - Quiz
+  /quizzes/instances/{id}:
+    delete:
+      parameters:
+      - description: Instance ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete quiz instance
+      tags:
+      - Quiz
+    get:
+      parameters:
+      - description: Instance ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetInstanceResponse'
+      security:
+      - BearerAuth: []
+      summary: Get quiz instance details
+      tags:
+      - Quiz
+  /quizzes/instances/{id}/grade:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Instance ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Grade data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GradeAnswerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GradeAnswerResponse'
+      security:
+      - BearerAuth: []
+      summary: Grade a participant's answer for a question
+      tags:
+      - Quiz Review
+  /quizzes/instances/{id}/participants:
+    get:
+      parameters:
+      - description: Instance ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetInstanceParticipantsResponse'
+      security:
+      - BearerAuth: []
+      summary: Get quiz instance participants with review statuses
+      tags:
+      - Quiz Review
+  /quizzes/instances/{id}/participants/{userId}/answers:
+    get:
+      parameters:
+      - description: Instance ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Participant User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetParticipantAnswersResponse'
+      security:
+      - BearerAuth: []
+      summary: Get quiz with participant's answers
+      tags:
+      - Quiz Review
+  /quizzes/instances/{id}/publish:
+    post:
+      parameters:
+      - description: Instance ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PublishResultsResponse'
+      security:
+      - BearerAuth: []
+      summary: Publish quiz results (notify participants)
+      tags:
+      - Quiz Review
+  /quizzes/instances/{id}/review:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Instance ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Review request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ReviewAnswerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ReviewAnswerResponse'
+      security:
+      - BearerAuth: []
+      summary: Get AI review for an open question answer
+      tags:
+      - Quiz Review
+  /quizzes/instances/hosting:
+    get:
+      parameters:
+      - description: Instance status filter
+        enum:
+        - waiting
+        - active
+        - pending_review
+        - reviewed
+        - published_results
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetHostingInstancesResponse'
+      security:
+      - BearerAuth: []
+      summary: Get quizzes created by user
+      tags:
+      - Quiz
+  /quizzes/instances/participating:
+    get:
+      parameters:
+      - description: Session status filter
+        enum:
+        - not_started
+        - joined
+        - in_progress
+        - finished
+        in: query
+        name: session_status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetParticipatingInstancesResponse'
+      security:
+      - BearerAuth: []
+      summary: Get quizzes where user is a participant
+      tags:
+      - Quiz
+  /quizzes/templates:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetTemplatesResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user's quiz templates
+      tags:
+      - Quiz
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Template data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.CreateTemplateResponse'
+      security:
+      - BearerAuth: []
+      summary: Create quiz template
+      tags:
+      - Quiz
+  /quizzes/templates/{id}:
+    delete:
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.DeleteTemplateResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete quiz template
+      tags:
+      - Quiz
+    get:
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetTemplateResponse'
+      security:
+      - BearerAuth: []
+      summary: Get quiz template by ID
+      tags:
+      - Quiz
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Template data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.CreateTemplateResponse'
+      security:
+      - BearerAuth: []
+      summary: Update quiz template
+      tags:
+      - Quiz
+  /users/me:
+    get:
+      description: Get current user's profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserDTO'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user profile
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Update current user's profile
+      parameters:
+      - description: Profile update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update user profile
+      tags:
+      - users
+  /users/me/avatar/delete:
+    delete:
+      description: Delete current user's avatar
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete avatar
+      tags:
+      - users
+  /users/me/avatar/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload avatar image for current user
+      parameters:
+      - description: Avatar image
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Upload user avatar
+      tags:
+      - users
+  /users/me/notifications:
+    get:
+      description: Get current user's notification settings
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.NotificationSettingsDTO'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get notification settings
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Update current user's notification settings
+      parameters:
+      - description: Notification settings
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateNotificationSettingsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.NotificationSettingsDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update notification settings
+      tags:
+      - users
+  /users/register:
+    post:
+      consumes:
+      - application/json
+      description: Complete user registration after authentication
+      parameters:
+      - description: Registration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Register new user
+      tags:
+      - users
 securityDefinitions:
   BearerAuth:
     in: header

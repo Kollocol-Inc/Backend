@@ -17,6 +17,7 @@ const (
 type Claims struct {
 	UserID string `json:"user_id"`
 	Email  string `json:"email"`
+	Role   string `json:"role"`
 	JTI    string `json:"jti"`
 	jwt.RegisteredClaims
 }
@@ -26,7 +27,7 @@ type TokenPair struct {
 	RefreshToken string
 }
 
-func GenerateTokenPair(userID, email, jwtSecret string) (*TokenPair, error) {
+func GenerateTokenPair(userID, email, role, jwtSecret string) (*TokenPair, error) {
 	jti, err := generateRandomString(32)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate JTI: %w", err)
@@ -35,6 +36,7 @@ func GenerateTokenPair(userID, email, jwtSecret string) (*TokenPair, error) {
 	accessClaims := &Claims{
 		UserID: userID,
 		Email:  email,
+		Role:   role,
 		JTI:    jti,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(AccessTokenDuration)),
@@ -51,6 +53,7 @@ func GenerateTokenPair(userID, email, jwtSecret string) (*TokenPair, error) {
 	refreshClaims := &Claims{
 		UserID: userID,
 		Email:  email,
+		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(RefreshTokenDuration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

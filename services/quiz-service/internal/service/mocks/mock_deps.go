@@ -332,18 +332,18 @@ func (mr *MockInstanceRepoMockRecorder) GetInstanceByID(ctx, instanceID any) *go
 }
 
 // GetInstanceParticipants mocks base method.
-func (m *MockInstanceRepo) GetInstanceParticipants(ctx context.Context, instanceID string) ([]*repository.ParticipantSession, error) {
+func (m *MockInstanceRepo) GetInstanceParticipants(ctx context.Context, instanceID, excludeUserID string) ([]*repository.ParticipantSession, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetInstanceParticipants", ctx, instanceID)
+	ret := m.ctrl.Call(m, "GetInstanceParticipants", ctx, instanceID, excludeUserID)
 	ret0, _ := ret[0].([]*repository.ParticipantSession)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetInstanceParticipants indicates an expected call of GetInstanceParticipants.
-func (mr *MockInstanceRepoMockRecorder) GetInstanceParticipants(ctx, instanceID any) *gomock.Call {
+func (mr *MockInstanceRepoMockRecorder) GetInstanceParticipants(ctx, instanceID, excludeUserID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInstanceParticipants", reflect.TypeOf((*MockInstanceRepo)(nil).GetInstanceParticipants), ctx, instanceID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInstanceParticipants", reflect.TypeOf((*MockInstanceRepo)(nil).GetInstanceParticipants), ctx, instanceID, excludeUserID)
 }
 
 // GetInstanceWithQuestions mocks base method.

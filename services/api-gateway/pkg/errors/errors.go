@@ -153,3 +153,32 @@ var (
 		nil,
 	)
 )
+
+var (
+	ErrAIFeaturesDisabled = New(
+		codes.PermissionDenied,
+		"AI_FEATURES_DISABLED",
+		"AI features are currently disabled",
+		nil,
+	)
+
+	ErrUserIDBanRequired = New(
+		codes.InvalidArgument,
+		"USER_ID_REQUIRED",
+		"User ID is required",
+		nil,
+	)
+)
+
+func NewAIBannedError(reason string) error {
+	metadata := map[string]string{}
+	if reason != "" {
+		metadata["reason"] = reason
+	}
+	return New(
+		codes.PermissionDenied,
+		"AI_USER_BANNED",
+		"You are banned from using AI features",
+		metadata,
+	)
+}

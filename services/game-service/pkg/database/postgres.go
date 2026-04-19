@@ -1,14 +1,20 @@
 package database
 
 import (
-	"context"
 	"database/sql"
+	"embed"
 	"fmt"
 
 	"game-service/config"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/lib/pq"
 )
+
+//go:embed migrations/*.sql
+var migrationsFS embed.FS
 
 type PostgresClient struct {
 	db     *sql.DB
@@ -47,26 +53,24 @@ func (c *PostgresClient) GetDB() *sql.DB {
 	return c.db
 }
 
-func (c *PostgresClient) InitSchema(ctx context.Context) error {
-	createGameSessionsTable := `
-		CREATE TABLE IF NOT EXISTS game_sessions (
-			instance_id VARCHAR(255) NOT NULL,
-			user_id VARCHAR(255) NOT NULL,
-			status VARCHAR(50) NOT NULL DEFAULT 'joined',
-			current_question_index INTEGER NOT NULL DEFAULT 0,
-			score INTEGER NOT NULL DEFAULT 0,
-			answers JSONB NOT NULL DEFAULT '[]',
-			started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			finished_at TIMESTAMP,
-			PRIMARY KEY (instance_id, user_id)
-		);
-		CREATE INDEX IF NOT EXISTS idx_game_sessions_instance_id ON game_sessions(instance_id);
-		CREATE INDEX IF NOT EXISTS idx_game_sessions_user_id ON game_sessions(user_id);
-		CREATE INDEX IF NOT EXISTS idx_game_sessions_status ON game_sessions(status);
-	`
+func (c *PostgresClient) RunMigrations() error {
+	sourceDriver, err := iofs.New(migrationsFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("failed to create migration source: %w", err)
+	}
 
-	if _, err := c.db.ExecContext(ctx, createGameSessionsTable); err != nil {
-		return fmt.Errorf("failed to create game_sessions table: %w", err)
+	dbDriver, err := postgres.WithInstance(c.db, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to create migration db driver: %w", err)
+	}
+
+	m, err := migrate.NewWithInstance("iofs", sourceDriver, "postgres", dbDriver)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	return nil

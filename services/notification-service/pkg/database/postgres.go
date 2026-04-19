@@ -1,14 +1,20 @@
 package database
 
 import (
-	"context"
 	"database/sql"
+	"embed"
 	"fmt"
 
 	"notification-service/config"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/lib/pq"
 )
+
+//go:embed migrations/*.sql
+var migrationsFS embed.FS
 
 type PostgresClient struct {
 	db     *sql.DB
@@ -47,23 +53,24 @@ func (c *PostgresClient) GetDB() *sql.DB {
 	return c.db
 }
 
-func (c *PostgresClient) InitSchema(ctx context.Context) error {
-	createNotificationsTable := `
-		CREATE TABLE IF NOT EXISTS notifications (
-			id VARCHAR(255) PRIMARY KEY,
-			user_id VARCHAR(255) NOT NULL,
-			type VARCHAR(50) NOT NULL,
-			title VARCHAR(255) NOT NULL,
-			content TEXT NOT NULL,
-			is_read BOOLEAN NOT NULL DEFAULT false,
-			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		);
-		CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC);
-		CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, is_read);
-	`
+func (c *PostgresClient) RunMigrations() error {
+	sourceDriver, err := iofs.New(migrationsFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("failed to create migration source: %w", err)
+	}
 
-	if _, err := c.db.ExecContext(ctx, createNotificationsTable); err != nil {
-		return fmt.Errorf("failed to create notifications table: %w", err)
+	dbDriver, err := postgres.WithInstance(c.db, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to create migration db driver: %w", err)
+	}
+
+	m, err := migrate.NewWithInstance("iofs", sourceDriver, "postgres", dbDriver)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	return nil

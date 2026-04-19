@@ -43,7 +43,7 @@ type InstanceRepo interface {
 	GetInstanceByID(ctx context.Context, instanceID string) (*repository.Instance, error)
 	GetHostingInstances(ctx context.Context, userID, status string) ([]*repository.Instance, error)
 	GetParticipatingInstances(ctx context.Context, userID, sessionStatus string) ([]*repository.ParticipatingInstance, error)
-	GetInstanceParticipants(ctx context.Context, instanceID string) ([]*repository.ParticipantSession, error)
+	GetInstanceParticipants(ctx context.Context, instanceID, excludeUserID string) ([]*repository.ParticipantSession, error)
 	GetParticipantAnswers(ctx context.Context, instanceID, userID string) (*repository.ParticipantSession, error)
 	GradeAnswer(ctx context.Context, instanceID, userID, questionID string, score int) (int, error)
 	UpdateInstanceStatus(ctx context.Context, instanceID, status string) error
@@ -547,7 +547,7 @@ func (s *QuizService) GetInstanceParticipants(ctx context.Context, req *pb.GetIn
 		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only the quiz creator can view participants", map[string]string{"instance_id": req.InstanceId})
 	}
 
-	sessions, err := s.instanceRepo.GetInstanceParticipants(ctx, req.InstanceId)
+	sessions, err := s.instanceRepo.GetInstanceParticipants(ctx, req.InstanceId, instance.CreatedBy)
 	if err != nil {
 		return nil, errors.New(codes.Internal, errors.ReasonInstanceNotFound, "Failed to get participants", map[string]string{"instance_id": req.InstanceId})
 	}
@@ -581,7 +581,7 @@ func (s *QuizService) GetInstanceParticipants(ctx context.Context, req *pb.GetIn
 			reviewStatus = "not_finished"
 		} else if len(openQuestionIDs) > 0 {
 			for _, a := range answers {
-				if openQuestionIDs[a.QuestionID] && !a.Graded {
+				if openQuestionIDs[a.QuestionID] && !a.IsReviewed {
 					reviewStatus = "pending_review"
 					break
 				}
@@ -628,6 +628,7 @@ func (s *QuizService) GetParticipantAnswers(ctx context.Context, req *pb.GetPart
 			IsCorrect:   a.IsCorrect,
 			Score:       int32(a.Score),
 			TimeSpentMs: a.TimeSpentMs,
+			IsReviewed:  a.IsReviewed,
 		})
 	}
 
@@ -692,7 +693,7 @@ func (s *QuizService) PublishResults(ctx context.Context, req *pb.PublishResults
 		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only the quiz creator can publish results", map[string]string{"instance_id": req.InstanceId})
 	}
 
-	sessions, err := s.instanceRepo.GetInstanceParticipants(ctx, req.InstanceId)
+	sessions, err := s.instanceRepo.GetInstanceParticipants(ctx, req.InstanceId, instance.CreatedBy)
 	if err != nil {
 		return nil, errors.New(codes.Internal, errors.ReasonPublishFailed, "Failed to get participants", map[string]string{"instance_id": req.InstanceId})
 	}
@@ -717,8 +718,8 @@ func (s *QuizService) PublishResults(ctx context.Context, req *pb.PublishResults
 			var answers []repository.SessionAnswer
 			json.Unmarshal([]byte(session.Answers), &answers)
 			for _, a := range answers {
-				if openQuestionIDs[a.QuestionID] && !a.Graded {
-					return nil, errors.New(codes.FailedPrecondition, errors.ReasonNotAllReviewed, "Not all open answers have been graded", map[string]string{"participant_id": session.UserID, "question_id": a.QuestionID})
+				if openQuestionIDs[a.QuestionID] && !a.IsReviewed {
+					return nil, errors.New(codes.FailedPrecondition, errors.ReasonNotAllReviewed, "Not all open answers have been reviewed", map[string]string{"participant_id": session.UserID, "question_id": a.QuestionID})
 				}
 			}
 		}

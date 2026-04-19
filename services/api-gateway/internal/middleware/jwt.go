@@ -58,6 +58,7 @@ func validateToken(c *gin.Context, authClient *client.AuthClient, token string) 
 
 	c.Set("user_id", resp.UserId)
 	c.Set("email", resp.Email)
+	c.Set("role", resp.Role)
 
 	c.Next()
 }

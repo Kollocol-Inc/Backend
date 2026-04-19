@@ -524,6 +524,7 @@ func (h *QuizHandler) GetParticipantAnswers(c *gin.Context) {
 			IsCorrect:   a.IsCorrect,
 			Score:       a.Score,
 			TimeSpentMs: a.TimeSpentMs,
+			IsReviewed:  a.IsReviewed,
 		}
 	}
 

@@ -1,14 +1,20 @@
 package database
 
 import (
-	"context"
 	"database/sql"
+	"embed"
 	"fmt"
 
 	"user-service/config"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/lib/pq"
 )
+
+//go:embed migrations/*.sql
+var migrationsFS embed.FS
 
 type PostgresClient struct {
 	db     *sql.DB
@@ -47,51 +53,24 @@ func (c *PostgresClient) GetDB() *sql.DB {
 	return c.db
 }
 
-func (c *PostgresClient) InitSchema(ctx context.Context) error {
-	createNotificationSettingsTable := `
-		CREATE TABLE IF NOT EXISTS user_notification_settings (
-			user_id VARCHAR(255) PRIMARY KEY,
-			new_quizzes BOOLEAN NOT NULL DEFAULT true,
-			quiz_results BOOLEAN NOT NULL DEFAULT true,
-			group_invites BOOLEAN NOT NULL DEFAULT true,
-			deadline_reminder VARCHAR(50) NOT NULL DEFAULT '24h',
-			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		);
-		CREATE INDEX IF NOT EXISTS idx_notification_settings_user_id ON user_notification_settings(user_id);
-	`
-
-	createGroupsTable := `
-		CREATE TABLE IF NOT EXISTS groups (
-			id VARCHAR(255) PRIMARY KEY,
-			name VARCHAR(255) NOT NULL,
-			owner_id VARCHAR(255) NOT NULL,
-			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		);
-		CREATE INDEX IF NOT EXISTS idx_groups_owner_id ON groups(owner_id);
-	`
-
-	createGroupMembersTable := `
-		CREATE TABLE IF NOT EXISTS group_members (
-			group_id VARCHAR(255) NOT NULL,
-			user_id VARCHAR(255) NOT NULL,
-			joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (group_id, user_id),
-			FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
-		);
-		CREATE INDEX IF NOT EXISTS idx_group_members_user_id ON group_members(user_id);
-		CREATE INDEX IF NOT EXISTS idx_group_members_group_id ON group_members(group_id);
-	`
-
-	if _, err := c.db.ExecContext(ctx, createNotificationSettingsTable); err != nil {
-		return fmt.Errorf("failed to create user_notification_settings table: %w", err)
+func (c *PostgresClient) RunMigrations() error {
+	sourceDriver, err := iofs.New(migrationsFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("failed to create migration source: %w", err)
 	}
 
-	if _, err := c.db.ExecContext(ctx, createGroupsTable); err != nil {
-		return fmt.Errorf("failed to create groups table: %w", err)
+	dbDriver, err := postgres.WithInstance(c.db, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to create migration db driver: %w", err)
 	}
 
-	if _, err := c.db.ExecContext(ctx, createGroupMembersTable); err != nil {
-		return fmt.Errorf("failed to create group_members table: %w", err)
+	m, err := migrate.NewWithInstance("iofs", sourceDriver, "postgres", dbDriver)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	return nil
