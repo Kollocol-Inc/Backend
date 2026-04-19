@@ -267,7 +267,8 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - REDIS_DB=${REDIS_DB}
       - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
-      - USER_SERVICE_ADDR=user-service:50051
+      - USER_SERVICE_HOST=user-service
+      - USER_SERVICE_PORT=50051
     depends_on:
       postgres:
         condition: service_healthy
