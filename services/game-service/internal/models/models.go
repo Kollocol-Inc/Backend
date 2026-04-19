@@ -22,7 +22,7 @@ type Answer struct {
 	IsCorrect   bool   `json:"is_correct"`
 	Score       int    `json:"score"`
 	TimeSpentMs int64  `json:"time_spent_ms"`
-	Graded      bool   `json:"graded"`
+	IsReviewed  bool   `json:"is_reviewed"`
 }
 
 type QuizData struct {

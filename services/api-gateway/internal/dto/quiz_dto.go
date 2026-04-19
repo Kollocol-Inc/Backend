@@ -120,6 +120,7 @@ type UserAnswerDTO struct {
 	IsCorrect   bool   `json:"is_correct" example:"true"`
 	Score       int32  `json:"score" example:"1"`
 	TimeSpentMs int64  `json:"time_spent_ms" example:"5000"`
+	IsReviewed  bool   `json:"is_reviewed" example:"true"`
 }
 
 type ParticipantDTO struct {

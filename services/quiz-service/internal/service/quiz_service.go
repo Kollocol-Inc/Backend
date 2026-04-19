@@ -581,7 +581,7 @@ func (s *QuizService) GetInstanceParticipants(ctx context.Context, req *pb.GetIn
 			reviewStatus = "not_finished"
 		} else if len(openQuestionIDs) > 0 {
 			for _, a := range answers {
-				if openQuestionIDs[a.QuestionID] && !a.Graded {
+				if openQuestionIDs[a.QuestionID] && !a.IsReviewed {
 					reviewStatus = "pending_review"
 					break
 				}
@@ -628,6 +628,7 @@ func (s *QuizService) GetParticipantAnswers(ctx context.Context, req *pb.GetPart
 			IsCorrect:   a.IsCorrect,
 			Score:       int32(a.Score),
 			TimeSpentMs: a.TimeSpentMs,
+			IsReviewed:  a.IsReviewed,
 		})
 	}
 
@@ -717,8 +718,8 @@ func (s *QuizService) PublishResults(ctx context.Context, req *pb.PublishResults
 			var answers []repository.SessionAnswer
 			json.Unmarshal([]byte(session.Answers), &answers)
 			for _, a := range answers {
-				if openQuestionIDs[a.QuestionID] && !a.Graded {
-					return nil, errors.New(codes.FailedPrecondition, errors.ReasonNotAllReviewed, "Not all open answers have been graded", map[string]string{"participant_id": session.UserID, "question_id": a.QuestionID})
+				if openQuestionIDs[a.QuestionID] && !a.IsReviewed {
+					return nil, errors.New(codes.FailedPrecondition, errors.ReasonNotAllReviewed, "Not all open answers have been reviewed", map[string]string{"participant_id": session.UserID, "question_id": a.QuestionID})
 				}
 			}
 		}

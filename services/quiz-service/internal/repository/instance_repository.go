@@ -28,7 +28,7 @@ type SessionAnswer struct {
 	IsCorrect   bool   `json:"is_correct"`
 	Score       int    `json:"score"`
 	TimeSpentMs int64  `json:"time_spent_ms"`
-	Graded      bool   `json:"graded"`
+	IsReviewed  bool   `json:"is_reviewed"`
 }
 
 type InstanceRepository struct {
@@ -484,7 +484,7 @@ func (r *InstanceRepository) GradeAnswer(ctx context.Context, instanceID, userID
 			oldScore = a.Score
 			answers[i].Score = score
 			answers[i].IsCorrect = score > 0
-			answers[i].Graded = true
+			answers[i].IsReviewed = true
 			found = true
 			break
 		}

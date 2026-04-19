@@ -396,7 +396,7 @@ func (h *Hub) handleAnswer(client *Client, payload any) {
 		answers = []models.Answer{}
 	}
 
-	graded := question.Type != constants.QuestionTypeOpen || isCorrect
+	isReviewed := question.Type != constants.QuestionTypeOpen || isCorrect
 
 	answers = append(answers, models.Answer{
 		QuestionID:  answerPayload.QuestionID,
@@ -404,7 +404,7 @@ func (h *Hub) handleAnswer(client *Client, payload any) {
 		IsCorrect:   isCorrect,
 		Score:       grade,
 		TimeSpentMs: timeSpentMs,
-		Graded:      graded,
+		IsReviewed:  isReviewed,
 	})
 
 	answersJSON, _ := json.Marshal(answers)
