@@ -67,17 +67,18 @@ func (h *NotificationHandler) GetNotifications(c *gin.Context) {
 }
 
 // MarkAsRead godoc
-// @Summary Mark notification as read
-// @Description Mark a specific notification as read
+// @Summary Mark notifications as read
+// @Description Mark multiple notifications as read
 // @Tags notifications
+// @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "Notification ID"
-// @Success 200 {object} map[string]interface{}
+// @Param request body dto.NotificationIDsRequest true "Notification IDs"
+// @Success 204
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /notifications/{id}/read [put]
+// @Router /notifications/read [put]
 func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -85,15 +86,15 @@ func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 		return
 	}
 
-	notificationID := c.Param("id")
-	if notificationID == "" {
-		dto.JsonError(c, errors.ErrNotificationIDRequired)
+	var req dto.NotificationIDsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.JsonError(c, errors.ErrNotificationIDsRequired)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err := h.notificationClient.MarkAsRead(ctx, notificationID, userID.(string))
+	_, err := h.notificationClient.MarkAsRead(ctx, req.IDs, userID.(string))
 	if err != nil {
 		dto.JsonError(c, err)
 		return
@@ -103,17 +104,18 @@ func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 }
 
 // DeleteNotification godoc
-// @Summary Delete notification
-// @Description Delete a specific notification
+// @Summary Delete notifications
+// @Description Delete multiple notifications
 // @Tags notifications
+// @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "Notification ID"
+// @Param request body dto.NotificationIDsRequest true "Notification IDs"
 // @Success 204
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
-// @Router /notifications/{id} [delete]
+// @Router /notifications/delete [delete]
 func (h *NotificationHandler) DeleteNotification(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -121,21 +123,20 @@ func (h *NotificationHandler) DeleteNotification(c *gin.Context) {
 		return
 	}
 
-	notificationID := c.Param("id")
-	if notificationID == "" {
-		dto.JsonError(c, errors.ErrNotificationIDRequired)
+	var req dto.NotificationIDsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.JsonError(c, errors.ErrNotificationIDsRequired)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err := h.notificationClient.DeleteNotification(ctx, notificationID, userID.(string))
+	_, err := h.notificationClient.DeleteNotification(ctx, req.IDs, userID.(string))
 	if err != nil {
 		dto.JsonError(c, err)
 		return
 	}
-
 
 	c.Status(http.StatusNoContent)
 }

@@ -50,16 +50,16 @@ func (c *NotificationClient) GetNotifications(ctx context.Context, userID string
 	})
 }
 
-func (c *NotificationClient) MarkAsRead(ctx context.Context, notificationID, userID string) (*pb.MarkAsReadResponse, error) {
+func (c *NotificationClient) MarkAsRead(ctx context.Context, notificationIDs []string, userID string) (*pb.MarkAsReadResponse, error) {
 	return c.client.MarkAsRead(ctx, &pb.MarkAsReadRequest{
-		NotificationId: notificationID,
-		UserId:         userID,
+		NotificationIds: notificationIDs,
+		UserId:          userID,
 	})
 }
 
-func (c *NotificationClient) DeleteNotification(ctx context.Context, notificationID, userID string) (*pb.DeleteNotificationResponse, error) {
+func (c *NotificationClient) DeleteNotification(ctx context.Context, notificationIDs []string, userID string) (*pb.DeleteNotificationResponse, error) {
 	return c.client.DeleteNotification(ctx, &pb.DeleteNotificationRequest{
-		NotificationId: notificationID,
-		UserId:         userID,
+		NotificationIds: notificationIDs,
+		UserId:          userID,
 	})
 }

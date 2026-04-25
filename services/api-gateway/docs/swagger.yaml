@@ -435,6 +435,18 @@ definitions:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
     type: object
+  dto.NotificationIDsRequest:
+    properties:
+      ids:
+        example:
+        - 550e8400-e29b-41d4-a716-446655440000
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - ids
+    type: object
   dto.NotificationSettingsDTO:
     properties:
       deadline_reminder:
@@ -1305,15 +1317,18 @@ paths:
       summary: Get user notifications
       tags:
       - notifications
-  /notifications/{id}:
+  /notifications/delete:
     delete:
-      description: Delete a specific notification
+      consumes:
+      - application/json
+      description: Delete multiple notifications
       parameters:
-      - description: Notification ID
-        in: path
-        name: id
+      - description: Notification IDs
+        in: body
+        name: request
         required: true
-        type: string
+        schema:
+          $ref: '#/definitions/dto.NotificationIDsRequest'
       produces:
       - application/json
       responses:
@@ -1333,26 +1348,26 @@ paths:
             $ref: '#/definitions/dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Delete notification
+      summary: Delete notifications
       tags:
       - notifications
-  /notifications/{id}/read:
+  /notifications/read:
     put:
-      description: Mark a specific notification as read
+      consumes:
+      - application/json
+      description: Mark multiple notifications as read
       parameters:
-      - description: Notification ID
-        in: path
-        name: id
+      - description: Notification IDs
+        in: body
+        name: request
         required: true
-        type: string
+        schema:
+          $ref: '#/definitions/dto.NotificationIDsRequest'
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
+        "204":
+          description: No Content
         "400":
           description: Bad Request
           schema:
@@ -1367,7 +1382,7 @@ paths:
             $ref: '#/definitions/dto.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Mark notification as read
+      summary: Mark notifications as read
       tags:
       - notifications
   /quizzes/instances:

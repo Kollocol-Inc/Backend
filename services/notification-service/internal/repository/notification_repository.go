@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 type Notification struct {
@@ -96,45 +97,33 @@ func (r *NotificationRepository) GetNotifications(ctx context.Context, userID st
 	return notifications, total, nil
 }
 
-func (r *NotificationRepository) MarkAsRead(ctx context.Context, notificationID, userID string) error {
+func (r *NotificationRepository) MarkAsRead(ctx context.Context, notificationIDs []string, userID string) error {
+	if len(notificationIDs) == 0 {
+		return nil
+	}
+
 	query := `
 		UPDATE notifications
 		SET is_read = true
-		WHERE id = $1 AND user_id = $2
+		WHERE id = ANY($1) AND user_id = $2
 	`
 
-	result, err := r.db.ExecContext(ctx, query, notificationID, userID)
-	if err != nil {
-		return fmt.Errorf("failed to mark notification as read: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("notification not found")
+	if _, err := r.db.ExecContext(ctx, query, pq.Array(notificationIDs), userID); err != nil {
+		return fmt.Errorf("failed to mark notifications as read: %w", err)
 	}
 
 	return nil
 }
 
-func (r *NotificationRepository) DeleteNotification(ctx context.Context, notificationID, userID string) error {
-	query := `DELETE FROM notifications WHERE id = $1 AND user_id = $2`
-
-	result, err := r.db.ExecContext(ctx, query, notificationID, userID)
-	if err != nil {
-		return fmt.Errorf("failed to delete notification: %w", err)
+func (r *NotificationRepository) DeleteNotification(ctx context.Context, notificationIDs []string, userID string) error {
+	if len(notificationIDs) == 0 {
+		return nil
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
+	query := `DELETE FROM notifications WHERE id = ANY($1) AND user_id = $2`
 
-	if rowsAffected == 0 {
-		return fmt.Errorf("notification not found")
+	if _, err := r.db.ExecContext(ctx, query, pq.Array(notificationIDs), userID); err != nil {
+		return fmt.Errorf("failed to delete notifications: %w", err)
 	}
 
 	return nil
