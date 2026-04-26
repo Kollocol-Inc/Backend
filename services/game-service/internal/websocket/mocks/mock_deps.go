@@ -324,6 +324,21 @@ func (mr *MockSessionRepoInterfaceMockRecorder) UpdateSession(ctx, session any) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSession", reflect.TypeOf((*MockSessionRepoInterface)(nil).UpdateSession), ctx, session)
 }
 
+// BulkFinishInProgress mocks base method.
+func (m *MockSessionRepoInterface) BulkFinishInProgress(ctx context.Context, instanceID string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BulkFinishInProgress", ctx, instanceID)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BulkFinishInProgress indicates an expected call of BulkFinishInProgress.
+func (mr *MockSessionRepoInterfaceMockRecorder) BulkFinishInProgress(ctx, instanceID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BulkFinishInProgress", reflect.TypeOf((*MockSessionRepoInterface)(nil).BulkFinishInProgress), ctx, instanceID)
+}
+
 // UpdateSessionStatus mocks base method.
 func (m *MockSessionRepoInterface) UpdateSessionStatus(ctx context.Context, instanceID, userID, status string) error {
 	m.ctrl.T.Helper()

@@ -288,6 +288,11 @@ func (s *QuizService) CreateInstance(ctx context.Context, req *pb.CreateInstance
 	}
 
 	if req.Deadline != nil {
+		if template.QuizType != constants.QuizTypeAsync {
+			return nil, errors.New(codes.InvalidArgument, errors.ReasonInvalidArgument,
+				"Deadline can only be set for async quizzes",
+				map[string]string{"quiz_type": template.QuizType})
+		}
 		instance.Deadline = sql.NullTime{Time: req.Deadline.AsTime(), Valid: true}
 	}
 
@@ -616,6 +621,10 @@ func (s *QuizService) GetParticipantAnswers(ctx context.Context, req *pb.GetPart
 	session, err := s.instanceRepo.GetParticipantAnswers(ctx, req.InstanceId, req.ParticipantId)
 	if err != nil {
 		return nil, errors.New(codes.NotFound, errors.ReasonParticipantNotFound, "Participant not found", map[string]string{"instance_id": req.InstanceId, "participant_id": req.ParticipantId})
+	}
+
+	if session.Status != constants.SessionStatusFinished {
+		return nil, errors.New(codes.NotFound, errors.ReasonSessionNotFinished, "Participant has not finished the quiz", map[string]string{"instance_id": req.InstanceId, "participant_id": req.ParticipantId, "status": session.Status})
 	}
 
 	var answers []repository.SessionAnswer

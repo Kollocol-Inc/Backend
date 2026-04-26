@@ -226,6 +226,69 @@ func TestCreateInstance_WithGroupAndDeadline(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestCreateInstance_DeadlineRejectedForSync(t *testing.T) {
+	svc, templateRepo, _, _, _ := setupTest(t)
+	ctx := context.Background()
+
+	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1", QuizType: "sync", Settings: "{}"}
+	templateRepo.EXPECT().GetTemplateByID(ctx, "tmpl-1").Return(template, nil)
+	templateRepo.EXPECT().GetQuestionsByTemplateID(ctx, "tmpl-1").Return([]*repository.Question{}, nil)
+
+	deadline := timestamppb.New(time.Now().Add(48 * time.Hour))
+	_, err := svc.CreateInstance(ctx, &pb.CreateInstanceRequest{
+		TemplateId: "tmpl-1",
+		UserId:     "user-1",
+		Title:      "Sync With Deadline",
+		Deadline:   deadline,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Deadline can only be set for async quizzes")
+}
+
+func TestGetParticipantAnswers_SessionNotFinished_Returns404(t *testing.T) {
+	svc, _, instanceRepo, _, _ := setupTest(t)
+	ctx := context.Background()
+
+	iwq := &repository.InstanceWithQuestions{
+		Instance:  &repository.Instance{ID: "inst-1", CreatedBy: "creator-1", QuizType: "async"},
+		Questions: []*repository.Question{{ID: "q-1"}},
+	}
+	instanceRepo.EXPECT().GetInstanceWithQuestions(ctx, "inst-1").Return(iwq, nil)
+	instanceRepo.EXPECT().GetParticipantAnswers(ctx, "inst-1", "user-1").Return(&repository.ParticipantSession{
+		UserID: "user-1", Status: "in_progress", Answers: "[]",
+	}, nil)
+
+	_, err := svc.GetParticipantAnswers(ctx, &pb.GetParticipantAnswersRequest{
+		InstanceId:    "inst-1",
+		UserId:        "creator-1",
+		ParticipantId: "user-1",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "has not finished")
+}
+
+func TestGetParticipantAnswers_FinishedSession_Returns200(t *testing.T) {
+	svc, _, instanceRepo, _, _ := setupTest(t)
+	ctx := context.Background()
+
+	iwq := &repository.InstanceWithQuestions{
+		Instance:  &repository.Instance{ID: "inst-1", CreatedBy: "creator-1", QuizType: "async"},
+		Questions: []*repository.Question{{ID: "q-1"}},
+	}
+	instanceRepo.EXPECT().GetInstanceWithQuestions(ctx, "inst-1").Return(iwq, nil)
+	instanceRepo.EXPECT().GetParticipantAnswers(ctx, "inst-1", "user-1").Return(&repository.ParticipantSession{
+		UserID: "user-1", Status: "finished", Answers: "[]",
+	}, nil)
+
+	resp, err := svc.GetParticipantAnswers(ctx, &pb.GetParticipantAnswersRequest{
+		InstanceId:    "inst-1",
+		UserId:        "creator-1",
+		ParticipantId: "user-1",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, resp.Instance)
+}
+
 func TestGetInstanceByAccessCode_CreatorHasAccess(t *testing.T) {
 	svc, _, instanceRepo, _, _ := setupTest(t)
 	ctx := context.Background()

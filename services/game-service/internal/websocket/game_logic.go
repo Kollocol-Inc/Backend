@@ -230,8 +230,17 @@ func (h *Hub) sendQuestion(client *Client, quizData *models.QuizData, questionIn
 		return
 	}
 
-	question := quizData.Questions[questionIndex]
 	ctx := context.Background()
+
+	if quizData.QuizType == constants.QuizTypeAsync && quizData.DeadlineMs > 0 && time.Now().UnixMilli() > quizData.DeadlineMs {
+		if session, err := h.sessionRepo.GetSession(ctx, client.InstanceID, client.UserID); err == nil {
+			h.finalizeAsyncSession(ctx, client, session, "Quiz deadline has passed")
+			return
+		}
+	}
+
+	questions := questionsForClient(client, quizData)
+	question := questions[questionIndex]
 
 	stKey := redisStartTimeKey(quizData.QuizType, client.InstanceID, client.UserID, questionIndex)
 	if h.redisClient != nil {
@@ -344,11 +353,13 @@ func (h *Hub) handleAnswer(client *Client, payload any) {
 		return
 	}
 
+	questions := questionsForClient(client, quizData)
+
 	var question *models.Question
 	var questionIndex int
-	for i, q := range quizData.Questions {
+	for i, q := range questions {
 		if q.ID == answerPayload.QuestionID {
-			question = &q
+			question = &questions[i]
 			questionIndex = i
 			break
 		}
@@ -356,6 +367,18 @@ func (h *Hub) handleAnswer(client *Client, payload any) {
 
 	if question == nil {
 		client.SendError("Question not found")
+		return
+	}
+
+	session, err := h.sessionRepo.GetSession(ctx, client.InstanceID, client.UserID)
+	if err != nil {
+		log.Printf("Failed to get session: %v", err)
+		client.SendError("Failed to save answer")
+		return
+	}
+
+	if quizData.QuizType == constants.QuizTypeAsync && asyncDeadlineExpired(quizData, session) {
+		h.finalizeAsyncSession(ctx, client, session, "Quiz deadline has passed")
 		return
 	}
 
@@ -381,13 +404,6 @@ func (h *Hub) handleAnswer(client *Client, payload any) {
 	if isCorrect {
 		gameScore = h.calculateScore(question.MaxScore, timeSpentMs, int64(question.TimeLimitSec)*1000)
 		grade = question.MaxScore
-	}
-
-	session, err := h.sessionRepo.GetSession(ctx, client.InstanceID, client.UserID)
-	if err != nil {
-		log.Printf("Failed to get session: %v", err)
-		client.SendError("Failed to save answer")
-		return
 	}
 
 	var answers []models.Answer
@@ -471,6 +487,12 @@ func (h *Hub) handleContinue(client *Client) {
 		log.Printf("Quiz %s finished, updating status", client.InstanceID)
 		if err := h.updateInstanceStatus(ctx, client.InstanceID, constants.InstanceStatusPendingReview); err != nil {
 			log.Printf("Failed to update instance status: %v", err)
+		}
+
+		if n, err := h.sessionRepo.BulkFinishInProgress(ctx, client.InstanceID); err != nil {
+			log.Printf("Failed to bulk-finish sessions for instance %s: %v", client.InstanceID, err)
+		} else if n > 0 {
+			log.Printf("Bulk-finished %d sessions for instance %s", n, client.InstanceID)
 		}
 
 		for c := range clients {
@@ -643,5 +665,21 @@ func (h *Hub) finishQuiz(client *Client) {
 	client.SendMessage(MessageTypeQuizFinished, QuizFinishedPayload{
 		FinalScore: score,
 		Rank:       rank,
+	})
+}
+
+func (h *Hub) finalizeAsyncSession(ctx context.Context, client *Client, session *models.GameSession, reason string) {
+	if session.Status != constants.SessionStatusFinished {
+		session.Status = constants.SessionStatusFinished
+		session.FinishedAt.Valid = true
+		session.FinishedAt.Time = time.Now()
+		if err := h.sessionRepo.UpdateSession(ctx, session); err != nil {
+			log.Printf("Failed to finalize async session for user %s: %v", client.UserID, err)
+		}
+	}
+
+	client.SendError(reason)
+	client.SendMessage(MessageTypeQuizFinished, QuizFinishedPayload{
+		FinalScore: session.Score,
 	})
 }

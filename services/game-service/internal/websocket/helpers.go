@@ -3,6 +3,8 @@ package websocket
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
+	"math/rand"
 	"time"
 
 	"game-service/internal/constants"
@@ -130,6 +132,53 @@ func (h *Hub) cleanRedisKeys(ctx context.Context, instanceID string) {
 		redisCurrentIndexKey(instanceID),
 		redisTotalParticipantsKey(instanceID),
 	)
+}
+
+func shuffledIndices(instanceID, userID string, n int) []int {
+	hasher := fnv.New64a()
+	hasher.Write([]byte(instanceID))
+	hasher.Write([]byte{0})
+	hasher.Write([]byte(userID))
+	r := rand.New(rand.NewSource(int64(hasher.Sum64())))
+
+	perm := make([]int, n)
+	for i := range perm {
+		perm[i] = i
+	}
+	r.Shuffle(n, func(i, j int) { perm[i], perm[j] = perm[j], perm[i] })
+	return perm
+}
+
+func questionsForClient(client *Client, quizData *models.QuizData) []models.Question {
+	if quizData.QuizType != constants.QuizTypeAsync || !quizData.Settings.QuestionsRandomOrder {
+		return quizData.Questions
+	}
+
+	perm := shuffledIndices(client.InstanceID, client.UserID, len(quizData.Questions))
+	out := make([]models.Question, len(perm))
+	for i, src := range perm {
+		out[i] = quizData.Questions[src]
+	}
+	return out
+}
+
+func asyncDeadlineExpired(quizData *models.QuizData, session *models.GameSession) bool {
+	now := time.Now()
+
+	if quizData.DeadlineMs > 0 && now.UnixMilli() > quizData.DeadlineMs {
+		return true
+	}
+
+	budgetSec := 0
+	for _, q := range quizData.Questions {
+		budgetSec += q.TimeLimitSec
+	}
+	if budgetSec > 0 && !session.StartedAt.IsZero() {
+		if now.After(session.StartedAt.Add(time.Duration(budgetSec) * time.Second)) {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *Hub) countAnswerProgress(ctx context.Context, instanceID string, sessions []*models.GameSession, creatorID string, questionIndex int) (total, answered int) {

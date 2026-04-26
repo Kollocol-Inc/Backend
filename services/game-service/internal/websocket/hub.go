@@ -48,6 +48,7 @@ type SessionRepoInterface interface {
 	SessionExists(ctx context.Context, instanceID, userID string) (bool, error)
 	DeleteSession(ctx context.Context, instanceID, userID string) error
 	UpdateSessionStatus(ctx context.Context, instanceID, userID, status string) error
+	BulkFinishInProgress(ctx context.Context, instanceID string) (int64, error)
 }
 
 type DBExecer interface {
@@ -82,15 +83,15 @@ func NewHub(
 	db *sql.DB,
 ) *Hub {
 	return &Hub{
-		clients:        make(map[string]map[*Client]bool),
-		Register:       make(chan *Client),
-		Unregister:     make(chan *Client),
-		HandleMessage:  make(chan *ClientMessage),
-		quizClient:     quizClient,
-		userClient:     userClient,
-		redisClient:    redisClient,
-		sessionRepo:    sessionRepo,
-		db:             db,
+		clients:            make(map[string]map[*Client]bool),
+		Register:           make(chan *Client),
+		Unregister:         make(chan *Client),
+		HandleMessage:      make(chan *ClientMessage),
+		quizClient:         quizClient,
+		userClient:         userClient,
+		redisClient:        redisClient,
+		sessionRepo:        sessionRepo,
+		db:                 db,
 		questionTimers:     make(map[string]*time.Timer),
 		frozenParticipants: make(map[string][]User),
 	}
@@ -430,6 +431,11 @@ func (h *Hub) convertToQuizData(resp *pb.GetInstanceResponse) *models.QuizData {
 		settings.QuestionsRandomOrder = asyncSettings.QuestionsRandomOrder
 	}
 
+	var deadlineMs int64
+	if d := resp.Instance.GetDeadline(); d != nil {
+		deadlineMs = d.AsTime().UnixMilli()
+	}
+
 	return &models.QuizData{
 		QuizType:   resp.Instance.QuizType,
 		CreatedBy:  resp.Instance.CreatedBy,
@@ -437,6 +443,7 @@ func (h *Hub) convertToQuizData(resp *pb.GetInstanceResponse) *models.QuizData {
 		TemplateID: resp.Instance.TemplateId,
 		Title:      resp.Instance.Title,
 		Settings:   settings,
+		DeadlineMs: deadlineMs,
 	}
 }
 

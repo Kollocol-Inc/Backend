@@ -339,6 +339,7 @@ func TestHandleContinue_LastQuestion_FinishesQuiz(t *testing.T) {
 
 	creatorSession := &models.GameSession{InstanceID: "inst-1", UserID: "creator-1", Score: 0, Answers: "[]"}
 	participantSession := &models.GameSession{InstanceID: "inst-1", UserID: "user-1", Score: 500, Answers: "[]"}
+	env.sessionRepo.EXPECT().BulkFinishInProgress(gomock.Any(), "inst-1").Return(int64(2), nil)
 	env.sessionRepo.EXPECT().GetSession(gomock.Any(), "inst-1", "creator-1").Return(creatorSession, nil)
 	env.sessionRepo.EXPECT().GetSession(gomock.Any(), "inst-1", "user-1").Return(participantSession, nil)
 	env.sessionRepo.EXPECT().UpdateSession(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()

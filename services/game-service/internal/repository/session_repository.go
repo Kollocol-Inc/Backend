@@ -132,6 +132,19 @@ func (r *SessionRepository) DeleteSession(ctx context.Context, instanceID, userI
 	return err
 }
 
+func (r *SessionRepository) BulkFinishInProgress(ctx context.Context, instanceID string) (int64, error) {
+	query := `
+		UPDATE game_sessions
+		SET status = 'finished', finished_at = NOW()
+		WHERE instance_id = $1 AND status != 'finished'
+	`
+	result, err := r.db.ExecContext(ctx, query, instanceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 func (r *SessionRepository) UpdateSessionStatus(ctx context.Context, instanceID, userID, status string) error {
 	query := `UPDATE game_sessions SET status = $1 WHERE instance_id = $2 AND user_id = $3`
 	result, err := r.db.ExecContext(ctx, query, status, instanceID, userID)

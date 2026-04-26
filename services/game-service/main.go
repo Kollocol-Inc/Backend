@@ -1,16 +1,19 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"game-service/config"
 	"game-service/internal/client"
 	"game-service/internal/handlers"
 	"game-service/internal/repository"
+	"game-service/internal/sweeper"
 	ws "game-service/internal/websocket"
 	"game-service/pkg/cache"
 	"game-service/pkg/database"
@@ -64,6 +67,11 @@ func main() {
 	hub := ws.NewHub(quizClient, userClient, redisClient, sessionRepo, pgClient.GetDB())
 	go hub.Run()
 	log.Println("WebSocket hub started")
+
+	sweeperCtx, cancelSweeper := context.WithCancel(context.Background())
+	defer cancelSweeper()
+	go sweeper.New(pgClient.GetDB(), time.Minute).Run(sweeperCtx)
+	log.Println("Deadline sweeper started")
 
 	if os.Getenv("GIN_MODE") == "" {
 		gin.SetMode(gin.ReleaseMode)

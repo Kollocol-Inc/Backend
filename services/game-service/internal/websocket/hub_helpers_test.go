@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"game-service/internal/constants"
+	"game-service/internal/models"
 	"game-service/internal/websocket/mocks"
 
 	"github.com/stretchr/testify/require"
@@ -78,6 +80,116 @@ func drainClientMessages(client *Client) []Message {
 		default:
 			return msgs
 		}
+	}
+}
+
+func TestShuffledIndices_DeterministicPerUser(t *testing.T) {
+	t.Helper()
+	a1 := shuffledIndices("inst-1", "user-1", 8)
+	a2 := shuffledIndices("inst-1", "user-1", 8)
+	if len(a1) != len(a2) {
+		t.Fatal("length mismatch")
+	}
+	for i := range a1 {
+		if a1[i] != a2[i] {
+			t.Fatalf("not deterministic at %d: %v vs %v", i, a1, a2)
+		}
+	}
+}
+
+func TestShuffledIndices_DiffersAcrossUsers(t *testing.T) {
+	t.Helper()
+	a := shuffledIndices("inst-1", "user-1", 12)
+	b := shuffledIndices("inst-1", "user-2", 12)
+	same := true
+	for i := range a {
+		if a[i] != b[i] {
+			same = false
+			break
+		}
+	}
+	if same {
+		t.Fatalf("expected different permutations for different users; got %v == %v", a, b)
+	}
+}
+
+func TestQuestionsForClient_SyncReturnsOriginal(t *testing.T) {
+	hub := newTestHub()
+	client := newTestClient(hub, "user-1", "inst-1", false)
+	quizData := &models.QuizData{
+		QuizType: constants.QuizTypeSync,
+		Settings: models.Settings{QuestionsRandomOrder: true},
+		Questions: []models.Question{
+			{ID: "q-1"}, {ID: "q-2"}, {ID: "q-3"},
+		},
+	}
+	got := questionsForClient(client, quizData)
+	if len(got) != 3 || got[0].ID != "q-1" || got[2].ID != "q-3" {
+		t.Fatalf("sync should not be shuffled, got %+v", got)
+	}
+}
+
+func TestQuestionsForClient_AsyncWithoutFlagReturnsOriginal(t *testing.T) {
+	hub := newTestHub()
+	client := newTestClient(hub, "user-1", "inst-1", false)
+	quizData := &models.QuizData{
+		QuizType: constants.QuizTypeAsync,
+		Settings: models.Settings{QuestionsRandomOrder: false},
+		Questions: []models.Question{
+			{ID: "q-1"}, {ID: "q-2"}, {ID: "q-3"},
+		},
+	}
+	got := questionsForClient(client, quizData)
+	if got[0].ID != "q-1" || got[2].ID != "q-3" {
+		t.Fatalf("expected original order without flag, got %+v", got)
+	}
+}
+
+func TestQuestionsForClient_AsyncShuffledIsDeterministic(t *testing.T) {
+	hub := newTestHub()
+	quizData := &models.QuizData{
+		QuizType: constants.QuizTypeAsync,
+		Settings: models.Settings{QuestionsRandomOrder: true},
+		Questions: []models.Question{
+			{ID: "q-1"}, {ID: "q-2"}, {ID: "q-3"}, {ID: "q-4"}, {ID: "q-5"},
+		},
+	}
+	c1 := newTestClient(hub, "user-1", "inst-1", false)
+	first := questionsForClient(c1, quizData)
+	second := questionsForClient(c1, quizData)
+	for i := range first {
+		if first[i].ID != second[i].ID {
+			t.Fatalf("not deterministic for same client: %v vs %v", first, second)
+		}
+	}
+
+	c2 := newTestClient(hub, "user-2", "inst-1", false)
+	other := questionsForClient(c2, quizData)
+	differs := false
+	for i := range first {
+		if first[i].ID != other[i].ID {
+			differs = true
+			break
+		}
+	}
+	if !differs {
+		t.Fatalf("expected different permutation for different user; both got %v", first)
+	}
+}
+
+func TestShuffledIndices_IsPermutation(t *testing.T) {
+	t.Helper()
+	const n = 10
+	perm := shuffledIndices("inst-1", "user-1", n)
+	seen := make(map[int]bool, n)
+	for _, v := range perm {
+		if v < 0 || v >= n {
+			t.Fatalf("out of range %d", v)
+		}
+		if seen[v] {
+			t.Fatalf("duplicate %d in %v", v, perm)
+		}
+		seen[v] = true
 	}
 }
 

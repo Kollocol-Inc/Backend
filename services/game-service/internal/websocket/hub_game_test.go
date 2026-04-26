@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -108,6 +109,87 @@ func TestHandleAnswer_Wrong(t *testing.T) {
 	json.Unmarshal(resultBytes, &result)
 	assert.False(t, result.IsCorrect)
 	assert.Equal(t, 0, result.Score)
+}
+
+func TestHandleAnswer_AsyncAfterDeadline_FinalizesSession(t *testing.T) {
+	env := newTestHubWithMocks(t)
+	client := newTestClient(env.hub, "user-1", "inst-1", false)
+	registerClientToHub(env.hub, client)
+
+	expiredQuiz := &models.QuizData{
+		QuizType:   constants.QuizTypeAsync,
+		CreatedBy:  "creator-1",
+		Title:      "Async Quiz",
+		DeadlineMs: time.Now().Add(-1 * time.Hour).UnixMilli(),
+		Questions: []models.Question{
+			{ID: "q-1", Text: "Q1", Type: constants.QuestionTypeSingle, Options: []string{"A", "B"}, CorrectAnswer: "0", MaxScore: 10, TimeLimitSec: 30},
+		},
+	}
+	data, _ := json.Marshal(expiredQuiz)
+	env.redisClient.EXPECT().Get(gomock.Any(), "quiz:inst-1:data").Return(string(data), nil)
+
+	session := &models.GameSession{
+		InstanceID: "inst-1", UserID: "user-1",
+		Status: constants.SessionStatusInProgress, Score: 42, Answers: "[]",
+		StartedAt: time.Now().Add(-2 * time.Hour),
+	}
+	env.sessionRepo.EXPECT().GetSession(gomock.Any(), "inst-1", "user-1").Return(session, nil)
+	env.sessionRepo.EXPECT().UpdateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, s *models.GameSession) error {
+		assert.Equal(t, constants.SessionStatusFinished, s.Status)
+		assert.True(t, s.FinishedAt.Valid)
+		return nil
+	})
+
+	env.hub.handleAnswer(client, AnswerPayload{QuestionID: "q-1", Answer: "0"})
+
+	msgs := drainClientMessages(client)
+	var sawError, sawFinished bool
+	for _, m := range msgs {
+		if m.Type == MessageTypeError {
+			sawError = true
+		}
+		if m.Type == MessageTypeQuizFinished {
+			sawFinished = true
+		}
+	}
+	assert.True(t, sawError, "expected error message")
+	assert.True(t, sawFinished, "expected quiz_finished message")
+}
+
+func TestHandleAnswer_AsyncSessionBudgetExceeded_FinalizesSession(t *testing.T) {
+	env := newTestHubWithMocks(t)
+	client := newTestClient(env.hub, "user-1", "inst-1", false)
+	registerClientToHub(env.hub, client)
+
+	quiz := &models.QuizData{
+		QuizType:  constants.QuizTypeAsync,
+		CreatedBy: "creator-1",
+		Title:     "Async Quiz",
+		Questions: []models.Question{
+			{ID: "q-1", Type: constants.QuestionTypeSingle, Options: []string{"A"}, CorrectAnswer: "0", MaxScore: 10, TimeLimitSec: 60},
+		},
+	}
+	data, _ := json.Marshal(quiz)
+	env.redisClient.EXPECT().Get(gomock.Any(), "quiz:inst-1:data").Return(string(data), nil)
+
+	session := &models.GameSession{
+		InstanceID: "inst-1", UserID: "user-1",
+		Status: constants.SessionStatusInProgress, Score: 0, Answers: "[]",
+		StartedAt: time.Now().Add(-10 * time.Minute),
+	}
+	env.sessionRepo.EXPECT().GetSession(gomock.Any(), "inst-1", "user-1").Return(session, nil)
+	env.sessionRepo.EXPECT().UpdateSession(gomock.Any(), gomock.Any()).Return(nil)
+
+	env.hub.handleAnswer(client, AnswerPayload{QuestionID: "q-1", Answer: "0"})
+
+	msgs := drainClientMessages(client)
+	var sawFinished bool
+	for _, m := range msgs {
+		if m.Type == MessageTypeQuizFinished {
+			sawFinished = true
+		}
+	}
+	assert.True(t, sawFinished, "expected quiz_finished after exceeding per-session budget")
 }
 
 func TestHandleAnswer_QuestionNotFound(t *testing.T) {

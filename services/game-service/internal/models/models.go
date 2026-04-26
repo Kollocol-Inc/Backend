@@ -32,6 +32,7 @@ type QuizData struct {
 	TemplateID string     `json:"template_id"`
 	Title      string     `json:"title"`
 	Settings   Settings   `json:"settings"`
+	DeadlineMs int64      `json:"deadline_ms,omitempty"`
 }
 
 type Question struct {
