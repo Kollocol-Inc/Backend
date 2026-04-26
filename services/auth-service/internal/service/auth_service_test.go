@@ -83,6 +83,28 @@ func TestLogin_PublishFails_StillSucceeds(t *testing.T) {
 	assert.NotNil(t, resp)
 }
 
+func TestLogin_AppleReviewEmail_UsesHardcodedCodeAndSkipsPublish(t *testing.T) {
+	svc, authRepo, _, _ := setupTest(t)
+	ctx := context.Background()
+
+	authRepo.EXPECT().SaveAuthCode(ctx, "apple@review.com", "1234").Return(nil)
+
+	resp, err := svc.Login(ctx, &pb.LoginRequest{Email: "apple@review.com"})
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+}
+
+func TestLogin_AppleReviewEmail_CaseInsensitive(t *testing.T) {
+	svc, authRepo, _, _ := setupTest(t)
+	ctx := context.Background()
+
+	authRepo.EXPECT().SaveAuthCode(ctx, "apple@review.com", "1234").Return(nil)
+
+	resp, err := svc.Login(ctx, &pb.LoginRequest{Email: "  Apple@Review.COM  "})
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+}
+
 func TestVerifyCode_Success(t *testing.T) {
 	svc, authRepo, userRepo, _ := setupTest(t)
 	ctx := context.Background()
