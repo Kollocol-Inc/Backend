@@ -32,7 +32,7 @@ message GetNotificationsResponse {
 }
 
 message MarkAsReadRequest {
-  string notification_id = 1;
+  repeated string notification_ids = 1;
   string user_id = 2;
 }
 
@@ -40,7 +40,7 @@ message MarkAsReadResponse {
 }
 
 message DeleteNotificationRequest {
-  string notification_id = 1;
+  repeated string notification_ids = 1;
   string user_id = 2;
 }
 

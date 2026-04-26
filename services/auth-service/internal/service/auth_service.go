@@ -20,6 +20,11 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
+const (
+	appleReviewEmail = "apple@review.com"
+	appleReviewCode  = "1234"
+)
+
 type AuthRepository interface {
 	SaveAuthCode(ctx context.Context, email, code string) error
 	GetAuthCode(ctx context.Context, email string) (*repository.AuthCode, error)
@@ -83,10 +88,18 @@ func (s *AuthService) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Logi
 		return nil, errors.New(codes.InvalidArgument, errors.ReasonInvalidEmail, "Invalid email address", map[string]string{"email": email})
 	}
 
-	code, err := generateCode(4)
-	if err != nil {
-		log.Printf("Failed to generate code: %v", err)
-		return nil, errors.New(codes.Internal, errors.ReasonCodeGenerationFailed, "Failed to generate verification code", nil)
+	isAppleReview := email == appleReviewEmail
+
+	var code string
+	if isAppleReview {
+		code = appleReviewCode
+	} else {
+		var err error
+		code, err = generateCode(4)
+		if err != nil {
+			log.Printf("Failed to generate code: %v", err)
+			return nil, errors.New(codes.Internal, errors.ReasonCodeGenerationFailed, "Failed to generate verification code", nil)
+		}
 	}
 
 	log.Printf("Generated code %s for %s", code, email)
@@ -96,14 +109,16 @@ func (s *AuthService) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Logi
 		return nil, errors.New(codes.Internal, errors.ReasonCodeSaveFailed, "Failed to save verification code", nil)
 	}
 
-	event := map[string]string{
-		"email": email,
-		"code":  code,
-	}
-	eventData, _ := json.Marshal(event)
+	if !isAppleReview {
+		event := map[string]string{
+			"email": email,
+			"code":  code,
+		}
+		eventData, _ := json.Marshal(event)
 
-	if err := s.rabbitMQ.Publish(ctx, "auth.send_code", eventData); err != nil {
-		log.Printf("Failed to publish send_auth_code event: %v", err)
+		if err := s.rabbitMQ.Publish(ctx, "auth.send_code", eventData); err != nil {
+			log.Printf("Failed to publish send_auth_code event: %v", err)
+		}
 	}
 
 	return &pb.LoginResponse{}, nil

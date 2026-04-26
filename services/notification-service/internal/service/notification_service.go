@@ -18,8 +18,8 @@ import (
 type NotificationRepo interface {
 	CreateNotification(ctx context.Context, notification *repository.Notification) error
 	GetNotifications(ctx context.Context, userID string, limit, offset int) ([]*repository.Notification, int, error)
-	MarkAsRead(ctx context.Context, notificationID, userID string) error
-	DeleteNotification(ctx context.Context, notificationID, userID string) error
+	MarkAsRead(ctx context.Context, notificationIDs []string, userID string) error
+	DeleteNotification(ctx context.Context, notificationIDs []string, userID string) error
 }
 
 type EmailSender interface {
@@ -83,18 +83,18 @@ func (s *NotificationService) GetNotifications(ctx context.Context, req *pb.GetN
 }
 
 func (s *NotificationService) MarkAsRead(ctx context.Context, req *pb.MarkAsReadRequest) (*pb.MarkAsReadResponse, error) {
-	if err := s.repo.MarkAsRead(ctx, req.NotificationId, req.UserId); err != nil {
-		log.Printf("Failed to mark notification as read: %v", err)
-		return nil, errors.New(codes.Internal, errors.ReasonNotificationMarkFailed, "Failed to mark notification as read", map[string]string{"notification_id": req.NotificationId})
+	if err := s.repo.MarkAsRead(ctx, req.NotificationIds, req.UserId); err != nil {
+		log.Printf("Failed to mark notifications as read: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonNotificationMarkFailed, "Failed to mark notifications as read", nil)
 	}
 
 	return &pb.MarkAsReadResponse{}, nil
 }
 
 func (s *NotificationService) DeleteNotification(ctx context.Context, req *pb.DeleteNotificationRequest) (*pb.DeleteNotificationResponse, error) {
-	if err := s.repo.DeleteNotification(ctx, req.NotificationId, req.UserId); err != nil {
-		log.Printf("Failed to delete notification: %v", err)
-		return nil, errors.New(codes.Internal, errors.ReasonNotificationDeleteFailed, "Failed to delete notification", map[string]string{"notification_id": req.NotificationId})
+	if err := s.repo.DeleteNotification(ctx, req.NotificationIds, req.UserId); err != nil {
+		log.Printf("Failed to delete notifications: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonNotificationDeleteFailed, "Failed to delete notifications", nil)
 	}
 
 	return &pb.DeleteNotificationResponse{}, nil

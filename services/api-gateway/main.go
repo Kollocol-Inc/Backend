@@ -154,8 +154,8 @@ func main() {
 	notificationsGroup.Use(middleware.JWTAuth(authClient))
 	{
 		notificationsGroup.GET("", notificationHandler.GetNotifications)
-		notificationsGroup.PUT("/:id/read", notificationHandler.MarkAsRead)
-		notificationsGroup.DELETE("/:id", notificationHandler.DeleteNotification)
+		notificationsGroup.PUT("/read", notificationHandler.MarkAsRead)
+		notificationsGroup.DELETE("/delete", notificationHandler.DeleteNotification)
 	}
 
 	mlGroup := router.Group("/ml")

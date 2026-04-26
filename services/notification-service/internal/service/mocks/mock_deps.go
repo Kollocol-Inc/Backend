@@ -57,17 +57,17 @@ func (mr *MockNotificationRepoMockRecorder) CreateNotification(ctx, notification
 }
 
 // DeleteNotification mocks base method.
-func (m *MockNotificationRepo) DeleteNotification(ctx context.Context, notificationID, userID string) error {
+func (m *MockNotificationRepo) DeleteNotification(ctx context.Context, notificationIDs []string, userID string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteNotification", ctx, notificationID, userID)
+	ret := m.ctrl.Call(m, "DeleteNotification", ctx, notificationIDs, userID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteNotification indicates an expected call of DeleteNotification.
-func (mr *MockNotificationRepoMockRecorder) DeleteNotification(ctx, notificationID, userID any) *gomock.Call {
+func (mr *MockNotificationRepoMockRecorder) DeleteNotification(ctx, notificationIDs, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteNotification", reflect.TypeOf((*MockNotificationRepo)(nil).DeleteNotification), ctx, notificationID, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteNotification", reflect.TypeOf((*MockNotificationRepo)(nil).DeleteNotification), ctx, notificationIDs, userID)
 }
 
 // GetNotifications mocks base method.
@@ -87,17 +87,17 @@ func (mr *MockNotificationRepoMockRecorder) GetNotifications(ctx, userID, limit,
 }
 
 // MarkAsRead mocks base method.
-func (m *MockNotificationRepo) MarkAsRead(ctx context.Context, notificationID, userID string) error {
+func (m *MockNotificationRepo) MarkAsRead(ctx context.Context, notificationIDs []string, userID string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MarkAsRead", ctx, notificationID, userID)
+	ret := m.ctrl.Call(m, "MarkAsRead", ctx, notificationIDs, userID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // MarkAsRead indicates an expected call of MarkAsRead.
-func (mr *MockNotificationRepoMockRecorder) MarkAsRead(ctx, notificationID, userID any) *gomock.Call {
+func (mr *MockNotificationRepoMockRecorder) MarkAsRead(ctx, notificationIDs, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkAsRead", reflect.TypeOf((*MockNotificationRepo)(nil).MarkAsRead), ctx, notificationID, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkAsRead", reflect.TypeOf((*MockNotificationRepo)(nil).MarkAsRead), ctx, notificationIDs, userID)
 }
 
 // MockEmailSender is a mock of EmailSender interface.

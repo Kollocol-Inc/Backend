@@ -226,11 +226,11 @@ func (x *GetNotificationsResponse) GetTotal() int32 {
 }
 
 type MarkAsReadRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	NotificationId string                 `protobuf:"bytes,1,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
-	UserId         string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	NotificationIds []string               `protobuf:"bytes,1,rep,name=notification_ids,json=notificationIds,proto3" json:"notification_ids,omitempty"`
+	UserId          string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *MarkAsReadRequest) Reset() {
@@ -263,11 +263,11 @@ func (*MarkAsReadRequest) Descriptor() ([]byte, []int) {
 	return file_notification_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *MarkAsReadRequest) GetNotificationId() string {
+func (x *MarkAsReadRequest) GetNotificationIds() []string {
 	if x != nil {
-		return x.NotificationId
+		return x.NotificationIds
 	}
-	return ""
+	return nil
 }
 
 func (x *MarkAsReadRequest) GetUserId() string {
@@ -314,11 +314,11 @@ func (*MarkAsReadResponse) Descriptor() ([]byte, []int) {
 }
 
 type DeleteNotificationRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	NotificationId string                 `protobuf:"bytes,1,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
-	UserId         string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	NotificationIds []string               `protobuf:"bytes,1,rep,name=notification_ids,json=notificationIds,proto3" json:"notification_ids,omitempty"`
+	UserId          string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DeleteNotificationRequest) Reset() {
@@ -351,11 +351,11 @@ func (*DeleteNotificationRequest) Descriptor() ([]byte, []int) {
 	return file_notification_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *DeleteNotificationRequest) GetNotificationId() string {
+func (x *DeleteNotificationRequest) GetNotificationIds() []string {
 	if x != nil {
-		return x.NotificationId
+		return x.NotificationIds
 	}
-	return ""
+	return nil
 }
 
 func (x *DeleteNotificationRequest) GetUserId() string {
@@ -421,13 +421,13 @@ const file_notification_proto_rawDesc = "" +
 	"\x06offset\x18\x03 \x01(\x05R\x06offset\"r\n" +
 	"\x18GetNotificationsResponse\x12@\n" +
 	"\rnotifications\x18\x01 \x03(\v2\x1a.notification.NotificationR\rnotifications\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x05R\x05total\"U\n" +
-	"\x11MarkAsReadRequest\x12'\n" +
-	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\x12\x17\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\"W\n" +
+	"\x11MarkAsReadRequest\x12)\n" +
+	"\x10notification_ids\x18\x01 \x03(\tR\x0fnotificationIds\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x14\n" +
-	"\x12MarkAsReadResponse\"]\n" +
-	"\x19DeleteNotificationRequest\x12'\n" +
-	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\x12\x17\n" +
+	"\x12MarkAsReadResponse\"_\n" +
+	"\x19DeleteNotificationRequest\x12)\n" +
+	"\x10notification_ids\x18\x01 \x03(\tR\x0fnotificationIds\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x1c\n" +
 	"\x1aDeleteNotificationResponse2\xb2\x02\n" +
 	"\x13NotificationService\x12a\n" +

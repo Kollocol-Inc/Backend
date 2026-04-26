@@ -68,19 +68,21 @@ func TestMarkAsRead_Success(t *testing.T) {
 	svc, repo, _ := setupTest(t)
 	ctx := context.Background()
 
-	repo.EXPECT().MarkAsRead(ctx, "n-1", "user-1").Return(nil)
+	ids := []string{"n-1", "n-2"}
+	repo.EXPECT().MarkAsRead(ctx, ids, "user-1").Return(nil)
 
-	_, err := svc.MarkAsRead(ctx, &pb.MarkAsReadRequest{NotificationId: "n-1", UserId: "user-1"})
+	_, err := svc.MarkAsRead(ctx, &pb.MarkAsReadRequest{NotificationIds: ids, UserId: "user-1"})
 	require.NoError(t, err)
 }
 
-func TestMarkAsRead_NotFound(t *testing.T) {
+func TestMarkAsRead_RepoError(t *testing.T) {
 	svc, repo, _ := setupTest(t)
 	ctx := context.Background()
 
-	repo.EXPECT().MarkAsRead(ctx, "n-999", "user-1").Return(fmt.Errorf("not found"))
+	ids := []string{"n-999"}
+	repo.EXPECT().MarkAsRead(ctx, ids, "user-1").Return(fmt.Errorf("db error"))
 
-	_, err := svc.MarkAsRead(ctx, &pb.MarkAsReadRequest{NotificationId: "n-999", UserId: "user-1"})
+	_, err := svc.MarkAsRead(ctx, &pb.MarkAsReadRequest{NotificationIds: ids, UserId: "user-1"})
 	assert.Error(t, err)
 }
 
@@ -88,9 +90,10 @@ func TestDeleteNotification_Success(t *testing.T) {
 	svc, repo, _ := setupTest(t)
 	ctx := context.Background()
 
-	repo.EXPECT().DeleteNotification(ctx, "n-1", "user-1").Return(nil)
+	ids := []string{"n-1", "n-2"}
+	repo.EXPECT().DeleteNotification(ctx, ids, "user-1").Return(nil)
 
-	_, err := svc.DeleteNotification(ctx, &pb.DeleteNotificationRequest{NotificationId: "n-1", UserId: "user-1"})
+	_, err := svc.DeleteNotification(ctx, &pb.DeleteNotificationRequest{NotificationIds: ids, UserId: "user-1"})
 	require.NoError(t, err)
 }
 

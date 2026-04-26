@@ -81,10 +81,10 @@ var (
 		nil,
 	)
 
-	ErrNotificationIDRequired = New(
+	ErrNotificationIDsRequired = New(
 		codes.InvalidArgument,
-		"NOTIFICATION_ID_REQUIRED",
-		"Notification ID is required",
+		"NOTIFICATION_IDS_REQUIRED",
+		"Notification IDs are required",
 		nil,
 	)
 
