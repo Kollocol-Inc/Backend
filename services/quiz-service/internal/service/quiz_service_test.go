@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"quiz-service/internal/model"
 	"quiz-service/internal/repository"
 	"quiz-service/internal/service/mocks"
 	pb "quiz-service/proto"
@@ -159,7 +160,7 @@ func TestDeleteTemplate_DeleteQuestionsFails(t *testing.T) {
 }
 
 func TestCreateInstance_Success(t *testing.T) {
-	svc, templateRepo, instanceRepo, publisher, _ := setupTest(t)
+	svc, templateRepo, instanceRepo, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1", Title: "Test", QuizType: "async", Settings: `{"time_limit_minutes":60}`}
@@ -171,7 +172,6 @@ func TestCreateInstance_Success(t *testing.T) {
 	templateRepo.EXPECT().GetTemplateByID(ctx, "tmpl-1").Return(template, nil)
 	templateRepo.EXPECT().GetQuestionsByTemplateID(ctx, "tmpl-1").Return(questions, nil)
 	instanceRepo.EXPECT().CreateInstance(ctx, gomock.Any()).Return(nil)
-	publisher.EXPECT().Publish(ctx, "quiz.created", gomock.Any()).Return(nil)
 
 	resp, err := svc.CreateInstance(ctx, &pb.CreateInstanceRequest{
 		TemplateId: "tmpl-1",
@@ -201,7 +201,7 @@ func TestCreateInstance_NotOwner(t *testing.T) {
 }
 
 func TestCreateInstance_WithGroupAndDeadline(t *testing.T) {
-	svc, templateRepo, instanceRepo, publisher, _ := setupTest(t)
+	svc, templateRepo, instanceRepo, publisher, userClient := setupTest(t)
 	ctx := context.Background()
 
 	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1", QuizType: "async", Settings: "{}"}
@@ -213,6 +213,15 @@ func TestCreateInstance_WithGroupAndDeadline(t *testing.T) {
 		assert.True(t, inst.Deadline.Valid)
 		return nil
 	})
+
+	userClient.EXPECT().GetGroupMemberIDs(ctx, "group-1").Return([]string{"user-1", "user-2"}, nil)
+	userClient.EXPECT().GetUsersByIDs(ctx, gomock.Any()).Return(map[string]*model.UserInfo{
+		"user-1": {ID: "user-1", FirstName: "Alice", LastName: "Smith", Email: "alice@example.com", IsRegistered: true},
+		"user-2": {ID: "user-2", Email: "bob@example.com", IsRegistered: true},
+	}, nil)
+	userClient.EXPECT().GetNotificationSettingsBatch(ctx, []string{"user-2"}).Return(map[string]model.NotificationSettings{
+		"user-2": {NewQuizzes: true, DeadlineReminder: "24h"},
+	}, nil)
 	publisher.EXPECT().Publish(ctx, "quiz.created", gomock.Any()).Return(nil)
 
 	deadline := timestamppb.New(time.Now().Add(48 * time.Hour))

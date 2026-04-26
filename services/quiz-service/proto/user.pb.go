@@ -1813,6 +1813,182 @@ func (x *GetUsersByIDsResponse) GetUsers() []*User {
 	return nil
 }
 
+type GetGroupMemberIDsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetGroupMemberIDsRequest) Reset() {
+	*x = GetGroupMemberIDsRequest{}
+	mi := &file_user_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetGroupMemberIDsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetGroupMemberIDsRequest) ProtoMessage() {}
+
+func (x *GetGroupMemberIDsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetGroupMemberIDsRequest.ProtoReflect.Descriptor instead.
+func (*GetGroupMemberIDsRequest) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *GetGroupMemberIDsRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+type GetGroupMemberIDsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserIds       []string               `protobuf:"bytes,1,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetGroupMemberIDsResponse) Reset() {
+	*x = GetGroupMemberIDsResponse{}
+	mi := &file_user_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetGroupMemberIDsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetGroupMemberIDsResponse) ProtoMessage() {}
+
+func (x *GetGroupMemberIDsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetGroupMemberIDsResponse.ProtoReflect.Descriptor instead.
+func (*GetGroupMemberIDsResponse) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *GetGroupMemberIDsResponse) GetUserIds() []string {
+	if x != nil {
+		return x.UserIds
+	}
+	return nil
+}
+
+type GetNotificationSettingsBatchRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserIds       []string               `protobuf:"bytes,1,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNotificationSettingsBatchRequest) Reset() {
+	*x = GetNotificationSettingsBatchRequest{}
+	mi := &file_user_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNotificationSettingsBatchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNotificationSettingsBatchRequest) ProtoMessage() {}
+
+func (x *GetNotificationSettingsBatchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNotificationSettingsBatchRequest.ProtoReflect.Descriptor instead.
+func (*GetNotificationSettingsBatchRequest) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *GetNotificationSettingsBatchRequest) GetUserIds() []string {
+	if x != nil {
+		return x.UserIds
+	}
+	return nil
+}
+
+type GetNotificationSettingsBatchResponse struct {
+	state         protoimpl.MessageState           `protogen:"open.v1"`
+	Settings      map[string]*NotificationSettings `protobuf:"bytes,1,rep,name=settings,proto3" json:"settings,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNotificationSettingsBatchResponse) Reset() {
+	*x = GetNotificationSettingsBatchResponse{}
+	mi := &file_user_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNotificationSettingsBatchResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNotificationSettingsBatchResponse) ProtoMessage() {}
+
+func (x *GetNotificationSettingsBatchResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNotificationSettingsBatchResponse.ProtoReflect.Descriptor instead.
+func (*GetNotificationSettingsBatchResponse) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *GetNotificationSettingsBatchResponse) GetSettings() map[string]*NotificationSettings {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
 var File_user_proto protoreflect.FileDescriptor
 
 const file_user_proto_rawDesc = "" +
@@ -1958,7 +2134,18 @@ const file_user_proto_rawDesc = "" +
 	"\buser_ids\x18\x01 \x03(\tR\auserIds\"9\n" +
 	"\x15GetUsersByIDsResponse\x12 \n" +
 	"\x05users\x18\x01 \x03(\v2\n" +
-	".user.UserR\x05users2\xf0\a\n" +
+	".user.UserR\x05users\"5\n" +
+	"\x18GetGroupMemberIDsRequest\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\"6\n" +
+	"\x19GetGroupMemberIDsResponse\x12\x19\n" +
+	"\buser_ids\x18\x01 \x03(\tR\auserIds\"@\n" +
+	"#GetNotificationSettingsBatchRequest\x12\x19\n" +
+	"\buser_ids\x18\x01 \x03(\tR\auserIds\"\xd5\x01\n" +
+	"$GetNotificationSettingsBatchResponse\x12T\n" +
+	"\bsettings\x18\x01 \x03(\v28.user.GetNotificationSettingsBatchResponse.SettingsEntryR\bsettings\x1aW\n" +
+	"\rSettingsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
+	"\x05value\x18\x02 \x01(\v2\x1a.user.NotificationSettingsR\x05value:\x028\x012\xbd\t\n" +
 	"\vUserService\x129\n" +
 	"\bRegister\x12\x15.user.RegisterRequest\x1a\x16.user.RegisterResponse\x12?\n" +
 	"\n" +
@@ -1973,7 +2160,9 @@ const file_user_proto_rawDesc = "" +
 	"\vUpdateGroup\x12\x18.user.UpdateGroupRequest\x1a\x19.user.UpdateGroupResponse\x12B\n" +
 	"\vDeleteGroup\x12\x18.user.DeleteGroupRequest\x1a\x19.user.DeleteGroupResponse\x12]\n" +
 	"\x14CheckGroupMembership\x12!.user.CheckGroupMembershipRequest\x1a\".user.CheckGroupMembershipResponse\x12H\n" +
-	"\rGetUsersByIDs\x12\x1a.user.GetUsersByIDsRequest\x1a\x1b.user.GetUsersByIDsResponseB\x14Z\x12quiz-service/protob\x06proto3"
+	"\rGetUsersByIDs\x12\x1a.user.GetUsersByIDsRequest\x1a\x1b.user.GetUsersByIDsResponse\x12T\n" +
+	"\x11GetGroupMemberIDs\x12\x1e.user.GetGroupMemberIDsRequest\x1a\x1f.user.GetGroupMemberIDsResponse\x12u\n" +
+	"\x1cGetNotificationSettingsBatch\x12).user.GetNotificationSettingsBatchRequest\x1a*.user.GetNotificationSettingsBatchResponseB\x14Z\x12quiz-service/protob\x06proto3"
 
 var (
 	file_user_proto_rawDescOnce sync.Once
@@ -1987,38 +2176,43 @@ func file_user_proto_rawDescGZIP() []byte {
 	return file_user_proto_rawDescData
 }
 
-var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
+var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
 var file_user_proto_goTypes = []any{
-	(*User)(nil),                               // 0: user.User
-	(*NotificationSettings)(nil),               // 1: user.NotificationSettings
-	(*Group)(nil),                              // 2: user.Group
-	(*GroupWithMembers)(nil),                   // 3: user.GroupWithMembers
-	(*RegisterRequest)(nil),                    // 4: user.RegisterRequest
-	(*RegisterResponse)(nil),                   // 5: user.RegisterResponse
-	(*GetProfileRequest)(nil),                  // 6: user.GetProfileRequest
-	(*GetProfileResponse)(nil),                 // 7: user.GetProfileResponse
-	(*GetProfileByEmailRequest)(nil),           // 8: user.GetProfileByEmailRequest
-	(*GetProfileByEmailResponse)(nil),          // 9: user.GetProfileByEmailResponse
-	(*UpdateProfileRequest)(nil),               // 10: user.UpdateProfileRequest
-	(*UpdateProfileResponse)(nil),              // 11: user.UpdateProfileResponse
-	(*GetNotificationSettingsRequest)(nil),     // 12: user.GetNotificationSettingsRequest
-	(*GetNotificationSettingsResponse)(nil),    // 13: user.GetNotificationSettingsResponse
-	(*UpdateNotificationSettingsRequest)(nil),  // 14: user.UpdateNotificationSettingsRequest
-	(*UpdateNotificationSettingsResponse)(nil), // 15: user.UpdateNotificationSettingsResponse
-	(*CreateGroupRequest)(nil),                 // 16: user.CreateGroupRequest
-	(*CreateGroupResponse)(nil),                // 17: user.CreateGroupResponse
-	(*GetGroupsRequest)(nil),                   // 18: user.GetGroupsRequest
-	(*GetGroupsResponse)(nil),                  // 19: user.GetGroupsResponse
-	(*GetGroupRequest)(nil),                    // 20: user.GetGroupRequest
-	(*GetGroupResponse)(nil),                   // 21: user.GetGroupResponse
-	(*UpdateGroupRequest)(nil),                 // 22: user.UpdateGroupRequest
-	(*UpdateGroupResponse)(nil),                // 23: user.UpdateGroupResponse
-	(*DeleteGroupRequest)(nil),                 // 24: user.DeleteGroupRequest
-	(*DeleteGroupResponse)(nil),                // 25: user.DeleteGroupResponse
-	(*CheckGroupMembershipRequest)(nil),        // 26: user.CheckGroupMembershipRequest
-	(*CheckGroupMembershipResponse)(nil),       // 27: user.CheckGroupMembershipResponse
-	(*GetUsersByIDsRequest)(nil),               // 28: user.GetUsersByIDsRequest
-	(*GetUsersByIDsResponse)(nil),              // 29: user.GetUsersByIDsResponse
+	(*User)(nil),                                 // 0: user.User
+	(*NotificationSettings)(nil),                 // 1: user.NotificationSettings
+	(*Group)(nil),                                // 2: user.Group
+	(*GroupWithMembers)(nil),                     // 3: user.GroupWithMembers
+	(*RegisterRequest)(nil),                      // 4: user.RegisterRequest
+	(*RegisterResponse)(nil),                     // 5: user.RegisterResponse
+	(*GetProfileRequest)(nil),                    // 6: user.GetProfileRequest
+	(*GetProfileResponse)(nil),                   // 7: user.GetProfileResponse
+	(*GetProfileByEmailRequest)(nil),             // 8: user.GetProfileByEmailRequest
+	(*GetProfileByEmailResponse)(nil),            // 9: user.GetProfileByEmailResponse
+	(*UpdateProfileRequest)(nil),                 // 10: user.UpdateProfileRequest
+	(*UpdateProfileResponse)(nil),                // 11: user.UpdateProfileResponse
+	(*GetNotificationSettingsRequest)(nil),       // 12: user.GetNotificationSettingsRequest
+	(*GetNotificationSettingsResponse)(nil),      // 13: user.GetNotificationSettingsResponse
+	(*UpdateNotificationSettingsRequest)(nil),    // 14: user.UpdateNotificationSettingsRequest
+	(*UpdateNotificationSettingsResponse)(nil),   // 15: user.UpdateNotificationSettingsResponse
+	(*CreateGroupRequest)(nil),                   // 16: user.CreateGroupRequest
+	(*CreateGroupResponse)(nil),                  // 17: user.CreateGroupResponse
+	(*GetGroupsRequest)(nil),                     // 18: user.GetGroupsRequest
+	(*GetGroupsResponse)(nil),                    // 19: user.GetGroupsResponse
+	(*GetGroupRequest)(nil),                      // 20: user.GetGroupRequest
+	(*GetGroupResponse)(nil),                     // 21: user.GetGroupResponse
+	(*UpdateGroupRequest)(nil),                   // 22: user.UpdateGroupRequest
+	(*UpdateGroupResponse)(nil),                  // 23: user.UpdateGroupResponse
+	(*DeleteGroupRequest)(nil),                   // 24: user.DeleteGroupRequest
+	(*DeleteGroupResponse)(nil),                  // 25: user.DeleteGroupResponse
+	(*CheckGroupMembershipRequest)(nil),          // 26: user.CheckGroupMembershipRequest
+	(*CheckGroupMembershipResponse)(nil),         // 27: user.CheckGroupMembershipResponse
+	(*GetUsersByIDsRequest)(nil),                 // 28: user.GetUsersByIDsRequest
+	(*GetUsersByIDsResponse)(nil),                // 29: user.GetUsersByIDsResponse
+	(*GetGroupMemberIDsRequest)(nil),             // 30: user.GetGroupMemberIDsRequest
+	(*GetGroupMemberIDsResponse)(nil),            // 31: user.GetGroupMemberIDsResponse
+	(*GetNotificationSettingsBatchRequest)(nil),  // 32: user.GetNotificationSettingsBatchRequest
+	(*GetNotificationSettingsBatchResponse)(nil), // 33: user.GetNotificationSettingsBatchResponse
+	nil, // 34: user.GetNotificationSettingsBatchResponse.SettingsEntry
 }
 var file_user_proto_depIdxs = []int32{
 	2,  // 0: user.GroupWithMembers.group:type_name -> user.Group
@@ -2034,37 +2228,43 @@ var file_user_proto_depIdxs = []int32{
 	3,  // 10: user.GetGroupResponse.group:type_name -> user.GroupWithMembers
 	2,  // 11: user.UpdateGroupResponse.group:type_name -> user.Group
 	0,  // 12: user.GetUsersByIDsResponse.users:type_name -> user.User
-	4,  // 13: user.UserService.Register:input_type -> user.RegisterRequest
-	6,  // 14: user.UserService.GetProfile:input_type -> user.GetProfileRequest
-	8,  // 15: user.UserService.GetProfileByEmail:input_type -> user.GetProfileByEmailRequest
-	10, // 16: user.UserService.UpdateProfile:input_type -> user.UpdateProfileRequest
-	12, // 17: user.UserService.GetNotificationSettings:input_type -> user.GetNotificationSettingsRequest
-	14, // 18: user.UserService.UpdateNotificationSettings:input_type -> user.UpdateNotificationSettingsRequest
-	16, // 19: user.UserService.CreateGroup:input_type -> user.CreateGroupRequest
-	18, // 20: user.UserService.GetGroups:input_type -> user.GetGroupsRequest
-	20, // 21: user.UserService.GetGroup:input_type -> user.GetGroupRequest
-	22, // 22: user.UserService.UpdateGroup:input_type -> user.UpdateGroupRequest
-	24, // 23: user.UserService.DeleteGroup:input_type -> user.DeleteGroupRequest
-	26, // 24: user.UserService.CheckGroupMembership:input_type -> user.CheckGroupMembershipRequest
-	28, // 25: user.UserService.GetUsersByIDs:input_type -> user.GetUsersByIDsRequest
-	5,  // 26: user.UserService.Register:output_type -> user.RegisterResponse
-	7,  // 27: user.UserService.GetProfile:output_type -> user.GetProfileResponse
-	9,  // 28: user.UserService.GetProfileByEmail:output_type -> user.GetProfileByEmailResponse
-	11, // 29: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResponse
-	13, // 30: user.UserService.GetNotificationSettings:output_type -> user.GetNotificationSettingsResponse
-	15, // 31: user.UserService.UpdateNotificationSettings:output_type -> user.UpdateNotificationSettingsResponse
-	17, // 32: user.UserService.CreateGroup:output_type -> user.CreateGroupResponse
-	19, // 33: user.UserService.GetGroups:output_type -> user.GetGroupsResponse
-	21, // 34: user.UserService.GetGroup:output_type -> user.GetGroupResponse
-	23, // 35: user.UserService.UpdateGroup:output_type -> user.UpdateGroupResponse
-	25, // 36: user.UserService.DeleteGroup:output_type -> user.DeleteGroupResponse
-	27, // 37: user.UserService.CheckGroupMembership:output_type -> user.CheckGroupMembershipResponse
-	29, // 38: user.UserService.GetUsersByIDs:output_type -> user.GetUsersByIDsResponse
-	26, // [26:39] is the sub-list for method output_type
-	13, // [13:26] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	34, // 13: user.GetNotificationSettingsBatchResponse.settings:type_name -> user.GetNotificationSettingsBatchResponse.SettingsEntry
+	1,  // 14: user.GetNotificationSettingsBatchResponse.SettingsEntry.value:type_name -> user.NotificationSettings
+	4,  // 15: user.UserService.Register:input_type -> user.RegisterRequest
+	6,  // 16: user.UserService.GetProfile:input_type -> user.GetProfileRequest
+	8,  // 17: user.UserService.GetProfileByEmail:input_type -> user.GetProfileByEmailRequest
+	10, // 18: user.UserService.UpdateProfile:input_type -> user.UpdateProfileRequest
+	12, // 19: user.UserService.GetNotificationSettings:input_type -> user.GetNotificationSettingsRequest
+	14, // 20: user.UserService.UpdateNotificationSettings:input_type -> user.UpdateNotificationSettingsRequest
+	16, // 21: user.UserService.CreateGroup:input_type -> user.CreateGroupRequest
+	18, // 22: user.UserService.GetGroups:input_type -> user.GetGroupsRequest
+	20, // 23: user.UserService.GetGroup:input_type -> user.GetGroupRequest
+	22, // 24: user.UserService.UpdateGroup:input_type -> user.UpdateGroupRequest
+	24, // 25: user.UserService.DeleteGroup:input_type -> user.DeleteGroupRequest
+	26, // 26: user.UserService.CheckGroupMembership:input_type -> user.CheckGroupMembershipRequest
+	28, // 27: user.UserService.GetUsersByIDs:input_type -> user.GetUsersByIDsRequest
+	30, // 28: user.UserService.GetGroupMemberIDs:input_type -> user.GetGroupMemberIDsRequest
+	32, // 29: user.UserService.GetNotificationSettingsBatch:input_type -> user.GetNotificationSettingsBatchRequest
+	5,  // 30: user.UserService.Register:output_type -> user.RegisterResponse
+	7,  // 31: user.UserService.GetProfile:output_type -> user.GetProfileResponse
+	9,  // 32: user.UserService.GetProfileByEmail:output_type -> user.GetProfileByEmailResponse
+	11, // 33: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResponse
+	13, // 34: user.UserService.GetNotificationSettings:output_type -> user.GetNotificationSettingsResponse
+	15, // 35: user.UserService.UpdateNotificationSettings:output_type -> user.UpdateNotificationSettingsResponse
+	17, // 36: user.UserService.CreateGroup:output_type -> user.CreateGroupResponse
+	19, // 37: user.UserService.GetGroups:output_type -> user.GetGroupsResponse
+	21, // 38: user.UserService.GetGroup:output_type -> user.GetGroupResponse
+	23, // 39: user.UserService.UpdateGroup:output_type -> user.UpdateGroupResponse
+	25, // 40: user.UserService.DeleteGroup:output_type -> user.DeleteGroupResponse
+	27, // 41: user.UserService.CheckGroupMembership:output_type -> user.CheckGroupMembershipResponse
+	29, // 42: user.UserService.GetUsersByIDs:output_type -> user.GetUsersByIDsResponse
+	31, // 43: user.UserService.GetGroupMemberIDs:output_type -> user.GetGroupMemberIDsResponse
+	33, // 44: user.UserService.GetNotificationSettingsBatch:output_type -> user.GetNotificationSettingsBatchResponse
+	30, // [30:45] is the sub-list for method output_type
+	15, // [15:30] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_user_proto_init() }
@@ -2079,7 +2279,7 @@ func file_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_proto_rawDesc), len(file_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   30,
+			NumMessages:   35,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

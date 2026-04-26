@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"quiz-service/internal/constants"
+	"quiz-service/internal/model"
 	"quiz-service/internal/repository"
 	"quiz-service/pkg/errors"
 	pb "quiz-service/proto"
@@ -24,6 +25,9 @@ type RabbitMQPublisher interface {
 type UserClient interface {
 	CheckGroupMembership(ctx context.Context, groupID, userID string) (bool, string, error)
 	GetEmailsByIDs(ctx context.Context, userIDs []string) (map[string]string, error)
+	GetUsersByIDs(ctx context.Context, userIDs []string) (map[string]*model.UserInfo, error)
+	GetGroupMemberIDs(ctx context.Context, groupID string) ([]string, error)
+	GetNotificationSettingsBatch(ctx context.Context, userIDs []string) (map[string]model.NotificationSettings, error)
 }
 
 type TemplateRepo interface {
@@ -790,8 +794,18 @@ func (s *QuizService) publishQuizResults(ctx context.Context, instance *reposito
 		emailsByID = map[string]string{}
 	}
 
+	settingsBatch, err := s.userClient.GetNotificationSettingsBatch(ctx, userIDs)
+	if err != nil {
+		log.Printf("Failed to fetch notification settings for quiz_results_ready: %v", err)
+		settingsBatch = map[string]model.NotificationSettings{}
+	}
+
 	participants := make([]ParticipantResult, 0, len(sessions))
 	for _, session := range sessions {
+		if settings, ok := settingsBatch[session.UserID]; ok && !settings.QuizResults {
+			continue
+		}
+
 		var answers []repository.SessionAnswer
 		json.Unmarshal([]byte(session.Answers), &answers)
 		total := 0
@@ -884,24 +898,88 @@ func (s *QuizService) publishQuizCreated(ctx context.Context, instance *reposito
 		return
 	}
 
+	if !instance.GroupID.Valid {
+		return
+	}
+	groupID := instance.GroupID.String
+
+	type Participant struct {
+		UserID string `json:"user_id"`
+		Email  string `json:"email"`
+	}
+
 	type QuizCreatedEvent struct {
-		InstanceID string `json:"instance_id"`
-		Title      string `json:"title"`
-		GroupID    string `json:"group_id,omitempty"`
-		CreatorID  string `json:"creator_id"`
-		Deadline   string `json:"deadline,omitempty"`
+		InstanceID   string        `json:"instance_id"`
+		Title        string        `json:"title"`
+		GroupID      string        `json:"group_id"`
+		CreatorID    string        `json:"creator_id"`
+		CreatorName  string        `json:"creator_name"`
+		Deadline     string        `json:"deadline,omitempty"`
+		Participants []Participant `json:"participants"`
+	}
+
+	memberIDs, err := s.userClient.GetGroupMemberIDs(ctx, groupID)
+	if err != nil {
+		log.Printf("publishQuizCreated: failed to get member IDs for group %s: %v", groupID, err)
+		return
+	}
+
+	filtered := make([]string, 0, len(memberIDs))
+	for _, id := range memberIDs {
+		if id != instance.CreatedBy {
+			filtered = append(filtered, id)
+		}
+	}
+
+	allIDs := append([]string{}, filtered...)
+	allIDs = append(allIDs, instance.CreatedBy)
+	usersMap, err := s.userClient.GetUsersByIDs(ctx, allIDs)
+	if err != nil {
+		log.Printf("publishQuizCreated: failed to fetch user details: %v", err)
+		usersMap = map[string]*model.UserInfo{}
+	}
+
+	creatorName := instance.CreatedBy
+	if creator, ok := usersMap[instance.CreatedBy]; ok {
+		fullName := creator.FirstName + " " + creator.LastName
+		if fullName != " " {
+			creatorName = fullName
+		} else if creator.Email != "" {
+			creatorName = creator.Email
+		}
+	}
+
+	settingsBatch, err := s.userClient.GetNotificationSettingsBatch(ctx, filtered)
+	if err != nil {
+		log.Printf("publishQuizCreated: failed to fetch notification settings: %v", err)
+		settingsBatch = map[string]model.NotificationSettings{}
+	}
+
+	participants := make([]Participant, 0, len(filtered))
+	for _, uid := range filtered {
+		if settings, ok := settingsBatch[uid]; ok && !settings.NewQuizzes {
+			continue
+		}
+
+		email := ""
+		if info, ok := usersMap[uid]; ok && info.IsRegistered {
+			email = info.Email
+		}
+		participants = append(participants, Participant{UserID: uid, Email: email})
+	}
+
+	if len(participants) == 0 {
+		return
 	}
 
 	event := QuizCreatedEvent{
-		InstanceID: instance.ID,
-		Title:      instance.Title,
-		CreatorID:  instance.CreatedBy,
+		InstanceID:   instance.ID,
+		Title:        instance.Title,
+		GroupID:      groupID,
+		CreatorID:    instance.CreatedBy,
+		CreatorName:  creatorName,
+		Participants: participants,
 	}
-
-	if instance.GroupID.Valid {
-		event.GroupID = instance.GroupID.String
-	}
-
 	if instance.Deadline.Valid {
 		event.Deadline = instance.Deadline.Time.Format(time.RFC3339)
 	}

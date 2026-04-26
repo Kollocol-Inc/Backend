@@ -123,6 +123,7 @@ func startConsumers(rabbitClient *messaging.RabbitMQClient, notificationService 
 	go consumeQueue(ctx, rabbitClient, "quiz.created", notificationService.HandleQuizCreated)
 	go consumeQueue(ctx, rabbitClient, "quiz.results_ready", notificationService.HandleQuizResultsReady)
 	go consumeQueue(ctx, rabbitClient, "quiz.grade_changed", notificationService.HandleGradeChanged)
+	go consumeQueue(ctx, rabbitClient, "quiz.deadline_reminder", notificationService.HandleQuizDeadlineReminder)
 	go consumeQueue(ctx, rabbitClient, "notifications.email", notificationService.HandleSendEmail)
 	go consumeQueue(ctx, rabbitClient, "notifications.create", notificationService.HandleCreateNotification)
 

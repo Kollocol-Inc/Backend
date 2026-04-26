@@ -19,19 +19,21 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	UserService_Register_FullMethodName                   = "/user.UserService/Register"
-	UserService_GetProfile_FullMethodName                 = "/user.UserService/GetProfile"
-	UserService_GetProfileByEmail_FullMethodName          = "/user.UserService/GetProfileByEmail"
-	UserService_UpdateProfile_FullMethodName              = "/user.UserService/UpdateProfile"
-	UserService_GetNotificationSettings_FullMethodName    = "/user.UserService/GetNotificationSettings"
-	UserService_UpdateNotificationSettings_FullMethodName = "/user.UserService/UpdateNotificationSettings"
-	UserService_CreateGroup_FullMethodName                = "/user.UserService/CreateGroup"
-	UserService_GetGroups_FullMethodName                  = "/user.UserService/GetGroups"
-	UserService_GetGroup_FullMethodName                   = "/user.UserService/GetGroup"
-	UserService_UpdateGroup_FullMethodName                = "/user.UserService/UpdateGroup"
-	UserService_DeleteGroup_FullMethodName                = "/user.UserService/DeleteGroup"
-	UserService_CheckGroupMembership_FullMethodName       = "/user.UserService/CheckGroupMembership"
-	UserService_GetUsersByIDs_FullMethodName              = "/user.UserService/GetUsersByIDs"
+	UserService_Register_FullMethodName                     = "/user.UserService/Register"
+	UserService_GetProfile_FullMethodName                   = "/user.UserService/GetProfile"
+	UserService_GetProfileByEmail_FullMethodName            = "/user.UserService/GetProfileByEmail"
+	UserService_UpdateProfile_FullMethodName                = "/user.UserService/UpdateProfile"
+	UserService_GetNotificationSettings_FullMethodName      = "/user.UserService/GetNotificationSettings"
+	UserService_UpdateNotificationSettings_FullMethodName   = "/user.UserService/UpdateNotificationSettings"
+	UserService_CreateGroup_FullMethodName                  = "/user.UserService/CreateGroup"
+	UserService_GetGroups_FullMethodName                    = "/user.UserService/GetGroups"
+	UserService_GetGroup_FullMethodName                     = "/user.UserService/GetGroup"
+	UserService_UpdateGroup_FullMethodName                  = "/user.UserService/UpdateGroup"
+	UserService_DeleteGroup_FullMethodName                  = "/user.UserService/DeleteGroup"
+	UserService_CheckGroupMembership_FullMethodName         = "/user.UserService/CheckGroupMembership"
+	UserService_GetUsersByIDs_FullMethodName                = "/user.UserService/GetUsersByIDs"
+	UserService_GetGroupMemberIDs_FullMethodName            = "/user.UserService/GetGroupMemberIDs"
+	UserService_GetNotificationSettingsBatch_FullMethodName = "/user.UserService/GetNotificationSettingsBatch"
 )
 
 // UserServiceClient is the client API for UserService service.
@@ -51,6 +53,8 @@ type UserServiceClient interface {
 	DeleteGroup(ctx context.Context, in *DeleteGroupRequest, opts ...grpc.CallOption) (*DeleteGroupResponse, error)
 	CheckGroupMembership(ctx context.Context, in *CheckGroupMembershipRequest, opts ...grpc.CallOption) (*CheckGroupMembershipResponse, error)
 	GetUsersByIDs(ctx context.Context, in *GetUsersByIDsRequest, opts ...grpc.CallOption) (*GetUsersByIDsResponse, error)
+	GetGroupMemberIDs(ctx context.Context, in *GetGroupMemberIDsRequest, opts ...grpc.CallOption) (*GetGroupMemberIDsResponse, error)
+	GetNotificationSettingsBatch(ctx context.Context, in *GetNotificationSettingsBatchRequest, opts ...grpc.CallOption) (*GetNotificationSettingsBatchResponse, error)
 }
 
 type userServiceClient struct {
@@ -191,6 +195,26 @@ func (c *userServiceClient) GetUsersByIDs(ctx context.Context, in *GetUsersByIDs
 	return out, nil
 }
 
+func (c *userServiceClient) GetGroupMemberIDs(ctx context.Context, in *GetGroupMemberIDsRequest, opts ...grpc.CallOption) (*GetGroupMemberIDsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetGroupMemberIDsResponse)
+	err := c.cc.Invoke(ctx, UserService_GetGroupMemberIDs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) GetNotificationSettingsBatch(ctx context.Context, in *GetNotificationSettingsBatchRequest, opts ...grpc.CallOption) (*GetNotificationSettingsBatchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetNotificationSettingsBatchResponse)
+	err := c.cc.Invoke(ctx, UserService_GetNotificationSettingsBatch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserServiceServer is the server API for UserService service.
 // All implementations must embed UnimplementedUserServiceServer
 // for forward compatibility.
@@ -208,6 +232,8 @@ type UserServiceServer interface {
 	DeleteGroup(context.Context, *DeleteGroupRequest) (*DeleteGroupResponse, error)
 	CheckGroupMembership(context.Context, *CheckGroupMembershipRequest) (*CheckGroupMembershipResponse, error)
 	GetUsersByIDs(context.Context, *GetUsersByIDsRequest) (*GetUsersByIDsResponse, error)
+	GetGroupMemberIDs(context.Context, *GetGroupMemberIDsRequest) (*GetGroupMemberIDsResponse, error)
+	GetNotificationSettingsBatch(context.Context, *GetNotificationSettingsBatchRequest) (*GetNotificationSettingsBatchResponse, error)
 	mustEmbedUnimplementedUserServiceServer()
 }
 
@@ -256,6 +282,12 @@ func (UnimplementedUserServiceServer) CheckGroupMembership(context.Context, *Che
 }
 func (UnimplementedUserServiceServer) GetUsersByIDs(context.Context, *GetUsersByIDsRequest) (*GetUsersByIDsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUsersByIDs not implemented")
+}
+func (UnimplementedUserServiceServer) GetGroupMemberIDs(context.Context, *GetGroupMemberIDsRequest) (*GetGroupMemberIDsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetGroupMemberIDs not implemented")
+}
+func (UnimplementedUserServiceServer) GetNotificationSettingsBatch(context.Context, *GetNotificationSettingsBatchRequest) (*GetNotificationSettingsBatchResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetNotificationSettingsBatch not implemented")
 }
 func (UnimplementedUserServiceServer) mustEmbedUnimplementedUserServiceServer() {}
 func (UnimplementedUserServiceServer) testEmbeddedByValue()                     {}
@@ -512,6 +544,42 @@ func _UserService_GetUsersByIDs_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserService_GetGroupMemberIDs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetGroupMemberIDsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetGroupMemberIDs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetGroupMemberIDs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetGroupMemberIDs(ctx, req.(*GetGroupMemberIDsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_GetNotificationSettingsBatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetNotificationSettingsBatchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetNotificationSettingsBatch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetNotificationSettingsBatch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetNotificationSettingsBatch(ctx, req.(*GetNotificationSettingsBatchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // UserService_ServiceDesc is the grpc.ServiceDesc for UserService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -570,6 +638,14 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUsersByIDs",
 			Handler:    _UserService_GetUsersByIDs_Handler,
+		},
+		{
+			MethodName: "GetGroupMemberIDs",
+			Handler:    _UserService_GetGroupMemberIDs_Handler,
+		},
+		{
+			MethodName: "GetNotificationSettingsBatch",
+			Handler:    _UserService_GetNotificationSettingsBatch_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

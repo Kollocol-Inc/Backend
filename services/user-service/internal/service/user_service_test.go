@@ -189,6 +189,7 @@ func TestCreateGroup_Success(t *testing.T) {
 	userRepo.EXPECT().GetUsersByEmailsMap(ctx, []string{"member@example.com"}).Return(usersMap, nil)
 	groupRepo.EXPECT().AddMembers(ctx, "grp-1", []string{"user-1", "user-2"}).Return(nil)
 	userRepo.EXPECT().GetUserByID(ctx, "user-1").Return(inviter, nil)
+	userRepo.EXPECT().GetUserByEmail(ctx, "member@example.com").Return(&repository.User{ID: "user-2", Email: "member@example.com", IsRegistered: false}, nil)
 	publisher.EXPECT().Publish(ctx, "user.group_invites", gomock.Any()).Return(nil)
 	groupRepo.EXPECT().GetMemberCount(ctx, "grp-1").Return(int32(2), nil)
 

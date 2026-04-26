@@ -16,6 +16,7 @@ import (
 	"user-service/pkg/messaging"
 	"user-service/pkg/storage"
 	pb "user-service/proto"
+
 	"google.golang.org/grpc/codes"
 )
 
@@ -516,11 +517,24 @@ func (s *UserService) publishGroupInvite(ctx context.Context, groupID, groupName
 		inviterName = inviter.Email
 	}
 
+	inviteeUserID := ""
+	if invitee, err := s.userRepo.GetUserByEmail(ctx, inviteeEmail); err == nil && invitee != nil {
+		if invitee.IsRegistered {
+			settings, settingsErr := s.settingsRepo.GetOrCreateSettings(ctx, invitee.ID)
+			if settingsErr == nil && !settings.GroupInvites {
+				log.Printf("publishGroupInvite: user %s opted out of group_invites, skipping", invitee.ID)
+				return
+			}
+		}
+		inviteeUserID = invitee.ID
+	}
+
 	event := map[string]string{
-		"group_id":      groupID,
-		"group_name":    groupName,
-		"inviter_name":  inviterName,
-		"invitee_email": inviteeEmail,
+		"group_id":        groupID,
+		"group_name":      groupName,
+		"inviter_name":    inviterName,
+		"invitee_email":   inviteeEmail,
+		"invitee_user_id": inviteeUserID,
 	}
 	eventData, _ := json.Marshal(event)
 
@@ -595,6 +609,35 @@ func (s *UserService) GetUsersByIDs(ctx context.Context, req *pb.GetUsersByIDsRe
 	return &pb.GetUsersByIDsResponse{
 		Users: protoUsers,
 	}, nil
+}
+
+func (s *UserService) GetGroupMemberIDs(ctx context.Context, req *pb.GetGroupMemberIDsRequest) (*pb.GetGroupMemberIDsResponse, error) {
+	ids, err := s.groupRepo.GetMemberIDs(ctx, req.GroupId)
+	if err != nil {
+		log.Printf("GetGroupMemberIDs: failed for group %s: %v", req.GroupId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonMembersRetrieveFailed, "Failed to get member IDs", map[string]string{"group_id": req.GroupId})
+	}
+	return &pb.GetGroupMemberIDsResponse{UserIds: ids}, nil
+}
+
+func (s *UserService) GetNotificationSettingsBatch(ctx context.Context, req *pb.GetNotificationSettingsBatchRequest) (*pb.GetNotificationSettingsBatchResponse, error) {
+	result := make(map[string]*pb.NotificationSettings, len(req.UserIds))
+	for _, userID := range req.UserIds {
+		settings, err := s.settingsRepo.GetOrCreateSettings(ctx, userID)
+		if err != nil {
+			log.Printf("GetNotificationSettingsBatch: failed for user %s: %v", userID, err)
+			result[userID] = &pb.NotificationSettings{
+				UserId:           userID,
+				NewQuizzes:       true,
+				QuizResults:      true,
+				GroupInvites:     true,
+				DeadlineReminder: "24h",
+			}
+			continue
+		}
+		result[userID] = s.settingsToProto(settings)
+	}
+	return &pb.GetNotificationSettingsBatchResponse{Settings: result}, nil
 }
 
 func (s *UserService) deleteAvatarFile(ctx context.Context, avatarURL string) error {

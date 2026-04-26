@@ -130,6 +130,24 @@ func TestHandleGroupInvite_Success(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestHandleGroupInvite_WithUserID_CreatesInAppNotification(t *testing.T) {
+	svc, repo, smtp := setupTest(t)
+	ctx := context.Background()
+
+	data, _ := json.Marshal(map[string]string{
+		"group_id":        "grp-1",
+		"group_name":      "Test Group",
+		"inviter_name":    "John",
+		"invitee_email":   "jane@example.com",
+		"invitee_user_id": "user-42",
+	})
+	repo.EXPECT().CreateNotification(ctx, gomock.Any()).Return(nil)
+	smtp.EXPECT().SendGroupInvite("jane@example.com", "Test Group", "John").Return(nil)
+
+	err := svc.HandleGroupInvite(ctx, data)
+	require.NoError(t, err)
+}
+
 func TestHandleQuizCreated_Success(t *testing.T) {
 	svc, repo, _ := setupTest(t)
 	ctx := context.Background()
@@ -137,7 +155,11 @@ func TestHandleQuizCreated_Success(t *testing.T) {
 	event := map[string]any{
 		"instance_id":  "inst-1",
 		"title":        "Math Quiz",
-		"participants": []string{"user-1", "user-2"},
+		"creator_name": "Teacher",
+		"participants": []map[string]any{
+			{"user_id": "user-1", "email": ""},
+			{"user_id": "user-2", "email": ""},
+		},
 	}
 	data, _ := json.Marshal(event)
 
@@ -154,7 +176,11 @@ func TestHandleQuizCreated_PartialFailure(t *testing.T) {
 	event := map[string]any{
 		"instance_id":  "inst-1",
 		"title":        "Quiz",
-		"participants": []string{"user-1", "user-2"},
+		"creator_name": "Teacher",
+		"participants": []map[string]any{
+			{"user_id": "user-1", "email": ""},
+			{"user_id": "user-2", "email": ""},
+		},
 	}
 	data, _ := json.Marshal(event)
 
