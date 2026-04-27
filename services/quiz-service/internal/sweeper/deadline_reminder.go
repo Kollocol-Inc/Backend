@@ -113,6 +113,9 @@ func (s *DeadlineReminderSweeper) processInstance(ctx context.Context, inst upco
 	var dueOffsets []dueOffset
 	for _, candidate := range []dueOffset{
 		{"1h", time.Hour},
+		{"3h", 3 * time.Hour},
+		{"6h", 6 * time.Hour},
+		{"12h", 12 * time.Hour},
 		{"24h", 24 * time.Hour},
 	} {
 		diff := remaining - candidate.duration

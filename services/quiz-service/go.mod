@@ -1,6 +1,6 @@
 module quiz-service
 
-go 1.25.1
+go 1.25.5
 
 require (
 	github.com/gin-gonic/gin v1.11.0

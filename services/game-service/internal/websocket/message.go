@@ -38,9 +38,8 @@ type JoinPayload struct {
 }
 
 type AnswerPayload struct {
-	QuestionID  string `json:"question_id"`
-	Answer      string `json:"answer"`
-	TimeSpentMs int64  `json:"time_spent_ms,omitempty"`
+	QuestionID string `json:"question_id"`
+	Answer     string `json:"answer"`
 }
 
 type ConnectedPayload struct {

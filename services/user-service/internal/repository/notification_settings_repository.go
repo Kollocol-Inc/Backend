@@ -13,7 +13,7 @@ type NotificationSettings struct {
 	NewQuizzes       bool
 	QuizResults      bool
 	GroupInvites     bool
-	DeadlineReminder string // "1h", "24h", "never"
+	DeadlineReminder string // "never", "1h", "3h", "6h", "12h", "24h"
 	UpdatedAt        time.Time
 }
 
