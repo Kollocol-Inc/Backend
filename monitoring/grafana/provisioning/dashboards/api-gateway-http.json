@@ -930,6 +930,89 @@
           { "matcher": { "id": "byName", "options": "slow latency (<10s)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "purple" } }] }
         ]
       }
+    },
+
+    {
+      "type": "stat",
+      "title": "Fast endpoints — p99.5 latency (SLO < 200ms)",
+      "id": 19,
+      "description": "99.5th percentile latency for paths !~ $slow_paths. SLO is met when this value is < 200ms (equivalent to ≥ 99.5% of requests under 200ms).",
+      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 60 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "histogram_quantile(0.995, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"api-gateway\",path=~\"$path\",method=~\"$method\",path!~\"$slow_paths\"}[$__rate_interval])))",
+          "legendFormat": "p99.5",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 3,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.18 },
+              { "color": "red", "value": 0.2 }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "ML/Review endpoints — p99.5 latency (SLO < 10s)",
+      "id": 20,
+      "description": "99.5th percentile latency for paths =~ $slow_paths. SLO is met when this value is < 10s (equivalent to ≥ 99.5% of requests under 10s).",
+      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 60 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "histogram_quantile(0.995, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"api-gateway\",path=~\"$path\",method=~\"$method\",path=~\"$slow_paths\"}[$__rate_interval])))",
+          "legendFormat": "p99.5",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 3,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 8 },
+              { "color": "red", "value": 10 }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      }
     }
   ]
 }
