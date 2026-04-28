@@ -863,6 +863,14 @@ func (s *QuizService) publishGradeChanged(ctx context.Context, instance *reposit
 		return
 	}
 
+	settingsBatch, err := s.userClient.GetNotificationSettingsBatch(ctx, []string{participantID})
+	if err != nil {
+		log.Printf("Failed to fetch notification settings for quiz.grade_changed: %v", err)
+	} else if settings, ok := settingsBatch[participantID]; ok && !settings.QuizResults {
+		log.Printf("publishGradeChanged: user %s opted out of quiz_results, skipping", participantID)
+		return
+	}
+
 	type GradeChangedEvent struct {
 		InstanceID       string `json:"instance_id"`
 		ParticipantID    string `json:"participant_id"`

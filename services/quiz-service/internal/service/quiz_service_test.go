@@ -471,3 +471,54 @@ func TestMarshalSettings_Async(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, result, "questions_random_order")
 }
+
+func TestPublishGradeChanged_SkipsWhenQuizResultsDisabled(t *testing.T) {
+	svc, _, _, _, userClient, _ := setupTest(t)
+	ctx := context.Background()
+
+	inst := &repository.Instance{ID: "inst-1", Title: "Math Quiz"}
+	iwq := &repository.InstanceWithQuestions{
+		Instance:  inst,
+		Questions: []*repository.Question{{ID: "q-1", MaxScore: 10}},
+	}
+
+	userClient.EXPECT().
+		GetNotificationSettingsBatch(ctx, []string{"user-2"}).
+		Return(map[string]model.NotificationSettings{
+			"user-2": {QuizResults: false},
+		}, nil)
+
+	svc.publishGradeChanged(ctx, inst, iwq, "user-2")
+}
+
+func TestPublishGradeChanged_PublishesWhenQuizResultsEnabled(t *testing.T) {
+	svc, _, instanceRepo, publisher, userClient, _ := setupTest(t)
+	ctx := context.Background()
+
+	inst := &repository.Instance{ID: "inst-1", Title: "Math Quiz"}
+	iwq := &repository.InstanceWithQuestions{
+		Instance:  inst,
+		Questions: []*repository.Question{{ID: "q-1", MaxScore: 10}},
+	}
+
+	userClient.EXPECT().
+		GetNotificationSettingsBatch(ctx, []string{"user-2"}).
+		Return(map[string]model.NotificationSettings{
+			"user-2": {QuizResults: true},
+		}, nil)
+	userClient.EXPECT().
+		GetEmailsByIDs(ctx, []string{"user-2"}).
+		Return(map[string]string{"user-2": "u2@example.com"}, nil)
+	instanceRepo.EXPECT().
+		GetParticipantAnswers(ctx, "inst-1", "user-2").
+		Return(&repository.ParticipantSession{
+			UserID:  "user-2",
+			Status:  "finished",
+			Answers: `[{"question_id":"q-1","score":7}]`,
+		}, nil)
+	publisher.EXPECT().
+		Publish(ctx, "quiz.grade_changed", gomock.Any()).
+		Return(nil)
+
+	svc.publishGradeChanged(ctx, inst, iwq, "user-2")
+}
