@@ -518,7 +518,7 @@ const file_notification_proto_rawDesc = "" +
 	"\n" +
 	"MarkAsRead\x12\x1f.notification.MarkAsReadRequest\x1a .notification.MarkAsReadResponse\x12g\n" +
 	"\x12DeleteNotification\x12'.notification.DeleteNotificationRequest\x1a(.notification.DeleteNotificationResponse\x12a\n" +
-	"\x10DeleteAllForUser\x12%.notification.DeleteAllForUserRequest\x1a&.notification.DeleteAllForUserResponseB\x1cZ\x1anotification-service/protob\x06proto3"
+	"\x10DeleteAllForUser\x12%.notification.DeleteAllForUserRequest\x1a&.notification.DeleteAllForUserResponseB\x14Z\x12user-service/protob\x06proto3"
 
 var (
 	file_notification_proto_rawDescOnce sync.Once

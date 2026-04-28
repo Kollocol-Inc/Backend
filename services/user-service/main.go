@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"user-service/config"
+	"user-service/internal/client"
 	"user-service/internal/service"
 	"user-service/pkg/cache"
 	"user-service/pkg/database"
@@ -113,7 +114,25 @@ func main() {
 		}
 	}()
 
-	userService := service.NewUserService(pgClient.GetDB(), s3Client, rabbitClient)
+	authClient, err := client.NewAuthClient(cfg.Auth.Host, cfg.Auth.Port)
+	if err != nil {
+		log.Fatalf("Failed to connect to Auth Service: %v", err)
+	}
+	defer authClient.Close()
+
+	quizClient, err := client.NewQuizClient(cfg.Quiz.Host, cfg.Quiz.Port)
+	if err != nil {
+		log.Fatalf("Failed to connect to Quiz Service: %v", err)
+	}
+	defer quizClient.Close()
+
+	notificationClient, err := client.NewNotificationClient(cfg.Notification.Host, cfg.Notification.Port)
+	if err != nil {
+		log.Fatalf("Failed to connect to Notification Service: %v", err)
+	}
+	defer notificationClient.Close()
+
+	userService := service.NewUserService(pgClient.GetDB(), s3Client, rabbitClient, authClient, quizClient, notificationClient)
 
 	grpcServer := grpc.NewServer()
 	pb.RegisterUserServiceServer(grpcServer, userService)

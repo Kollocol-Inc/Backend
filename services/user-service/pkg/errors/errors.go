@@ -35,4 +35,6 @@ const (
 	ReasonAccessDenied          = "ACCESS_DENIED"
 	ReasonInvalidFilter         = "INVALID_FILTER"
 	ReasonMembersRetrieveFailed = "MEMBERS_RETRIEVE_FAILED"
+	ReasonDeleteUserFailed      = "DELETE_USER_FAILED"
+	ReasonUserIDRequired        = "USER_ID_REQUIRED"
 )

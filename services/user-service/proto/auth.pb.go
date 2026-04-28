@@ -1182,7 +1182,7 @@ const file_auth_proto_rawDesc = "" +
 	"\n" +
 	"ListAIBans\x12\x17.auth.ListAIBansRequest\x1a\x18.auth.ListAIBansResponse\x12?\n" +
 	"\n" +
-	"CheckAIBan\x12\x17.auth.CheckAIBanRequest\x1a\x18.auth.CheckAIBanResponseB\x14Z\x12auth-service/protob\x06proto3"
+	"CheckAIBan\x12\x17.auth.CheckAIBanRequest\x1a\x18.auth.CheckAIBanResponseB\x14Z\x12user-service/protob\x06proto3"
 
 var (
 	file_auth_proto_rawDescOnce sync.Once

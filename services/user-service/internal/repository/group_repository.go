@@ -333,6 +333,22 @@ func (r *GroupRepository) IsMember(ctx context.Context, groupID, userID string) 
 	return count > 0, nil
 }
 
+func (r *GroupRepository) DeleteOwnedGroups(ctx context.Context, ownerID string) error {
+	query := `DELETE FROM groups WHERE owner_id = $1`
+	if _, err := r.db.ExecContext(ctx, query, ownerID); err != nil {
+		return fmt.Errorf("failed to delete owned groups: %w", err)
+	}
+	return nil
+}
+
+func (r *GroupRepository) DeleteUserMemberships(ctx context.Context, userID string) error {
+	query := `DELETE FROM group_members WHERE user_id = $1`
+	if _, err := r.db.ExecContext(ctx, query, userID); err != nil {
+		return fmt.Errorf("failed to delete user memberships: %w", err)
+	}
+	return nil
+}
+
 func (r *GroupRepository) GetGroupUsers(ctx context.Context, groupID string) ([]*User, error) {
 	query := `
 		SELECT

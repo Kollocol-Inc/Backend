@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package quiz;
 
-option go_package = "quiz-service/proto";
+option go_package = "user-service/proto";
 
 import "google/protobuf/timestamp.proto";
 

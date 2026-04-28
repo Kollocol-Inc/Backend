@@ -235,6 +235,12 @@ services:
       - S3_ACCESS_KEY=${S3_ACCESS_KEY}
       - S3_SECRET_KEY=${S3_SECRET_KEY}
       - S3_USE_SSL=${S3_USE_SSL}
+      - AUTH_SERVICE_HOST=auth-service
+      - AUTH_SERVICE_PORT=50051
+      - QUIZ_SERVICE_HOST=quiz-service
+      - QUIZ_SERVICE_PORT=50051
+      - NOTIFICATION_SERVICE_HOST=notification-service
+      - NOTIFICATION_SERVICE_PORT=50051
     depends_on:
       postgres:
         condition: service_healthy

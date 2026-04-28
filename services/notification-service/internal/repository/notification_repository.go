@@ -128,3 +128,13 @@ func (r *NotificationRepository) DeleteNotification(ctx context.Context, notific
 
 	return nil
 }
+
+func (r *NotificationRepository) DeleteAllForUser(ctx context.Context, userID string) error {
+	query := `DELETE FROM notifications WHERE user_id = $1`
+
+	if _, err := r.db.ExecContext(ctx, query, userID); err != nil {
+		return fmt.Errorf("failed to delete all notifications for user: %w", err)
+	}
+
+	return nil
+}

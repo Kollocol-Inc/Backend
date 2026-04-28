@@ -200,6 +200,26 @@ func (r *AuthRepository) DeleteAllUserRefreshTokens(ctx context.Context, userID 
 	return nil
 }
 
+func (r *AuthRepository) RevokeUser(ctx context.Context, userID string) error {
+	key := fmt.Sprintf("auth:revoked_user:%s", userID)
+	if err := r.redis.Set(ctx, key, "revoked", BlacklistTTL); err != nil {
+		return fmt.Errorf("failed to set user revocation key: %w", err)
+	}
+	if err := r.DeleteAllUserRefreshTokens(ctx, userID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *AuthRepository) IsUserRevoked(ctx context.Context, userID string) (bool, error) {
+	key := fmt.Sprintf("auth:revoked_user:%s", userID)
+	count, err := r.redis.Exists(ctx, key)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func hashToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(hash[:])

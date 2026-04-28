@@ -35,6 +35,8 @@ type AuthRepository interface {
 	SaveRefreshToken(ctx context.Context, token *repository.RefreshToken) error
 	GetRefreshToken(ctx context.Context, token string) (*repository.RefreshToken, error)
 	DeleteRefreshToken(ctx context.Context, token string) error
+	RevokeUser(ctx context.Context, userID string) error
+	IsUserRevoked(ctx context.Context, userID string) (bool, error)
 }
 
 type UserRepository interface {
@@ -191,6 +193,15 @@ func (s *AuthService) RefreshToken(ctx context.Context, req *pb.RefreshTokenRequ
 		return nil, errors.New(codes.Unauthenticated, errors.ReasonTokenExpired, "Refresh token expired", nil)
 	}
 
+	isUserRevoked, err := s.authRepo.IsUserRevoked(ctx, claims.UserID)
+	if err != nil {
+		log.Printf("Failed to check user revocation during refresh: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonTokenValidationFailed, "Failed to validate token", nil)
+	}
+	if isUserRevoked {
+		return nil, errors.New(codes.Unauthenticated, errors.ReasonTokenRevoked, "User account has been deleted", nil)
+	}
+
 	newTokens, err := jwt.GenerateTokenPair(claims.UserID, claims.Email, claims.Role, s.jwtSecret)
 	if err != nil {
 		log.Printf("Failed to generate new tokens: %v", err)
@@ -250,11 +261,34 @@ func (s *AuthService) ValidateToken(ctx context.Context, req *pb.ValidateTokenRe
 		return nil, errors.New(codes.Unauthenticated, errors.ReasonTokenRevoked, "Token has been revoked", nil)
 	}
 
+	isUserRevoked, err := s.authRepo.IsUserRevoked(ctx, claims.UserID)
+	if err != nil {
+		log.Printf("Failed to check user revocation: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonTokenValidationFailed, "Failed to validate token", nil)
+	}
+
+	if isUserRevoked {
+		return nil, errors.New(codes.Unauthenticated, errors.ReasonTokenRevoked, "User account has been deleted", nil)
+	}
+
 	return &pb.ValidateTokenResponse{
 		UserId: claims.UserID,
 		Email:  claims.Email,
 		Role:   claims.Role,
 	}, nil
+}
+
+func (s *AuthService) RevokeUser(ctx context.Context, req *pb.RevokeUserRequest) (*pb.RevokeUserResponse, error) {
+	if req.UserId == "" {
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonUserIDRequired, "User ID is required", nil)
+	}
+
+	if err := s.authRepo.RevokeUser(ctx, req.UserId); err != nil {
+		log.Printf("Failed to revoke user %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonRevokeUserFailed, "Failed to revoke user", map[string]string{"user_id": req.UserId})
+	}
+
+	return &pb.RevokeUserResponse{}, nil
 }
 
 func (s *AuthService) CreateAIBan(ctx context.Context, req *pb.CreateAIBanRequest) (*pb.CreateAIBanResponse, error) {

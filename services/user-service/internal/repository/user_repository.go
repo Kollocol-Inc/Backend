@@ -165,6 +165,16 @@ func (r *UserRepository) UpdateUser(ctx context.Context, user *User) error {
 	return nil
 }
 
+func (r *UserRepository) DeleteUser(ctx context.Context, userID string) error {
+	query := `DELETE FROM users WHERE id = $1`
+
+	_, err := r.db.ExecContext(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+	return nil
+}
+
 func (r *UserRepository) GetOrCreateUser(ctx context.Context, email string) (*User, error) {
 	user, err := r.GetUserByEmail(ctx, email)
 	if err == nil {

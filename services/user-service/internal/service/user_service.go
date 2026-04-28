@@ -24,6 +24,7 @@ type UserRepo interface {
 	GetUserByID(ctx context.Context, userID string) (*repository.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*repository.User, error)
 	UpdateUser(ctx context.Context, user *repository.User) error
+	DeleteUser(ctx context.Context, userID string) error
 	GetUsersByEmailsMap(ctx context.Context, emails []string) (map[string]*repository.User, error)
 	GetUsersByIDs(ctx context.Context, userIDs []string) ([]*repository.User, error)
 }
@@ -32,6 +33,7 @@ type SettingsRepo interface {
 	GetOrCreateSettings(ctx context.Context, userID string) (*repository.NotificationSettings, error)
 	CreateDefaultSettings(ctx context.Context, userID string) (*repository.NotificationSettings, error)
 	UpdateSettings(ctx context.Context, settings *repository.NotificationSettings) error
+	DeleteSettings(ctx context.Context, userID string) error
 }
 
 type GroupRepo interface {
@@ -39,6 +41,8 @@ type GroupRepo interface {
 	GetGroupByID(ctx context.Context, groupID string) (*repository.Group, error)
 	UpdateGroup(ctx context.Context, group *repository.Group) error
 	DeleteGroup(ctx context.Context, groupID string) error
+	DeleteOwnedGroups(ctx context.Context, ownerID string) error
+	DeleteUserMemberships(ctx context.Context, userID string) error
 	AddMembers(ctx context.Context, groupID string, userIDs []string) error
 	GetMemberIDs(ctx context.Context, groupID string) ([]string, error)
 	GetMemberCount(ctx context.Context, groupID string) (int32, error)
@@ -58,26 +62,47 @@ type MessagePublisher interface {
 	Publish(ctx context.Context, queueName string, body []byte) error
 }
 
+type AuthServiceClient interface {
+	RevokeUser(ctx context.Context, userID string) error
+}
+
+type QuizServiceClient interface {
+	DeleteAllByOwner(ctx context.Context, userID string) error
+}
+
+type NotificationServiceClient interface {
+	DeleteAllForUser(ctx context.Context, userID string) error
+}
+
 type UserService struct {
 	pb.UnimplementedUserServiceServer
-	userRepo     UserRepo
-	settingsRepo SettingsRepo
-	groupRepo    GroupRepo
-	s3Client     FileStorage
-	rabbitMQ     MessagePublisher
+	userRepo           UserRepo
+	settingsRepo       SettingsRepo
+	groupRepo          GroupRepo
+	s3Client           FileStorage
+	rabbitMQ           MessagePublisher
+	authClient         AuthServiceClient
+	quizClient         QuizServiceClient
+	notificationClient NotificationServiceClient
 }
 
 func NewUserService(
 	db *sql.DB,
 	s3Client *storage.S3Client,
 	rabbitMQ *messaging.RabbitMQClient,
+	authClient AuthServiceClient,
+	quizClient QuizServiceClient,
+	notificationClient NotificationServiceClient,
 ) *UserService {
 	return &UserService{
-		userRepo:     repository.NewUserRepository(db),
-		settingsRepo: repository.NewNotificationSettingsRepository(db),
-		groupRepo:    repository.NewGroupRepository(db),
-		s3Client:     s3Client,
-		rabbitMQ:     rabbitMQ,
+		userRepo:           repository.NewUserRepository(db),
+		settingsRepo:       repository.NewNotificationSettingsRepository(db),
+		groupRepo:          repository.NewGroupRepository(db),
+		s3Client:           s3Client,
+		rabbitMQ:           rabbitMQ,
+		authClient:         authClient,
+		quizClient:         quizClient,
+		notificationClient: notificationClient,
 	}
 }
 
@@ -87,13 +112,19 @@ func NewUserServiceWithDeps(
 	groupRepo GroupRepo,
 	s3Client FileStorage,
 	rabbitMQ MessagePublisher,
+	authClient AuthServiceClient,
+	quizClient QuizServiceClient,
+	notificationClient NotificationServiceClient,
 ) *UserService {
 	return &UserService{
-		userRepo:     userRepo,
-		settingsRepo: settingsRepo,
-		groupRepo:    groupRepo,
-		s3Client:     s3Client,
-		rabbitMQ:     rabbitMQ,
+		userRepo:           userRepo,
+		settingsRepo:       settingsRepo,
+		groupRepo:          groupRepo,
+		s3Client:           s3Client,
+		rabbitMQ:           rabbitMQ,
+		authClient:         authClient,
+		quizClient:         quizClient,
+		notificationClient: notificationClient,
 	}
 }
 
@@ -644,9 +675,67 @@ func (s *UserService) deleteAvatarFile(ctx context.Context, avatarURL string) er
 	bucketPrefix := "/" + constants.AvatarBucketName + "/"
 	_, after, ok := strings.Cut(avatarURL, bucketPrefix)
 	if !ok {
+		log.Printf("deleteAvatarFile: avatar URL %q does not contain bucket prefix, skipping S3 delete", avatarURL)
 		return nil
 	}
 	objectName := after
 
 	return s.s3Client.DeleteFile(ctx, constants.AvatarBucketName, objectName)
+}
+
+func (s *UserService) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) (*pb.DeleteUserResponse, error) {
+	if req.UserId == "" {
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonUserIDRequired, "User ID is required", nil)
+	}
+
+	user, err := s.userRepo.GetUserByID(ctx, req.UserId)
+	if err != nil {
+		log.Printf("DeleteUser: user %s not found: %v", req.UserId, err)
+		return nil, errors.New(codes.NotFound, errors.ReasonUserNotFound, "User not found", map[string]string{"user_id": req.UserId})
+	}
+
+	if err := s.authClient.RevokeUser(ctx, req.UserId); err != nil {
+		log.Printf("DeleteUser: revoke failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to revoke user tokens", map[string]string{"user_id": req.UserId})
+	}
+
+	if err := s.quizClient.DeleteAllByOwner(ctx, req.UserId); err != nil {
+		log.Printf("DeleteUser: quiz cleanup failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete quiz data", map[string]string{"user_id": req.UserId})
+	}
+
+	if err := s.notificationClient.DeleteAllForUser(ctx, req.UserId); err != nil {
+		log.Printf("DeleteUser: notification cleanup failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete notifications", map[string]string{"user_id": req.UserId})
+	}
+
+	if err := s.groupRepo.DeleteOwnedGroups(ctx, req.UserId); err != nil {
+		log.Printf("DeleteUser: owned-groups cleanup failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete owned groups", map[string]string{"user_id": req.UserId})
+	}
+
+	if err := s.groupRepo.DeleteUserMemberships(ctx, req.UserId); err != nil {
+		log.Printf("DeleteUser: memberships cleanup failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete group memberships", map[string]string{"user_id": req.UserId})
+	}
+
+	if err := s.settingsRepo.DeleteSettings(ctx, req.UserId); err != nil {
+		log.Printf("DeleteUser: settings cleanup failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete notification settings", map[string]string{"user_id": req.UserId})
+	}
+
+	if user.AvatarURL != "" {
+		if err := s.deleteAvatarFile(ctx, user.AvatarURL); err != nil {
+			log.Printf("DeleteUser: avatar cleanup failed for %s: %v", req.UserId, err)
+			return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete avatar", map[string]string{"user_id": req.UserId})
+		}
+	}
+
+	if err := s.userRepo.DeleteUser(ctx, req.UserId); err != nil {
+		log.Printf("DeleteUser: users-row delete failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete user", map[string]string{"user_id": req.UserId})
+	}
+
+	log.Printf("DeleteUser: user %s deleted", req.UserId)
+	return &pb.DeleteUserResponse{}, nil
 }

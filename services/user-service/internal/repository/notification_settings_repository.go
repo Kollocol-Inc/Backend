@@ -127,6 +127,14 @@ func (r *NotificationSettingsRepository) UpdateSettings(ctx context.Context, set
 	return nil
 }
 
+func (r *NotificationSettingsRepository) DeleteSettings(ctx context.Context, userID string) error {
+	query := `DELETE FROM user_notification_settings WHERE user_id = $1`
+	if _, err := r.db.ExecContext(ctx, query, userID); err != nil {
+		return fmt.Errorf("failed to delete notification settings: %w", err)
+	}
+	return nil
+}
+
 func (r *NotificationSettingsRepository) GetOrCreateSettings(ctx context.Context, userID string) (*NotificationSettings, error) {
 	log.Printf("GetOrCreateSettings for user %s", userID)
 	settings, err := r.GetSettings(ctx, userID)

@@ -55,10 +55,15 @@ type InstanceRepo interface {
 	DeleteInstance(ctx context.Context, instanceID, createdBy string) error
 }
 
+type DeleteRepo interface {
+	DeleteAllByOwner(ctx context.Context, userID string) error
+}
+
 type QuizService struct {
 	pb.UnimplementedQuizServiceServer
 	templateRepo TemplateRepo
 	instanceRepo InstanceRepo
+	deleteRepo   DeleteRepo
 	mqPublisher  RabbitMQPublisher
 	userClient   UserClient
 }
@@ -71,6 +76,7 @@ func NewQuizService(
 	return &QuizService{
 		templateRepo: repository.NewTemplateRepository(db),
 		instanceRepo: repository.NewInstanceRepository(db),
+		deleteRepo:   repository.NewDeleteRepository(db),
 		mqPublisher:  mqPublisher,
 		userClient:   userClient,
 	}
@@ -79,15 +85,30 @@ func NewQuizService(
 func NewQuizServiceWithDeps(
 	templateRepo TemplateRepo,
 	instanceRepo InstanceRepo,
+	deleteRepo DeleteRepo,
 	mqPublisher RabbitMQPublisher,
 	userClient UserClient,
 ) *QuizService {
 	return &QuizService{
 		templateRepo: templateRepo,
 		instanceRepo: instanceRepo,
+		deleteRepo:   deleteRepo,
 		mqPublisher:  mqPublisher,
 		userClient:   userClient,
 	}
+}
+
+func (s *QuizService) DeleteAllByOwner(ctx context.Context, req *pb.DeleteAllByOwnerRequest) (*pb.DeleteAllByOwnerResponse, error) {
+	if req.UserId == "" {
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonInvalidArgument, "User ID is required", nil)
+	}
+
+	if err := s.deleteRepo.DeleteAllByOwner(ctx, req.UserId); err != nil {
+		log.Printf("DeleteAllByOwner: failed for user %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteAllByOwnerFailed, "Failed to delete quiz data", map[string]string{"user_id": req.UserId})
+	}
+
+	return &pb.DeleteAllByOwnerResponse{}, nil
 }
 
 func (s *QuizService) CreateTemplate(ctx context.Context, req *pb.CreateTemplateRequest) (*pb.CreateTemplateResponse, error) {

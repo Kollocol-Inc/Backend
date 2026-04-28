@@ -21,6 +21,7 @@ type NotificationRepo interface {
 	GetNotifications(ctx context.Context, userID string, limit, offset int) ([]*repository.Notification, int, error)
 	MarkAsRead(ctx context.Context, notificationIDs []string, userID string) error
 	DeleteNotification(ctx context.Context, notificationIDs []string, userID string) error
+	DeleteAllForUser(ctx context.Context, userID string) error
 }
 
 type EmailSender interface {
@@ -101,6 +102,19 @@ func (s *NotificationService) DeleteNotification(ctx context.Context, req *pb.De
 	}
 
 	return &pb.DeleteNotificationResponse{}, nil
+}
+
+func (s *NotificationService) DeleteAllForUser(ctx context.Context, req *pb.DeleteAllForUserRequest) (*pb.DeleteAllForUserResponse, error) {
+	if req.UserId == "" {
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonUserIDRequired, "User ID is required", nil)
+	}
+
+	if err := s.repo.DeleteAllForUser(ctx, req.UserId); err != nil {
+		log.Printf("DeleteAllForUser: failed for user %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonNotificationDeleteFailed, "Failed to delete notifications", map[string]string{"user_id": req.UserId})
+	}
+
+	return &pb.DeleteAllForUserResponse{}, nil
 }
 
 func (s *NotificationService) HandleSendAuthCode(ctx context.Context, data []byte) error {

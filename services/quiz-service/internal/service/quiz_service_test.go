@@ -18,19 +18,20 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func setupTest(t *testing.T) (*QuizService, *mocks.MockTemplateRepo, *mocks.MockInstanceRepo, *mocks.MockRabbitMQPublisher, *mocks.MockUserClient) {
+func setupTest(t *testing.T) (*QuizService, *mocks.MockTemplateRepo, *mocks.MockInstanceRepo, *mocks.MockRabbitMQPublisher, *mocks.MockUserClient, *mocks.MockDeleteRepo) {
 	ctrl := gomock.NewController(t)
 	templateRepo := mocks.NewMockTemplateRepo(ctrl)
 	instanceRepo := mocks.NewMockInstanceRepo(ctrl)
+	deleteRepo := mocks.NewMockDeleteRepo(ctrl)
 	publisher := mocks.NewMockRabbitMQPublisher(ctrl)
 	userClient := mocks.NewMockUserClient(ctrl)
 
-	svc := NewQuizServiceWithDeps(templateRepo, instanceRepo, publisher, userClient)
-	return svc, templateRepo, instanceRepo, publisher, userClient
+	svc := NewQuizServiceWithDeps(templateRepo, instanceRepo, deleteRepo, publisher, userClient)
+	return svc, templateRepo, instanceRepo, publisher, userClient, deleteRepo
 }
 
 func TestCreateTemplate_Success(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	templateRepo.EXPECT().CreateTemplate(ctx, gomock.Any()).Return(nil)
@@ -57,7 +58,7 @@ func TestCreateTemplate_Success(t *testing.T) {
 }
 
 func TestCreateTemplate_CreateFails(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	templateRepo.EXPECT().CreateTemplate(ctx, gomock.Any()).Return(fmt.Errorf("db error"))
@@ -72,7 +73,7 @@ func TestCreateTemplate_CreateFails(t *testing.T) {
 }
 
 func TestCreateTemplate_WithAsyncSettings(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	templateRepo.EXPECT().CreateTemplate(ctx, gomock.Any()).Return(nil)
@@ -93,7 +94,7 @@ func TestCreateTemplate_WithAsyncSettings(t *testing.T) {
 }
 
 func TestGetTemplate_Success(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	template := &repository.Template{
@@ -114,7 +115,7 @@ func TestGetTemplate_Success(t *testing.T) {
 }
 
 func TestGetTemplate_NotFound(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	templateRepo.EXPECT().GetTemplateByID(ctx, "tmpl-999").Return(nil, fmt.Errorf("not found"))
@@ -125,7 +126,7 @@ func TestGetTemplate_NotFound(t *testing.T) {
 }
 
 func TestGetTemplate_NotOwner(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1", Title: "Test", QuizType: "sync", Settings: "{}"}
@@ -137,7 +138,7 @@ func TestGetTemplate_NotOwner(t *testing.T) {
 }
 
 func TestDeleteTemplate_Success(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	templateRepo.EXPECT().DeleteQuestionsByTemplateID(ctx, "tmpl-1").Return(nil)
@@ -149,7 +150,7 @@ func TestDeleteTemplate_Success(t *testing.T) {
 }
 
 func TestDeleteTemplate_DeleteQuestionsFails(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	templateRepo.EXPECT().DeleteQuestionsByTemplateID(ctx, "tmpl-1").Return(fmt.Errorf("db error"))
@@ -160,7 +161,7 @@ func TestDeleteTemplate_DeleteQuestionsFails(t *testing.T) {
 }
 
 func TestCreateInstance_Success(t *testing.T) {
-	svc, templateRepo, instanceRepo, _, _ := setupTest(t)
+	svc, templateRepo, instanceRepo, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1", Title: "Test", QuizType: "async", Settings: `{"time_limit_minutes":60}`}
@@ -185,7 +186,7 @@ func TestCreateInstance_Success(t *testing.T) {
 }
 
 func TestCreateInstance_NotOwner(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1"}
@@ -201,7 +202,7 @@ func TestCreateInstance_NotOwner(t *testing.T) {
 }
 
 func TestCreateInstance_WithGroupAndDeadline(t *testing.T) {
-	svc, templateRepo, instanceRepo, publisher, userClient := setupTest(t)
+	svc, templateRepo, instanceRepo, publisher, userClient, _ := setupTest(t)
 	ctx := context.Background()
 
 	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1", QuizType: "async", Settings: "{}"}
@@ -236,7 +237,7 @@ func TestCreateInstance_WithGroupAndDeadline(t *testing.T) {
 }
 
 func TestCreateInstance_DeadlineRejectedForSync(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1", QuizType: "sync", Settings: "{}"}
@@ -255,7 +256,7 @@ func TestCreateInstance_DeadlineRejectedForSync(t *testing.T) {
 }
 
 func TestGetParticipantAnswers_SessionNotFinished_Returns404(t *testing.T) {
-	svc, _, instanceRepo, _, _ := setupTest(t)
+	svc, _, instanceRepo, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	iwq := &repository.InstanceWithQuestions{
@@ -277,7 +278,7 @@ func TestGetParticipantAnswers_SessionNotFinished_Returns404(t *testing.T) {
 }
 
 func TestGetParticipantAnswers_FinishedSession_Returns200(t *testing.T) {
-	svc, _, instanceRepo, _, _ := setupTest(t)
+	svc, _, instanceRepo, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	iwq := &repository.InstanceWithQuestions{
@@ -299,7 +300,7 @@ func TestGetParticipantAnswers_FinishedSession_Returns200(t *testing.T) {
 }
 
 func TestGetInstanceByAccessCode_CreatorHasAccess(t *testing.T) {
-	svc, _, instanceRepo, _, _ := setupTest(t)
+	svc, _, instanceRepo, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	instance := &repository.Instance{
@@ -318,7 +319,7 @@ func TestGetInstanceByAccessCode_CreatorHasAccess(t *testing.T) {
 }
 
 func TestGetInstanceByAccessCode_PublicQuiz(t *testing.T) {
-	svc, _, instanceRepo, _, _ := setupTest(t)
+	svc, _, instanceRepo, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	instance := &repository.Instance{
@@ -337,7 +338,7 @@ func TestGetInstanceByAccessCode_PublicQuiz(t *testing.T) {
 }
 
 func TestGetInstanceByAccessCode_GroupMember(t *testing.T) {
-	svc, _, instanceRepo, _, userClient := setupTest(t)
+	svc, _, instanceRepo, _, userClient, _ := setupTest(t)
 	ctx := context.Background()
 
 	instance := &repository.Instance{
@@ -357,7 +358,7 @@ func TestGetInstanceByAccessCode_GroupMember(t *testing.T) {
 }
 
 func TestGetInstanceByAccessCode_GroupNonMember(t *testing.T) {
-	svc, _, instanceRepo, _, userClient := setupTest(t)
+	svc, _, instanceRepo, _, userClient, _ := setupTest(t)
 	ctx := context.Background()
 
 	instance := &repository.Instance{
@@ -377,7 +378,7 @@ func TestGetInstanceByAccessCode_GroupNonMember(t *testing.T) {
 }
 
 func TestGetInstanceByAccessCode_NotFound(t *testing.T) {
-	svc, _, instanceRepo, _, _ := setupTest(t)
+	svc, _, instanceRepo, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	instanceRepo.EXPECT().GetInstanceByAccessCode(ctx, "999999").Return(nil, fmt.Errorf("not found"))
@@ -392,7 +393,7 @@ func TestGetInstanceByAccessCode_NotFound(t *testing.T) {
 }
 
 func TestGetInstance_Success(t *testing.T) {
-	svc, _, instanceRepo, _, _ := setupTest(t)
+	svc, _, instanceRepo, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	instWithQ := &repository.InstanceWithQuestions{
@@ -413,7 +414,7 @@ func TestGetInstance_Success(t *testing.T) {
 }
 
 func TestQuestionInputToDB_SingleChoice(t *testing.T) {
-	svc, _, _, _, _ := setupTest(t)
+	svc, _, _, _, _, _ := setupTest(t)
 	input := &pb.QuestionInput{
 		Answer: &pb.QuestionInput_SingleChoice{
 			SingleChoice: &pb.SingleChoice{Options: []string{"a", "b", "c"}, CorrectOption: 1},
@@ -427,7 +428,7 @@ func TestQuestionInputToDB_SingleChoice(t *testing.T) {
 }
 
 func TestQuestionInputToDB_MultipleChoice(t *testing.T) {
-	svc, _, _, _, _ := setupTest(t)
+	svc, _, _, _, _, _ := setupTest(t)
 	input := &pb.QuestionInput{
 		Answer: &pb.QuestionInput_MultipleChoice{
 			MultipleChoice: &pb.MultipleChoice{Options: []string{"a", "b", "c"}, CorrectOptions: []int32{0, 2}},
@@ -441,7 +442,7 @@ func TestQuestionInputToDB_MultipleChoice(t *testing.T) {
 }
 
 func TestQuestionInputToDB_OpenAnswer(t *testing.T) {
-	svc, _, _, _, _ := setupTest(t)
+	svc, _, _, _, _, _ := setupTest(t)
 	input := &pb.QuestionInput{
 		Answer: &pb.QuestionInput_OpenAnswer{
 			OpenAnswer: &pb.OpenAnswer{CorrectText: "hello world"},
@@ -455,14 +456,14 @@ func TestQuestionInputToDB_OpenAnswer(t *testing.T) {
 }
 
 func TestMarshalSettings_Sync(t *testing.T) {
-	svc, _, _, _, _ := setupTest(t)
+	svc, _, _, _, _, _ := setupTest(t)
 	result, err := svc.marshalSettings(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "{}", result)
 }
 
 func TestMarshalSettings_Async(t *testing.T) {
-	svc, _, _, _, _ := setupTest(t)
+	svc, _, _, _, _, _ := setupTest(t)
 	settings := &pb.CreateTemplateRequest_AsyncSettings{
 		AsyncSettings: &pb.QuizAsyncSettings{QuestionsRandomOrder: true},
 	}

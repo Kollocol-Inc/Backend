@@ -3064,7 +3064,7 @@ const file_quiz_proto_rawDesc = "" +
 	"\x15GetParticipantAnswers\x12\".quiz.GetParticipantAnswersRequest\x1a#.quiz.GetParticipantAnswersResponse\x12B\n" +
 	"\vGradeAnswer\x12\x18.quiz.GradeAnswerRequest\x1a\x19.quiz.GradeAnswerResponse\x12K\n" +
 	"\x0ePublishResults\x12\x1b.quiz.PublishResultsRequest\x1a\x1c.quiz.PublishResultsResponse\x12Q\n" +
-	"\x10DeleteAllByOwner\x12\x1d.quiz.DeleteAllByOwnerRequest\x1a\x1e.quiz.DeleteAllByOwnerResponseB\x14Z\x12quiz-service/protob\x06proto3"
+	"\x10DeleteAllByOwner\x12\x1d.quiz.DeleteAllByOwnerRequest\x1a\x1e.quiz.DeleteAllByOwnerResponseB\x14Z\x12user-service/protob\x06proto3"
 
 var (
 	file_quiz_proto_rawDescOnce sync.Once
