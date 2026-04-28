@@ -11,6 +11,7 @@ import (
 	"quiz-service/internal/constants"
 	"quiz-service/internal/model"
 	"quiz-service/internal/repository"
+	"quiz-service/pkg/database"
 	"quiz-service/pkg/errors"
 	pb "quiz-service/proto"
 
@@ -64,6 +65,7 @@ type QuizService struct {
 	templateRepo TemplateRepo
 	instanceRepo InstanceRepo
 	deleteRepo   DeleteRepo
+	txMgr        database.TxManager
 	mqPublisher  RabbitMQPublisher
 	userClient   UserClient
 }
@@ -77,6 +79,7 @@ func NewQuizService(
 		templateRepo: repository.NewTemplateRepository(db),
 		instanceRepo: repository.NewInstanceRepository(db),
 		deleteRepo:   repository.NewDeleteRepository(db),
+		txMgr:        database.NewManager(db),
 		mqPublisher:  mqPublisher,
 		userClient:   userClient,
 	}
@@ -86,6 +89,7 @@ func NewQuizServiceWithDeps(
 	templateRepo TemplateRepo,
 	instanceRepo InstanceRepo,
 	deleteRepo DeleteRepo,
+	txMgr database.TxManager,
 	mqPublisher RabbitMQPublisher,
 	userClient UserClient,
 ) *QuizService {
@@ -93,6 +97,7 @@ func NewQuizServiceWithDeps(
 		templateRepo: templateRepo,
 		instanceRepo: instanceRepo,
 		deleteRepo:   deleteRepo,
+		txMgr:        txMgr,
 		mqPublisher:  mqPublisher,
 		userClient:   userClient,
 	}
@@ -124,31 +129,35 @@ func (s *QuizService) CreateTemplate(ctx context.Context, req *pb.CreateTemplate
 		Settings: settingsJSON,
 	}
 
-	if err := s.templateRepo.CreateTemplate(ctx, template); err != nil {
-		return nil, errors.New(codes.Internal, errors.ReasonTemplateCreateFailed, "Failed to create template", map[string]string{"user_id": req.UserId})
-	}
-
 	var questions []*repository.Question
-	for i, q := range req.Questions {
-		questionType, correctAnswerJSON, err := s.questionInputToDB(q)
-		if err != nil {
-			return nil, errors.New(codes.Internal, errors.ReasonAnswerMarshalFailed, "Failed to marshal answer", map[string]string{"template_id": template.ID})
+	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		if err := s.templateRepo.CreateTemplate(ctx, template); err != nil {
+			return fmt.Errorf("create template: %w", err)
 		}
-
-		question := &repository.Question{
-			TemplateID:    template.ID,
-			Text:          q.Text,
-			Type:          questionType,
-			CorrectAnswer: correctAnswerJSON,
-			OrderIndex:    i,
-			MaxScore:      int(q.MaxScore),
-			TimeLimitSec:  int(q.TimeLimitSec),
+		for i, q := range req.Questions {
+			questionType, correctAnswerJSON, err := s.questionInputToDB(q)
+			if err != nil {
+				return fmt.Errorf("marshal answer for question %d: %w", i, err)
+			}
+			question := &repository.Question{
+				TemplateID:    template.ID,
+				Text:          q.Text,
+				Type:          questionType,
+				CorrectAnswer: correctAnswerJSON,
+				OrderIndex:    i,
+				MaxScore:      int(q.MaxScore),
+				TimeLimitSec:  int(q.TimeLimitSec),
+			}
+			if err := s.templateRepo.CreateQuestion(ctx, question); err != nil {
+				return fmt.Errorf("create question %d: %w", i, err)
+			}
+			questions = append(questions, question)
 		}
-
-		if err := s.templateRepo.CreateQuestion(ctx, question); err != nil {
-			return nil, errors.New(codes.Internal, errors.ReasonQuestionCreateFailed, "Failed to create question", map[string]string{"template_id": template.ID})
-		}
-		questions = append(questions, question)
+		return nil
+	})
+	if err != nil {
+		log.Printf("CreateTemplate tx failed for user %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonTemplateCreateFailed, "Failed to create template", map[string]string{"user_id": req.UserId})
 	}
 
 	return &pb.CreateTemplateResponse{
@@ -226,34 +235,38 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 		Settings: settingsJSON,
 	}
 
-	if err := s.templateRepo.UpdateTemplate(ctx, template); err != nil {
-		return nil, errors.New(codes.Internal, errors.ReasonTemplateUpdateFailed, "Failed to update template", map[string]string{"template_id": req.TemplateId})
-	}
-
-	if err := s.templateRepo.DeleteQuestionsByTemplateID(ctx, req.TemplateId); err != nil {
-		return nil, errors.New(codes.Internal, errors.ReasonQuestionDeleteFailed, "Failed to unlink old questions", map[string]string{"template_id": req.TemplateId})
-	}
-
 	var questions []*repository.Question
-	for i, q := range req.Questions {
-		questionType, correctAnswerJSON, err := s.questionInputToDB(q)
-		if err != nil {
-			return nil, errors.New(codes.Internal, errors.ReasonAnswerMarshalFailed, "Failed to marshal answer", map[string]string{"template_id": req.TemplateId})
+	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		if err := s.templateRepo.UpdateTemplate(ctx, template); err != nil {
+			return fmt.Errorf("update template: %w", err)
 		}
-
-		question := &repository.Question{
-			TemplateID:    req.TemplateId,
-			Text:          q.Text,
-			Type:          questionType,
-			CorrectAnswer: correctAnswerJSON,
-			OrderIndex:    i,
-			MaxScore:      int(q.MaxScore),
-			TimeLimitSec:  int(q.TimeLimitSec),
+		if err := s.templateRepo.DeleteQuestionsByTemplateID(ctx, req.TemplateId); err != nil {
+			return fmt.Errorf("delete old questions: %w", err)
 		}
-		if err := s.templateRepo.CreateQuestion(ctx, question); err != nil {
-			return nil, errors.New(codes.Internal, errors.ReasonQuestionCreateFailed, "Failed to create question", map[string]string{"template_id": req.TemplateId})
+		for i, q := range req.Questions {
+			questionType, correctAnswerJSON, err := s.questionInputToDB(q)
+			if err != nil {
+				return fmt.Errorf("marshal answer for question %d: %w", i, err)
+			}
+			question := &repository.Question{
+				TemplateID:    req.TemplateId,
+				Text:          q.Text,
+				Type:          questionType,
+				CorrectAnswer: correctAnswerJSON,
+				OrderIndex:    i,
+				MaxScore:      int(q.MaxScore),
+				TimeLimitSec:  int(q.TimeLimitSec),
+			}
+			if err := s.templateRepo.CreateQuestion(ctx, question); err != nil {
+				return fmt.Errorf("create question %d: %w", i, err)
+			}
+			questions = append(questions, question)
 		}
-		questions = append(questions, question)
+		return nil
+	})
+	if err != nil {
+		log.Printf("UpdateTemplate tx failed: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonTemplateUpdateFailed, "Failed to update template", map[string]string{"template_id": req.TemplateId})
 	}
 
 	updatedTemplate, err := s.templateRepo.GetTemplateByID(ctx, req.TemplateId)
@@ -268,14 +281,19 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 }
 
 func (s *QuizService) DeleteTemplate(ctx context.Context, req *pb.DeleteTemplateRequest) (*pb.DeleteTemplateResponse, error) {
-	if err := s.templateRepo.DeleteQuestionsByTemplateID(ctx, req.TemplateId); err != nil {
-		return nil, errors.New(codes.Internal, errors.ReasonQuestionDeleteFailed, "Failed to delete questions", map[string]string{"template_id": req.TemplateId})
-	}
-
-	if err := s.templateRepo.DeleteTemplate(ctx, req.TemplateId, req.UserId); err != nil {
+	err := s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		if err := s.templateRepo.DeleteQuestionsByTemplateID(ctx, req.TemplateId); err != nil {
+			return fmt.Errorf("delete questions: %w", err)
+		}
+		if err := s.templateRepo.DeleteTemplate(ctx, req.TemplateId, req.UserId); err != nil {
+			return fmt.Errorf("delete template: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Printf("DeleteTemplate tx failed: %v", err)
 		return nil, errors.New(codes.Internal, errors.ReasonTemplateDeleteFailed, "Failed to delete template", map[string]string{"template_id": req.TemplateId})
 	}
-
 	return &pb.DeleteTemplateResponse{}, nil
 }
 

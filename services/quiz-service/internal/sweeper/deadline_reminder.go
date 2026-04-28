@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
 	"quiz-service/internal/model"
+	"quiz-service/pkg/database"
 )
 
 type ReminderPublisher interface {
@@ -22,6 +24,7 @@ type ReminderUserClient interface {
 
 type DeadlineReminderSweeper struct {
 	db         *sql.DB
+	txMgr      database.TxManager
 	publisher  ReminderPublisher
 	userClient ReminderUserClient
 	interval   time.Duration
@@ -35,6 +38,7 @@ func NewDeadlineReminderSweeper(
 ) *DeadlineReminderSweeper {
 	return &DeadlineReminderSweeper{
 		db:         db,
+		txMgr:      database.NewManager(db),
 		publisher:  publisher,
 		userClient: userClient,
 		interval:   interval,
@@ -234,16 +238,26 @@ func (s *DeadlineReminderSweeper) sendReminders(
 		return
 	}
 
-	for _, p := range toSend {
-		if err := s.recordSent(ctx, inst.ID, p.UserID, offsetLabel, now); err != nil {
-			log.Printf("deadline_reminder sweeper: recordSent error for user %s, instance %s: %v", p.UserID, inst.ID, err)
+	// at-least-once: Publish above may have delivered the message; if recordSent
+	// fails below, the sweeper will re-publish on the next tick (consumers must
+	// be idempotent).
+	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		for _, p := range toSend {
+			if err := s.recordSent(ctx, inst.ID, p.UserID, offsetLabel, now); err != nil {
+				return fmt.Errorf("recordSent for user %s: %w", p.UserID, err)
+			}
 		}
+		return nil
+	})
+	if err != nil {
+		log.Printf("deadline_reminder sweeper: recordSent batch failed for instance %s offset %s: %v", inst.ID, offsetLabel, err)
+		return
 	}
 }
 
 func (s *DeadlineReminderSweeper) checkSent(ctx context.Context, instanceID, userID, offsetLabel string) (bool, error) {
 	var exists bool
-	err := s.db.QueryRowContext(ctx, `
+	err := database.Querier(ctx, s.db).QueryRowContext(ctx, `
 		SELECT EXISTS(
 			SELECT 1 FROM quiz_deadline_reminders_sent
 			WHERE instance_id = $1 AND user_id = $2 AND reminder_offset = $3
@@ -253,7 +267,7 @@ func (s *DeadlineReminderSweeper) checkSent(ctx context.Context, instanceID, use
 }
 
 func (s *DeadlineReminderSweeper) recordSent(ctx context.Context, instanceID, userID, offsetLabel string, sentAt time.Time) error {
-	_, err := s.db.ExecContext(ctx, `
+	_, err := database.Querier(ctx, s.db).ExecContext(ctx, `
 		INSERT INTO quiz_deadline_reminders_sent (instance_id, user_id, reminder_offset, sent_at)
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (instance_id, user_id, reminder_offset) DO NOTHING

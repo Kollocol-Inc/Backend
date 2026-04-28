@@ -22,20 +22,33 @@ func (h *Hub) handleStartQuiz(client *Client) {
 		return
 	}
 
-	if err := h.sessionRepo.UpdateSessionStatus(ctx, client.InstanceID, client.UserID, constants.SessionStatusInProgress); err != nil {
-		log.Printf("Failed to update session status: %v", err)
-	}
-
-	if err := h.updateInstanceStatus(ctx, client.InstanceID, constants.InstanceStatusActive); err != nil {
-		log.Printf("Failed to update instance status: %v", err)
+	if err := h.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		if err := h.sessionRepo.UpdateSessionStatus(ctx, client.InstanceID, client.UserID, constants.SessionStatusInProgress); err != nil {
+			return fmt.Errorf("update caller session: %w", err)
+		}
+		if err := h.updateInstanceStatus(ctx, client.InstanceID, constants.InstanceStatusActive); err != nil {
+			return fmt.Errorf("update instance status: %w", err)
+		}
+		if quizData.QuizType == constants.QuizTypeSync {
+			h.mu.RLock()
+			clients := h.clients[client.InstanceID]
+			h.mu.RUnlock()
+			for c := range clients {
+				if err := h.sessionRepo.UpdateSessionStatus(ctx, client.InstanceID, c.UserID, constants.SessionStatusInProgress); err != nil {
+					return fmt.Errorf("update participant %s: %w", c.UserID, err)
+				}
+			}
+		}
+		return nil
+	}); err != nil {
+		log.Printf("handleStartQuiz tx failed: %v", err)
+		client.SendError("Failed to start quiz")
+		return
 	}
 
 	if quizData.QuizType == constants.QuizTypeSync {
 		h.freezeParticipants(ctx, client.InstanceID)
-
-		h.broadcastToInstance(client.InstanceID, MessageTypeQuizStarted, QuizStartedPayload{
-			QuizType: quizData.QuizType,
-		})
+		h.broadcastToInstance(client.InstanceID, MessageTypeQuizStarted, QuizStartedPayload{QuizType: quizData.QuizType})
 
 		h.mu.RLock()
 		clients := h.clients[client.InstanceID]
@@ -43,9 +56,6 @@ func (h *Hub) handleStartQuiz(client *Client) {
 
 		participantCount := 0
 		for c := range clients {
-			if err := h.sessionRepo.UpdateSessionStatus(ctx, client.InstanceID, c.UserID, constants.SessionStatusInProgress); err != nil {
-				log.Printf("Failed to update session status for user %s: %v", c.UserID, err)
-			}
 			if !c.IsCreator {
 				participantCount++
 			}
@@ -54,9 +64,7 @@ func (h *Hub) handleStartQuiz(client *Client) {
 		h.sendQuestionToAll(clients, quizData, 0)
 		h.sendAnswerProgressToAll(ctx, client.InstanceID, quizData, 0)
 	} else {
-		client.SendMessage(MessageTypeQuizStarted, QuizStartedPayload{
-			QuizType: quizData.QuizType,
-		})
+		client.SendMessage(MessageTypeQuizStarted, QuizStartedPayload{QuizType: quizData.QuizType})
 		h.sendQuestion(client, quizData, 0)
 	}
 }
@@ -485,14 +493,24 @@ func (h *Hub) handleContinue(client *Client) {
 
 	if nextQuestionIndex >= len(quizData.Questions) {
 		log.Printf("Quiz %s finished, updating status", client.InstanceID)
-		if err := h.updateInstanceStatus(ctx, client.InstanceID, constants.InstanceStatusPendingReview); err != nil {
-			log.Printf("Failed to update instance status: %v", err)
-		}
 
-		if n, err := h.sessionRepo.BulkFinishInProgress(ctx, client.InstanceID); err != nil {
-			log.Printf("Failed to bulk-finish sessions for instance %s: %v", client.InstanceID, err)
-		} else if n > 0 {
-			log.Printf("Bulk-finished %d sessions for instance %s", n, client.InstanceID)
+		var bulkN int64
+		if err := h.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+			if err := h.updateInstanceStatus(ctx, client.InstanceID, constants.InstanceStatusPendingReview); err != nil {
+				return fmt.Errorf("update instance status: %w", err)
+			}
+			n, err := h.sessionRepo.BulkFinishInProgress(ctx, client.InstanceID)
+			if err != nil {
+				return fmt.Errorf("bulk-finish sessions: %w", err)
+			}
+			bulkN = n
+			return nil
+		}); err != nil {
+			log.Printf("handleContinue finish-tx failed for instance %s: %v", client.InstanceID, err)
+			return
+		}
+		if bulkN > 0 {
+			log.Printf("Bulk-finished %d sessions for instance %s", bulkN, client.InstanceID)
 		}
 
 		for c := range clients {

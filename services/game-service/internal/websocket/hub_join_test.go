@@ -51,8 +51,7 @@ func TestHandleJoin_Success(t *testing.T) {
 	env.quizClient.EXPECT().GetInstance(gomock.Any(), "inst-1", "user-1").Return(resp, nil)
 	env.redisClient.EXPECT().Set(gomock.Any(), "quiz:inst-1:data", gomock.Any(), gomock.Any()).Return(nil)
 	env.redisClient.EXPECT().Get(gomock.Any(), "quiz:inst-1:data").Return("{}", nil).AnyTimes()
-	env.sessionRepo.EXPECT().SessionExists(gomock.Any(), "inst-1", "user-1").Return(false, nil)
-	env.sessionRepo.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil)
+	env.sessionRepo.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(true, nil)
 	env.userClient.EXPECT().GetProfile(gomock.Any(), "user-1").Return(&pb.User{Id: "user-1", FirstName: "John"}, nil).AnyTimes()
 
 	registerClientToHub(env.hub, client)
@@ -103,7 +102,9 @@ func TestHandleJoin_LateSyncJoinRejected(t *testing.T) {
 	resp := makeQuizInstanceResponse(constants.InstanceStatusActive, constants.QuizTypeSync, "creator-1")
 	env.quizClient.EXPECT().GetInstance(gomock.Any(), "inst-1", "user-1").Return(resp, nil)
 	env.redisClient.EXPECT().Set(gomock.Any(), "quiz:inst-1:data", gomock.Any(), gomock.Any()).Return(nil)
-	env.sessionRepo.EXPECT().SessionExists(gomock.Any(), "inst-1", "user-1").Return(false, nil)
+	// CreateSession returns (true, nil) — newly created — so this is a late-join which should be rejected
+	env.sessionRepo.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(true, nil)
+	env.sessionRepo.EXPECT().DeleteSession(gomock.Any(), "inst-1", "user-1").Return(nil)
 
 	registerClientToHub(env.hub, client)
 	env.hub.handleJoin(client)
@@ -135,7 +136,8 @@ func TestHandleJoin_ExistingSession(t *testing.T) {
 	env.quizClient.EXPECT().GetInstance(gomock.Any(), "inst-1", "user-1").Return(resp, nil)
 	env.redisClient.EXPECT().Set(gomock.Any(), "quiz:inst-1:data", gomock.Any(), gomock.Any()).Return(nil)
 	env.redisClient.EXPECT().Get(gomock.Any(), "quiz:inst-1:data").Return("{}", nil).AnyTimes()
-	env.sessionRepo.EXPECT().SessionExists(gomock.Any(), "inst-1", "user-1").Return(true, nil)
+	// CreateSession returns (false, nil) — session already existed (reconnect), no late-join rejection
+	env.sessionRepo.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(false, nil)
 	env.userClient.EXPECT().GetProfile(gomock.Any(), "user-1").Return(&pb.User{Id: "user-1"}, nil).AnyTimes()
 
 	registerClientToHub(env.hub, client)

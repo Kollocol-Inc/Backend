@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -12,6 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
+
+type noopTxManager struct{}
+
+func (noopTxManager) InTransaction(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
 
 type testHubEnv struct {
 	hub         *Hub
@@ -30,7 +37,7 @@ func newTestHubWithMocks(t *testing.T) *testHubEnv {
 	sr := mocks.NewMockSessionRepoInterface(ctrl)
 	db := mocks.NewMockDBExecer(ctrl)
 
-	hub := NewHubWithDeps(qc, uc, rc, sr, db)
+	hub := NewHubWithDeps(qc, uc, rc, sr, db, noopTxManager{})
 	return &testHubEnv{
 		hub:         hub,
 		quizClient:  qc,

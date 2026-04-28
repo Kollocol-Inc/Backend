@@ -3,6 +3,7 @@ package sweeper
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"time"
 )
@@ -30,70 +31,50 @@ func (s *DeadlineSweeper) Run(ctx context.Context) {
 }
 
 func (s *DeadlineSweeper) sweep(ctx context.Context) {
-	if n, err := s.markPerSessionExpired(ctx); err != nil {
-		log.Printf("sweeper: per-session expiry failed: %v", err)
-	} else if n > 0 {
-		log.Printf("sweeper: marked %d expired async sessions as finished", n)
+	ids, err := s.findInstancesNeedingSweep(ctx)
+	if err != nil {
+		log.Printf("sweeper: findInstancesNeedingSweep failed: %v", err)
+		return
 	}
-
-	if n, err := s.finalizeExpiredInstances(ctx); err != nil {
-		log.Printf("sweeper: instance expiry failed: %v", err)
-	} else if n > 0 {
-		log.Printf("sweeper: finalized %d async instances past deadline", n)
+	for _, id := range ids {
+		if err := s.sweepInstance(ctx, id); err != nil {
+			log.Printf("sweeper: sweep instance %s failed: %v", id, err)
+		}
+	}
+	if len(ids) > 0 {
+		log.Printf("sweeper: swept %d instances", len(ids))
 	}
 }
 
-func (s *DeadlineSweeper) markPerSessionExpired(ctx context.Context) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `
-		UPDATE game_sessions gs
-		SET status = 'finished', finished_at = NOW()
+func (s *DeadlineSweeper) findInstancesNeedingSweep(ctx context.Context) ([]string, error) {
+	const q = `
+		SELECT DISTINCT i.id
 		FROM quiz_instances i
-		WHERE gs.instance_id = i.id
-		  AND i.quiz_type = 'async'
-		  AND gs.status != 'finished'
-		  AND i.total_time > 0
-		  AND gs.started_at + (i.total_time || ' seconds')::interval < NOW()
-	`)
+		LEFT JOIN game_sessions gs ON gs.instance_id = i.id
+		WHERE i.quiz_type = 'async'
+		  AND (
+		    (i.deadline IS NOT NULL AND i.deadline < NOW() AND i.status NOT IN ('pending_review', 'reviewed'))
+		    OR (i.total_time > 0 AND gs.status != 'finished'
+		        AND gs.started_at + (i.total_time || ' seconds')::interval < NOW())
+		  )
+	`
+	rows, err := s.db.QueryContext(ctx, q)
 	if err != nil {
-		return 0, err
-	}
-	return res.RowsAffected()
-}
-
-func (s *DeadlineSweeper) finalizeExpiredInstances(ctx context.Context) (int, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT id FROM quiz_instances
-		WHERE quiz_type = 'async'
-		  AND deadline IS NOT NULL
-		  AND deadline < NOW()
-		  AND status NOT IN ('pending_review', 'reviewed')
-	`)
-	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	defer rows.Close()
-
-	var ids []string
+	var out []string
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
-			return 0, err
+			return nil, err
 		}
-		ids = append(ids, id)
+		out = append(out, id)
 	}
-	if err := rows.Err(); err != nil {
-		return 0, err
-	}
-
-	for _, id := range ids {
-		if err := s.finalizeInstance(ctx, id); err != nil {
-			log.Printf("sweeper: failed to finalize instance %s: %v", id, err)
-		}
-	}
-	return len(ids), nil
+	return out, rows.Err()
 }
 
-func (s *DeadlineSweeper) finalizeInstance(ctx context.Context, instanceID string) error {
+func (s *DeadlineSweeper) sweepInstance(ctx context.Context, instanceID string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -101,19 +82,38 @@ func (s *DeadlineSweeper) finalizeInstance(ctx context.Context, instanceID strin
 	defer tx.Rollback()
 
 	if _, err := tx.ExecContext(ctx, `
-		UPDATE game_sessions
+		UPDATE game_sessions gs
 		SET status = 'finished', finished_at = NOW()
-		WHERE instance_id = $1 AND status != 'finished'
+		FROM quiz_instances i
+		WHERE gs.instance_id = $1
+		  AND i.id = gs.instance_id
+		  AND i.total_time > 0
+		  AND gs.status != 'finished'
+		  AND gs.started_at + (i.total_time || ' seconds')::interval < NOW()
 	`, instanceID); err != nil {
-		return err
+		return fmt.Errorf("per-session expiry: %w", err)
 	}
 
-	if _, err := tx.ExecContext(ctx, `
-		UPDATE quiz_instances
-		SET status = 'pending_review'
-		WHERE id = $1
-	`, instanceID); err != nil {
-		return err
+	var deadlineExpired bool
+	if err := tx.QueryRowContext(ctx, `
+		SELECT (deadline IS NOT NULL AND deadline < NOW() AND status NOT IN ('pending_review', 'reviewed'))
+		FROM quiz_instances WHERE id = $1
+	`, instanceID).Scan(&deadlineExpired); err != nil {
+		return fmt.Errorf("check deadline: %w", err)
+	}
+
+	if deadlineExpired {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE game_sessions SET status = 'finished', finished_at = NOW()
+			WHERE instance_id = $1 AND status != 'finished'
+		`, instanceID); err != nil {
+			return fmt.Errorf("force-finish remaining sessions: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE quiz_instances SET status = 'pending_review' WHERE id = $1
+		`, instanceID); err != nil {
+			return fmt.Errorf("flip instance status: %w", err)
+		}
 	}
 
 	return tx.Commit()

@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 	"user-service/constants"
 	"user-service/internal/repository"
+	"user-service/pkg/database"
 	"user-service/pkg/errors"
 	"user-service/pkg/messaging"
 	"user-service/pkg/storage"
@@ -79,6 +81,7 @@ type UserService struct {
 	userRepo           UserRepo
 	settingsRepo       SettingsRepo
 	groupRepo          GroupRepo
+	txMgr              database.TxManager
 	s3Client           FileStorage
 	rabbitMQ           MessagePublisher
 	authClient         AuthServiceClient
@@ -98,6 +101,7 @@ func NewUserService(
 		userRepo:           repository.NewUserRepository(db),
 		settingsRepo:       repository.NewNotificationSettingsRepository(db),
 		groupRepo:          repository.NewGroupRepository(db),
+		txMgr:              database.NewManager(db),
 		s3Client:           s3Client,
 		rabbitMQ:           rabbitMQ,
 		authClient:         authClient,
@@ -110,6 +114,7 @@ func NewUserServiceWithDeps(
 	userRepo UserRepo,
 	settingsRepo SettingsRepo,
 	groupRepo GroupRepo,
+	txMgr database.TxManager,
 	s3Client FileStorage,
 	rabbitMQ MessagePublisher,
 	authClient AuthServiceClient,
@@ -120,6 +125,7 @@ func NewUserServiceWithDeps(
 		userRepo:           userRepo,
 		settingsRepo:       settingsRepo,
 		groupRepo:          groupRepo,
+		txMgr:              txMgr,
 		s3Client:           s3Client,
 		rabbitMQ:           rabbitMQ,
 		authClient:         authClient,
@@ -152,17 +158,21 @@ func (s *UserService) Register(ctx context.Context, req *pb.RegisterRequest) (*p
 		user.AvatarURL = avatarURL
 	}
 
-	if err := s.userRepo.UpdateUser(ctx, user); err != nil {
-		log.Printf("Failed to update user: %v", err)
-		return nil, errors.New(codes.Internal, errors.ReasonUserUpdateFailed, "Failed to update profile", map[string]string{"user_id": req.UserId})
+	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		if err := s.userRepo.UpdateUser(ctx, user); err != nil {
+			return fmt.Errorf("update user: %w", err)
+		}
+		if _, err := s.settingsRepo.CreateDefaultSettings(ctx, user.ID); err != nil {
+			return fmt.Errorf("create default notification settings: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Printf("Register tx failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonUserUpdateFailed, "Failed to register user", map[string]string{"user_id": req.UserId})
 	}
 
 	log.Printf("User %s registered successfully", user.ID)
-
-	_, err = s.settingsRepo.CreateDefaultSettings(ctx, user.ID)
-	if err != nil {
-		log.Printf("Failed to create notification settings: %v", err)
-	}
 
 	return &pb.RegisterResponse{
 		User: s.userToProto(user),
@@ -281,31 +291,41 @@ func (s *UserService) UpdateNotificationSettings(ctx context.Context, req *pb.Up
 }
 
 func (s *UserService) CreateGroup(ctx context.Context, req *pb.CreateGroupRequest) (*pb.CreateGroupResponse, error) {
-	group, err := s.groupRepo.CreateGroup(ctx, req.Name, req.OwnerId)
-	if err != nil {
-		log.Printf("Failed to create group: %v", err)
-		return nil, errors.New(codes.Internal, errors.ReasonGroupCreateFailed, "Failed to create group", map[string]string{"owner_id": req.OwnerId})
-	}
-
 	usersMap, err := s.userRepo.GetUsersByEmailsMap(ctx, req.MemberEmails)
 	if err != nil {
 		log.Printf("Failed to get users by emails: %v", err)
 	}
 
-	userIDs := []string{req.OwnerId}
-	addedEmails := []string{}
-	for _, email := range req.MemberEmails {
-		user, exists := usersMap[email]
-		if !exists {
-			log.Printf("User not found for email %s", email)
-			continue
+	var (
+		group       *repository.Group
+		addedEmails []string
+	)
+	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		var err error
+		group, err = s.groupRepo.CreateGroup(ctx, req.Name, req.OwnerId)
+		if err != nil {
+			return fmt.Errorf("create group: %w", err)
 		}
-		userIDs = append(userIDs, user.ID)
-		addedEmails = append(addedEmails, email)
-	}
 
-	if err := s.groupRepo.AddMembers(ctx, group.ID, userIDs); err != nil {
-		log.Printf("Failed to add members: %v", err)
+		userIDs := []string{req.OwnerId}
+		for _, email := range req.MemberEmails {
+			user, exists := usersMap[email]
+			if !exists {
+				log.Printf("User not found for email %s", email)
+				continue
+			}
+			userIDs = append(userIDs, user.ID)
+			addedEmails = append(addedEmails, email)
+		}
+
+		if err := s.groupRepo.AddMembers(ctx, group.ID, userIDs); err != nil {
+			return fmt.Errorf("add members: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Printf("CreateGroup tx failed: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonGroupCreateFailed, "Failed to create group", map[string]string{"owner_id": req.OwnerId})
 	}
 
 	for _, email := range addedEmails {
@@ -388,24 +408,27 @@ func (s *UserService) UpdateGroup(ctx context.Context, req *pb.UpdateGroupReques
 		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only group owner can update group", map[string]string{"group_id": req.GroupId, "user_id": req.UserId})
 	}
 
-	if req.Name != "" {
-		group.Name = req.Name
-		if err := s.groupRepo.UpdateGroup(ctx, group); err != nil {
-			log.Printf("Failed to update group: %v", err)
-			return nil, errors.New(codes.Internal, errors.ReasonGroupUpdateFailed, "Failed to update group", map[string]string{"group_id": req.GroupId})
-		}
+	usersMap, err := s.userRepo.GetUsersByEmailsMap(ctx, req.MemberEmails)
+	if err != nil {
+		log.Printf("Failed to get users by emails: %v", err)
 	}
 
-	if len(req.MemberEmails) > 0 {
-		usersMap, err := s.userRepo.GetUsersByEmailsMap(ctx, req.MemberEmails)
-		if err != nil {
-			log.Printf("Failed to get users by emails: %v", err)
+	var addedEmails []string
+	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		if req.Name != "" {
+			group.Name = req.Name
+			if err := s.groupRepo.UpdateGroup(ctx, group); err != nil {
+				return fmt.Errorf("update group: %w", err)
+			}
+		}
+
+		if len(req.MemberEmails) == 0 {
+			return nil
 		}
 
 		existingMemberIDs, err := s.groupRepo.GetMemberIDs(ctx, req.GroupId)
 		if err != nil {
-			log.Printf("Failed to get existing members: %v", err)
-			existingMemberIDs = []string{}
+			return fmt.Errorf("get member ids: %w", err)
 		}
 		existingMembersSet := make(map[string]bool, len(existingMemberIDs))
 		for _, id := range existingMemberIDs {
@@ -413,31 +436,33 @@ func (s *UserService) UpdateGroup(ctx context.Context, req *pb.UpdateGroupReques
 		}
 
 		newUserIDs := []string{}
-		addedEmails := []string{}
 		for _, email := range req.MemberEmails {
 			user, exists := usersMap[email]
 			if !exists {
 				log.Printf("User not found for email %s", email)
 				continue
 			}
-
 			if existingMembersSet[user.ID] {
 				continue
 			}
-
 			newUserIDs = append(newUserIDs, user.ID)
 			addedEmails = append(addedEmails, email)
 		}
 
 		if len(newUserIDs) > 0 {
 			if err := s.groupRepo.AddMembers(ctx, req.GroupId, newUserIDs); err != nil {
-				log.Printf("Failed to add members: %v", err)
-			}
-
-			for _, email := range addedEmails {
-				s.publishGroupInvite(ctx, group.ID, group.Name, req.UserId, email)
+				return fmt.Errorf("add members: %w", err)
 			}
 		}
+		return nil
+	})
+	if err != nil {
+		log.Printf("UpdateGroup tx failed: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonGroupUpdateFailed, "Failed to update group", map[string]string{"group_id": req.GroupId})
+	}
+
+	for _, email := range addedEmails {
+		s.publishGroupInvite(ctx, group.ID, group.Name, req.UserId, email)
 	}
 
 	memberCount, _ := s.groupRepo.GetMemberCount(ctx, req.GroupId)

@@ -5,12 +5,14 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"math/big"
 	"time"
 
 	"auth-service/internal/repository"
 	"auth-service/pkg/cache"
+	"auth-service/pkg/database"
 	"auth-service/pkg/errors"
 	"auth-service/pkg/jwt"
 	"auth-service/pkg/messaging"
@@ -61,6 +63,7 @@ type AuthService struct {
 	userRepo  UserRepository
 	aiBanRepo AIBanRepository
 	rabbitMQ  MessagePublisher
+	txMgr     database.TxManager
 	jwtSecret string
 }
 
@@ -70,16 +73,18 @@ func NewAuthService(redis *cache.RedisClient, db *sql.DB, rabbitMQ *messaging.Ra
 		userRepo:  repository.NewUserRepository(db),
 		aiBanRepo: repository.NewAIBanRepository(db),
 		rabbitMQ:  rabbitMQ,
+		txMgr:     database.NewManager(db),
 		jwtSecret: jwtSecret,
 	}
 }
 
-func NewAuthServiceWithDeps(authRepo AuthRepository, userRepo UserRepository, aiBanRepo AIBanRepository, rabbitMQ MessagePublisher, jwtSecret string) *AuthService {
+func NewAuthServiceWithDeps(authRepo AuthRepository, userRepo UserRepository, aiBanRepo AIBanRepository, rabbitMQ MessagePublisher, txMgr database.TxManager, jwtSecret string) *AuthService {
 	return &AuthService{
 		authRepo:  authRepo,
 		userRepo:  userRepo,
 		aiBanRepo: aiBanRepo,
 		rabbitMQ:  rabbitMQ,
+		txMgr:     txMgr,
 		jwtSecret: jwtSecret,
 	}
 }
@@ -149,25 +154,33 @@ func (s *AuthService) VerifyCode(ctx context.Context, req *pb.VerifyCodeRequest)
 		return nil, errors.New(codes.DeadlineExceeded, errors.ReasonCodeExpired, "Verification code expired", map[string]string{"email": email})
 	}
 
-	user, err := s.userRepo.GetOrCreateUser(ctx, email)
+	var (
+		user   *repository.User
+		tokens *jwt.TokenPair
+	)
+	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		var err error
+		user, err = s.userRepo.GetOrCreateUser(ctx, email)
+		if err != nil {
+			return err
+		}
+
+		tokens, err = jwt.GenerateTokenPair(user.ID, user.Email, user.Role, s.jwtSecret)
+		if err != nil {
+			return err
+		}
+
+		refreshToken := repository.NewRefreshToken(tokens.RefreshToken, user.ID, time.Now().Add(jwt.RefreshTokenDuration), time.Now())
+		return s.authRepo.SaveRefreshToken(ctx, refreshToken)
+	})
 	if err != nil {
-		log.Printf("Failed to get or create user: %v", err)
+		log.Printf("VerifyCode tx failed for %s: %v", email, err)
 		return nil, errors.New(codes.Internal, errors.ReasonUserProcessFailed, "Failed to process user", map[string]string{"email": email})
 	}
 
-	tokens, err := jwt.GenerateTokenPair(user.ID, user.Email, user.Role, s.jwtSecret)
-	if err != nil {
-		log.Printf("Failed to generate tokens: %v", err)
-		return nil, errors.New(codes.Internal, errors.ReasonTokenGenerationFailed, "Failed to generate tokens", map[string]string{"email": email, "user_id": user.ID})
+	if delErr := s.authRepo.DeleteAuthCode(ctx, email); delErr != nil {
+		log.Printf("VerifyCode: failed to delete auth code for %s (will expire by TTL): %v", email, delErr)
 	}
-
-	refreshToken := repository.NewRefreshToken(tokens.RefreshToken, user.ID, time.Now().Add(jwt.RefreshTokenDuration), time.Now())
-	if err := s.authRepo.SaveRefreshToken(ctx, refreshToken); err != nil {
-		log.Printf("Failed to save refresh token: %v", err)
-		return nil, errors.New(codes.Internal, errors.ReasonTokenSaveFailed, "Failed to save refresh token", map[string]string{"email": email, "user_id": user.ID})
-	}
-
-	s.authRepo.DeleteAuthCode(ctx, email)
 
 	return &pb.VerifyCodeResponse{
 		AccessToken:  tokens.AccessToken,
@@ -208,14 +221,20 @@ func (s *AuthService) RefreshToken(ctx context.Context, req *pb.RefreshTokenRequ
 		return nil, errors.New(codes.Internal, errors.ReasonTokenGenerationFailed, "Failed to generate new tokens", map[string]string{"email": claims.Email, "user_id": claims.UserID})
 	}
 
-	if err := s.authRepo.DeleteRefreshToken(ctx, req.RefreshToken); err != nil {
-		log.Printf("Failed to delete old refresh token: %v", err)
-	}
-
 	newRefreshToken := repository.NewRefreshToken(newTokens.RefreshToken, claims.UserID, time.Now().Add(jwt.RefreshTokenDuration), time.Now())
-	if err := s.authRepo.SaveRefreshToken(ctx, newRefreshToken); err != nil {
-		log.Printf("Failed to save new refresh token: %v", err)
-		return nil, errors.New(codes.Internal, errors.ReasonTokenSaveFailed, "Failed to save new refresh token", map[string]string{"email": claims.Email, "user_id": claims.UserID})
+
+	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		if err := s.authRepo.DeleteRefreshToken(ctx, req.RefreshToken); err != nil {
+			return fmt.Errorf("delete old refresh token: %w", err)
+		}
+		if err := s.authRepo.SaveRefreshToken(ctx, newRefreshToken); err != nil {
+			return fmt.Errorf("save new refresh token: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Printf("RefreshToken tx failed for user %s: %v", claims.UserID, err)
+		return nil, errors.New(codes.Internal, errors.ReasonTokenSaveFailed, "Failed to rotate refresh token", map[string]string{"email": claims.Email, "user_id": claims.UserID})
 	}
 
 	return &pb.RefreshTokenResponse{

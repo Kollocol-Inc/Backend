@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"user-service/pkg/database"
 )
 
 type Group struct {
@@ -25,11 +27,15 @@ type GroupMember struct {
 }
 
 type GroupRepository struct {
-	db *sql.DB
+	db database.DBTX
 }
 
-func NewGroupRepository(db *sql.DB) *GroupRepository {
+func NewGroupRepository(db database.DBTX) *GroupRepository {
 	return &GroupRepository{db: db}
+}
+
+func (r *GroupRepository) q(ctx context.Context) database.DBTX {
+	return database.Querier(ctx, r.db)
 }
 
 func (r *GroupRepository) CreateGroup(ctx context.Context, name, ownerID string) (*Group, error) {
@@ -46,7 +52,7 @@ func (r *GroupRepository) CreateGroup(ctx context.Context, name, ownerID string)
 		RETURNING id, name, owner_id, created_at
 	`
 
-	err := r.db.QueryRowContext(ctx, query,
+	err := r.q(ctx).QueryRowContext(ctx, query,
 		group.ID,
 		group.Name,
 		group.OwnerID,
@@ -78,7 +84,7 @@ func (r *GroupRepository) GetGroupByID(ctx context.Context, groupID string) (*Gr
 	`
 
 	group := &Group{}
-	err := r.db.QueryRowContext(ctx, query, groupID).Scan(
+	err := r.q(ctx).QueryRowContext(ctx, query, groupID).Scan(
 		&group.ID,
 		&group.Name,
 		&group.OwnerID,
@@ -103,7 +109,7 @@ func (r *GroupRepository) UpdateGroup(ctx context.Context, group *Group) error {
 		WHERE id = $1
 	`
 
-	result, err := r.db.ExecContext(ctx, query, group.ID, group.Name)
+	result, err := r.q(ctx).ExecContext(ctx, query, group.ID, group.Name)
 	if err != nil {
 		return fmt.Errorf("failed to update group: %w", err)
 	}
@@ -123,7 +129,7 @@ func (r *GroupRepository) UpdateGroup(ctx context.Context, group *Group) error {
 func (r *GroupRepository) DeleteGroup(ctx context.Context, groupID string) error {
 	query := `DELETE FROM groups WHERE id = $1`
 
-	result, err := r.db.ExecContext(ctx, query, groupID)
+	result, err := r.q(ctx).ExecContext(ctx, query, groupID)
 	if err != nil {
 		return fmt.Errorf("failed to delete group: %w", err)
 	}
@@ -147,7 +153,7 @@ func (r *GroupRepository) AddMember(ctx context.Context, groupID, userID string)
 		ON CONFLICT (group_id, user_id) DO NOTHING
 	`
 
-	_, err := r.db.ExecContext(ctx, query, groupID, userID, time.Now())
+	_, err := r.q(ctx).ExecContext(ctx, query, groupID, userID, time.Now())
 	if err != nil {
 		return fmt.Errorf("failed to add member: %w", err)
 	}
@@ -175,7 +181,7 @@ func (r *GroupRepository) AddMembers(ctx context.Context, groupID string, userID
 		ON CONFLICT (group_id, user_id) DO NOTHING
 	`, strings.Join(valueStrings, ", "))
 
-	_, err := r.db.ExecContext(ctx, query, valueArgs...)
+	_, err := r.q(ctx).ExecContext(ctx, query, valueArgs...)
 	if err != nil {
 		return fmt.Errorf("failed to add members: %w", err)
 	}
@@ -186,7 +192,7 @@ func (r *GroupRepository) AddMembers(ctx context.Context, groupID string, userID
 func (r *GroupRepository) RemoveMember(ctx context.Context, groupID, userID string) error {
 	query := `DELETE FROM group_members WHERE group_id = $1 AND user_id = $2`
 
-	result, err := r.db.ExecContext(ctx, query, groupID, userID)
+	result, err := r.q(ctx).ExecContext(ctx, query, groupID, userID)
 	if err != nil {
 		return fmt.Errorf("failed to remove member: %w", err)
 	}
@@ -210,7 +216,7 @@ func (r *GroupRepository) GetMemberIDs(ctx context.Context, groupID string) ([]s
 		WHERE group_id = $1
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, groupID)
+	rows, err := r.q(ctx).QueryContext(ctx, query, groupID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query members: %w", err)
 	}
@@ -240,7 +246,7 @@ func (r *GroupRepository) GetMemberCount(ctx context.Context, groupID string) (i
 	`
 
 	var count int32
-	err := r.db.QueryRowContext(ctx, query, groupID).Scan(&count)
+	err := r.q(ctx).QueryRowContext(ctx, query, groupID).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get member count: %w", err)
 	}
@@ -261,7 +267,7 @@ func (r *GroupRepository) GetUserGroups(ctx context.Context, userID string) ([]*
 		WHERE gm.user_id = $1
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, userID)
+	rows, err := r.q(ctx).QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query groups: %w", err)
 	}
@@ -295,7 +301,7 @@ func (r *GroupRepository) GetCreatedGroups(ctx context.Context, ownerID string) 
 		WHERE g.owner_id = $1
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, ownerID)
+	rows, err := r.q(ctx).QueryContext(ctx, query, ownerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query groups: %w", err)
 	}
@@ -325,7 +331,7 @@ func (r *GroupRepository) IsMember(ctx context.Context, groupID, userID string) 
 	`
 
 	var count int32
-	err := r.db.QueryRowContext(ctx, query, groupID, userID).Scan(&count)
+	err := r.q(ctx).QueryRowContext(ctx, query, groupID, userID).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("failed to check membership: %w", err)
 	}
@@ -335,7 +341,7 @@ func (r *GroupRepository) IsMember(ctx context.Context, groupID, userID string) 
 
 func (r *GroupRepository) DeleteOwnedGroups(ctx context.Context, ownerID string) error {
 	query := `DELETE FROM groups WHERE owner_id = $1`
-	if _, err := r.db.ExecContext(ctx, query, ownerID); err != nil {
+	if _, err := r.q(ctx).ExecContext(ctx, query, ownerID); err != nil {
 		return fmt.Errorf("failed to delete owned groups: %w", err)
 	}
 	return nil
@@ -343,7 +349,7 @@ func (r *GroupRepository) DeleteOwnedGroups(ctx context.Context, ownerID string)
 
 func (r *GroupRepository) DeleteUserMemberships(ctx context.Context, userID string) error {
 	query := `DELETE FROM group_members WHERE user_id = $1`
-	if _, err := r.db.ExecContext(ctx, query, userID); err != nil {
+	if _, err := r.q(ctx).ExecContext(ctx, query, userID); err != nil {
 		return fmt.Errorf("failed to delete user memberships: %w", err)
 	}
 	return nil
@@ -364,7 +370,7 @@ func (r *GroupRepository) GetGroupUsers(ctx context.Context, groupID string) ([]
 		WHERE gm.group_id = $1
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, groupID)
+	rows, err := r.q(ctx).QueryContext(ctx, query, groupID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query group users: %w", err)
 	}

@@ -18,6 +18,14 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// noopTxManager executes fn directly without starting a real database transaction.
+// Used in unit tests where repos are mocks.
+type noopTxManager struct{}
+
+func (noopTxManager) InTransaction(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
 func setupTest(t *testing.T) (*QuizService, *mocks.MockTemplateRepo, *mocks.MockInstanceRepo, *mocks.MockRabbitMQPublisher, *mocks.MockUserClient, *mocks.MockDeleteRepo) {
 	ctrl := gomock.NewController(t)
 	templateRepo := mocks.NewMockTemplateRepo(ctrl)
@@ -26,7 +34,7 @@ func setupTest(t *testing.T) (*QuizService, *mocks.MockTemplateRepo, *mocks.Mock
 	publisher := mocks.NewMockRabbitMQPublisher(ctrl)
 	userClient := mocks.NewMockUserClient(ctrl)
 
-	svc := NewQuizServiceWithDeps(templateRepo, instanceRepo, deleteRepo, publisher, userClient)
+	svc := NewQuizServiceWithDeps(templateRepo, instanceRepo, deleteRepo, noopTxManager{}, publisher, userClient)
 	return svc, templateRepo, instanceRepo, publisher, userClient, deleteRepo
 }
 
@@ -157,7 +165,7 @@ func TestDeleteTemplate_DeleteQuestionsFails(t *testing.T) {
 
 	_, err := svc.DeleteTemplate(ctx, &pb.DeleteTemplateRequest{TemplateId: "tmpl-1", UserId: "user-1"})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Failed to delete questions")
+	assert.Contains(t, err.Error(), "Failed to delete template")
 }
 
 func TestCreateInstance_Success(t *testing.T) {

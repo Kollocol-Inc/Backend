@@ -4,23 +4,19 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"quiz-service/pkg/database"
 )
 
 type DeleteRepository struct {
-	db *sql.DB
+	db database.DBTX
 }
 
-func NewDeleteRepository(db *sql.DB) *DeleteRepository {
+func NewDeleteRepository(db database.DBTX) *DeleteRepository {
 	return &DeleteRepository{db: db}
 }
 
 func (r *DeleteRepository) DeleteAllByOwner(ctx context.Context, userID string) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback()
-
 	statements := []struct {
 		name  string
 		query string
@@ -44,11 +40,29 @@ func (r *DeleteRepository) DeleteAllByOwner(ctx context.Context, userID string) 
 			`DELETE FROM quiz_deadline_reminders_sent WHERE user_id = $1`},
 	}
 
-	for _, stmt := range statements {
-		if _, err := tx.ExecContext(ctx, stmt.query, userID); err != nil {
-			return fmt.Errorf("delete %s: %w", stmt.name, err)
+	exec := func(q database.DBTX) error {
+		for _, stmt := range statements {
+			if _, err := q.ExecContext(ctx, stmt.query, userID); err != nil {
+				return fmt.Errorf("delete %s: %w", stmt.name, err)
+			}
 		}
+		return nil
 	}
 
+	if existing := database.TxFromContext(ctx); existing != nil {
+		return exec(existing)
+	}
+	db, ok := r.db.(*sql.DB)
+	if !ok {
+		return fmt.Errorf("DeleteAllByOwner requires *sql.DB; got %T", r.db)
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+	if err := exec(tx); err != nil {
+		return err
+	}
 	return tx.Commit()
 }

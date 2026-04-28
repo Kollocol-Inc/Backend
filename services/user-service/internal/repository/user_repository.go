@@ -8,6 +8,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+
+	"user-service/pkg/database"
 )
 
 type User struct {
@@ -21,11 +23,15 @@ type User struct {
 }
 
 type UserRepository struct {
-	db *sql.DB
+	db database.DBTX
 }
 
-func NewUserRepository(db *sql.DB) *UserRepository {
+func NewUserRepository(db database.DBTX) *UserRepository {
 	return &UserRepository{db: db}
+}
+
+func (r *UserRepository) q(ctx context.Context) database.DBTX {
+	return database.Querier(ctx, r.db)
 }
 
 func (r *UserRepository) GetUserByID(ctx context.Context, userID string) (*User, error) {
@@ -36,7 +42,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID string) (*User,
 	`
 
 	user := &User{}
-	err := r.db.QueryRowContext(ctx, query, userID).Scan(
+	err := r.q(ctx).QueryRowContext(ctx, query, userID).Scan(
 		&user.ID,
 		&user.Email,
 		&user.FirstName,
@@ -64,7 +70,7 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*Use
 	`
 
 	user := &User{}
-	err := r.db.QueryRowContext(ctx, query, email).Scan(
+	err := r.q(ctx).QueryRowContext(ctx, query, email).Scan(
 		&user.ID,
 		&user.Email,
 		&user.FirstName,
@@ -106,7 +112,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, email string) (*User, e
 		RETURNING id, email, first_name, last_name, avatar_url, is_registered, created_at
 	`
 
-	err := r.db.QueryRowContext(ctx, query,
+	err := r.q(ctx).QueryRowContext(ctx, query,
 		user.ID,
 		user.Email,
 		user.FirstName,
@@ -141,7 +147,7 @@ func (r *UserRepository) UpdateUser(ctx context.Context, user *User) error {
 		WHERE id = $1
 	`
 
-	result, err := r.db.ExecContext(ctx, query,
+	result, err := r.q(ctx).ExecContext(ctx, query,
 		user.ID,
 		user.FirstName,
 		user.LastName,
@@ -168,7 +174,7 @@ func (r *UserRepository) UpdateUser(ctx context.Context, user *User) error {
 func (r *UserRepository) DeleteUser(ctx context.Context, userID string) error {
 	query := `DELETE FROM users WHERE id = $1`
 
-	_, err := r.db.ExecContext(ctx, query, userID)
+	_, err := r.q(ctx).ExecContext(ctx, query, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
@@ -195,7 +201,7 @@ func (r *UserRepository) GetUsersByEmails(ctx context.Context, emails []string) 
 		WHERE email = ANY($1)
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, pq.Array(emails))
+	rows, err := r.q(ctx).QueryContext(ctx, query, pq.Array(emails))
 	if err != nil {
 		return nil, fmt.Errorf("failed to query users: %w", err)
 	}
@@ -242,7 +248,7 @@ func (r *UserRepository) GetUsersByIDs(ctx context.Context, userIDs []string) ([
 		WHERE id = ANY($1)
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, pq.Array(userIDs))
+	rows, err := r.q(ctx).QueryContext(ctx, query, pq.Array(userIDs))
 	if err != nil {
 		return nil, fmt.Errorf("failed to query users: %w", err)
 	}

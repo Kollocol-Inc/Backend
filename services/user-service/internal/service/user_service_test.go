@@ -15,6 +15,12 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+type noopTxManager struct{}
+
+func (noopTxManager) InTransaction(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
 type testDeps struct {
 	svc                *UserService
 	userRepo           *mocks.MockUserRepo
@@ -38,7 +44,7 @@ func setupTest(t *testing.T) *testDeps {
 	quizClient := mocks.NewMockQuizServiceClient(ctrl)
 	notificationClient := mocks.NewMockNotificationServiceClient(ctrl)
 
-	svc := NewUserServiceWithDeps(userRepo, settingsRepo, groupRepo, s3, publisher, authClient, quizClient, notificationClient)
+	svc := NewUserServiceWithDeps(userRepo, settingsRepo, groupRepo, noopTxManager{}, s3, publisher, authClient, quizClient, notificationClient)
 	return &testDeps{
 		svc:                svc,
 		userRepo:           userRepo,

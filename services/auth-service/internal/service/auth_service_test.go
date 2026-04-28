@@ -18,13 +18,19 @@ import (
 
 const testJWTSecret = "test-secret-key-for-unit-tests"
 
+type noopTxManager struct{}
+
+func (noopTxManager) InTransaction(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
 func setupTest(t *testing.T) (*AuthService, *mocks.MockAuthRepository, *mocks.MockUserRepository, *mocks.MockMessagePublisher) {
 	ctrl := gomock.NewController(t)
 	authRepo := mocks.NewMockAuthRepository(ctrl)
 	userRepo := mocks.NewMockUserRepository(ctrl)
 	publisher := mocks.NewMockMessagePublisher(ctrl)
 
-	svc := NewAuthServiceWithDeps(authRepo, userRepo, nil, publisher, testJWTSecret)
+	svc := NewAuthServiceWithDeps(authRepo, userRepo, nil, publisher, noopTxManager{}, testJWTSecret)
 	return svc, authRepo, userRepo, publisher
 }
 
