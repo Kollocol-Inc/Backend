@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"quiz-service/internal/constants"
+	"quiz-service/pkg/database"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,11 +33,15 @@ type SessionAnswer struct {
 }
 
 type InstanceRepository struct {
-	db *sql.DB
+	db database.DBTX
 }
 
-func NewInstanceRepository(db *sql.DB) *InstanceRepository {
+func NewInstanceRepository(db database.DBTX) *InstanceRepository {
 	return &InstanceRepository{db: db}
+}
+
+func (r *InstanceRepository) q(ctx context.Context) database.DBTX {
+	return database.Querier(ctx, r.db)
 }
 
 type Instance struct {
@@ -82,50 +87,47 @@ func (r *InstanceRepository) CreateInstance(ctx context.Context, instance *Insta
 		return fmt.Errorf("failed to generate access code: %w", err)
 	}
 
-	tx, err := r.db.BeginTx(ctx, nil)
+	exec := func(ctx context.Context, q database.DBTX) error {
+		insert := `
+			INSERT INTO quiz_instances (id, template_id, title, access_code, status, group_id, created_by, created_at, start_time, deadline, quiz_type, settings, total_time, total_questions)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		`
+		if _, err := q.ExecContext(ctx, insert,
+			instance.ID, instance.TemplateID, instance.Title, instance.AccessCode,
+			instance.Status, instance.GroupID, instance.CreatedBy, instance.CreatedAt,
+			instance.StartTime, instance.Deadline, instance.QuizType, instance.Settings,
+			instance.TotalTime, instance.TotalQuestions,
+		); err != nil {
+			return err
+		}
+		if instance.TemplateID.Valid {
+			if _, err := q.ExecContext(ctx, `
+				INSERT INTO instance_questions (instance_id, question_id, order_index)
+				SELECT $1, question_id, order_index
+				FROM template_questions
+				WHERE template_id = $2
+			`, instance.ID, instance.TemplateID.String); err != nil {
+				return fmt.Errorf("failed to copy questions: %w", err)
+			}
+		}
+		return nil
+	}
+
+	if existing := database.TxFromContext(ctx); existing != nil {
+		return exec(ctx, existing)
+	}
+	db, ok := r.db.(*sql.DB)
+	if !ok {
+		return fmt.Errorf("CreateInstance requires *sql.DB; got %T", r.db)
+	}
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-
-	query := `
-		INSERT INTO quiz_instances (id, template_id, title, access_code, status, group_id, created_by, created_at, start_time, deadline, quiz_type, settings, total_time, total_questions)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-	`
-
-	_, err = tx.ExecContext(ctx, query,
-		instance.ID,
-		instance.TemplateID,
-		instance.Title,
-		instance.AccessCode,
-		instance.Status,
-		instance.GroupID,
-		instance.CreatedBy,
-		instance.CreatedAt,
-		instance.StartTime,
-		instance.Deadline,
-		instance.QuizType,
-		instance.Settings,
-		instance.TotalTime,
-		instance.TotalQuestions,
-	)
-	if err != nil {
+	if err := exec(ctx, tx); err != nil {
 		return err
 	}
-
-	if instance.TemplateID.Valid {
-		queryCopyQuestions := `
-			INSERT INTO instance_questions (instance_id, question_id, order_index)
-			SELECT $1, question_id, order_index
-			FROM template_questions
-			WHERE template_id = $2
-		`
-		_, err = tx.ExecContext(ctx, queryCopyQuestions, instance.ID, instance.TemplateID.String)
-		if err != nil {
-			return fmt.Errorf("failed to copy questions: %w", err)
-		}
-	}
-
 	return tx.Commit()
 }
 
@@ -137,7 +139,7 @@ func (r *InstanceRepository) GetInstanceByID(ctx context.Context, instanceID str
 	`
 
 	instance := &Instance{}
-	err := r.db.QueryRowContext(ctx, query, instanceID).Scan(
+	err := r.q(ctx).QueryRowContext(ctx, query, instanceID).Scan(
 		&instance.ID,
 		&instance.TemplateID,
 		&instance.Title,
@@ -180,7 +182,7 @@ func (r *InstanceRepository) GetHostingInstances(ctx context.Context, userID, st
 
 	query += " ORDER BY created_at DESC"
 
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := r.q(ctx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +228,7 @@ func (r *InstanceRepository) GetInstanceWithQuestions(ctx context.Context, insta
 		ORDER BY iq.order_index ASC
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, instanceID)
+	rows, err := r.q(ctx).QueryContext(ctx, query, instanceID)
 	if err != nil {
 		return nil, err
 	}
@@ -307,7 +309,7 @@ func (r *InstanceRepository) generateUniqueAccessCode(ctx context.Context) (stri
 
 		var exists bool
 		query := `SELECT EXISTS(SELECT 1 FROM quiz_instances WHERE access_code = $1)`
-		err = r.db.QueryRowContext(ctx, query, code).Scan(&exists)
+		err = r.q(ctx).QueryRowContext(ctx, query, code).Scan(&exists)
 		if err != nil {
 			return "", err
 		}
@@ -350,7 +352,7 @@ func (r *InstanceRepository) GetParticipatingInstances(ctx context.Context, user
 
 	query += " ORDER BY created_at DESC"
 
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := r.q(ctx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -395,7 +397,7 @@ func (r *InstanceRepository) GetInstanceByAccessCode(ctx context.Context, access
 	`
 
 	instance := &Instance{}
-	err := r.db.QueryRowContext(ctx, query, accessCode).Scan(
+	err := r.q(ctx).QueryRowContext(ctx, query, accessCode).Scan(
 		&instance.ID,
 		&instance.TemplateID,
 		&instance.Title,
@@ -429,7 +431,7 @@ func (r *InstanceRepository) GetInstanceParticipants(ctx context.Context, instan
 		WHERE gs.instance_id = $1 AND gs.user_id != $2
 		ORDER BY gs.started_at ASC
 	`
-	rows, err := r.db.QueryContext(ctx, query, instanceID, excludeUserID)
+	rows, err := r.q(ctx).QueryContext(ctx, query, instanceID, excludeUserID)
 	if err != nil {
 		return nil, err
 	}
@@ -453,7 +455,7 @@ func (r *InstanceRepository) GetParticipantAnswers(ctx context.Context, instance
 		WHERE gs.instance_id = $1 AND gs.user_id = $2
 	`
 	s := &ParticipantSession{}
-	err := r.db.QueryRowContext(ctx, query, instanceID, userID).Scan(
+	err := r.q(ctx).QueryRowContext(ctx, query, instanceID, userID).Scan(
 		&s.UserID, &s.Status, &s.Score, &s.Answers, &s.StartedAt, &s.FinishedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -466,46 +468,69 @@ func (r *InstanceRepository) GetParticipantAnswers(ctx context.Context, instance
 }
 
 func (r *InstanceRepository) GradeAnswer(ctx context.Context, instanceID, userID, questionID string, score int) (int, error) {
-	var answersJSON string
-	query := `SELECT answers FROM game_sessions WHERE instance_id = $1 AND user_id = $2`
-	if err := r.db.QueryRowContext(ctx, query, instanceID, userID).Scan(&answersJSON); err != nil {
-		return 0, fmt.Errorf("participant not found: %w", err)
-	}
+	var oldScore int
 
-	var answers []SessionAnswer
-	if err := json.Unmarshal([]byte(answersJSON), &answers); err != nil {
-		return 0, fmt.Errorf("failed to parse answers: %w", err)
-	}
-
-	found := false
-	oldScore := 0
-	for i, a := range answers {
-		if a.QuestionID == questionID {
-			oldScore = a.Score
-			answers[i].Score = score
-			answers[i].IsCorrect = score > 0
-			answers[i].IsReviewed = true
-			found = true
-			break
+	exec := func(ctx context.Context, q database.DBTX) error {
+		var answersJSON string
+		const lockQuery = `SELECT answers FROM game_sessions WHERE instance_id = $1 AND user_id = $2 FOR UPDATE`
+		if err := q.QueryRowContext(ctx, lockQuery, instanceID, userID).Scan(&answersJSON); err != nil {
+			return fmt.Errorf("participant not found: %w", err)
 		}
-	}
-	if !found {
-		return 0, fmt.Errorf("answer for question not found")
+
+		var answers []SessionAnswer
+		if err := json.Unmarshal([]byte(answersJSON), &answers); err != nil {
+			return fmt.Errorf("failed to parse answers: %w", err)
+		}
+
+		found := false
+		for i, a := range answers {
+			if a.QuestionID == questionID {
+				oldScore = a.Score
+				answers[i].Score = score
+				answers[i].IsCorrect = score > 0
+				answers[i].IsReviewed = true
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("answer for question not found")
+		}
+
+		updatedJSON, err := json.Marshal(answers)
+		if err != nil {
+			return fmt.Errorf("failed to marshal answers: %w", err)
+		}
+
+		const updateQuery = `UPDATE game_sessions SET answers = $1 WHERE instance_id = $2 AND user_id = $3`
+		_, err = q.ExecContext(ctx, updateQuery, string(updatedJSON), instanceID, userID)
+		return err
 	}
 
-	updatedJSON, err := json.Marshal(answers)
+	if existing := database.TxFromContext(ctx); existing != nil {
+		return oldScore, exec(ctx, existing)
+	}
+	db, ok := r.db.(*sql.DB)
+	if !ok {
+		return 0, fmt.Errorf("GradeAnswer requires *sql.DB; got %T", r.db)
+	}
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return 0, fmt.Errorf("failed to marshal answers: %w", err)
+		return 0, fmt.Errorf("begin tx: %w", err)
 	}
-
-	updateQuery := `UPDATE game_sessions SET answers = $1 WHERE instance_id = $2 AND user_id = $3`
-	_, err = r.db.ExecContext(ctx, updateQuery, string(updatedJSON), instanceID, userID)
-	return oldScore, err
+	defer tx.Rollback()
+	if err := exec(ctx, tx); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit tx: %w", err)
+	}
+	return oldScore, nil
 }
 
 func (r *InstanceRepository) DeleteInstance(ctx context.Context, instanceID, createdBy string) error {
 	query := `DELETE FROM quiz_instances WHERE id = $1 AND created_by = $2`
-	result, err := r.db.ExecContext(ctx, query, instanceID, createdBy)
+	result, err := r.q(ctx).ExecContext(ctx, query, instanceID, createdBy)
 	if err != nil {
 		return err
 	}
@@ -521,7 +546,7 @@ func (r *InstanceRepository) DeleteInstance(ctx context.Context, instanceID, cre
 
 func (r *InstanceRepository) UpdateInstanceStatus(ctx context.Context, instanceID, status string) error {
 	query := `UPDATE quiz_instances SET status = $1 WHERE id = $2`
-	result, err := r.db.ExecContext(ctx, query, status, instanceID)
+	result, err := r.q(ctx).ExecContext(ctx, query, status, instanceID)
 	if err != nil {
 		return err
 	}

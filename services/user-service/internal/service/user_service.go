@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"path/filepath"
@@ -12,10 +13,12 @@ import (
 
 	"user-service/constants"
 	"user-service/internal/repository"
+	"user-service/pkg/database"
 	"user-service/pkg/errors"
 	"user-service/pkg/messaging"
 	"user-service/pkg/storage"
 	pb "user-service/proto"
+
 	"google.golang.org/grpc/codes"
 )
 
@@ -23,6 +26,7 @@ type UserRepo interface {
 	GetUserByID(ctx context.Context, userID string) (*repository.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*repository.User, error)
 	UpdateUser(ctx context.Context, user *repository.User) error
+	DeleteUser(ctx context.Context, userID string) error
 	GetUsersByEmailsMap(ctx context.Context, emails []string) (map[string]*repository.User, error)
 	GetUsersByIDs(ctx context.Context, userIDs []string) ([]*repository.User, error)
 }
@@ -31,6 +35,7 @@ type SettingsRepo interface {
 	GetOrCreateSettings(ctx context.Context, userID string) (*repository.NotificationSettings, error)
 	CreateDefaultSettings(ctx context.Context, userID string) (*repository.NotificationSettings, error)
 	UpdateSettings(ctx context.Context, settings *repository.NotificationSettings) error
+	DeleteSettings(ctx context.Context, userID string) error
 }
 
 type GroupRepo interface {
@@ -38,6 +43,8 @@ type GroupRepo interface {
 	GetGroupByID(ctx context.Context, groupID string) (*repository.Group, error)
 	UpdateGroup(ctx context.Context, group *repository.Group) error
 	DeleteGroup(ctx context.Context, groupID string) error
+	DeleteOwnedGroups(ctx context.Context, ownerID string) error
+	DeleteUserMemberships(ctx context.Context, userID string) error
 	AddMembers(ctx context.Context, groupID string, userIDs []string) error
 	GetMemberIDs(ctx context.Context, groupID string) ([]string, error)
 	GetMemberCount(ctx context.Context, groupID string) (int32, error)
@@ -57,26 +64,49 @@ type MessagePublisher interface {
 	Publish(ctx context.Context, queueName string, body []byte) error
 }
 
+type AuthServiceClient interface {
+	RevokeUser(ctx context.Context, userID string) error
+}
+
+type QuizServiceClient interface {
+	DeleteAllByOwner(ctx context.Context, userID string) error
+}
+
+type NotificationServiceClient interface {
+	DeleteAllForUser(ctx context.Context, userID string) error
+}
+
 type UserService struct {
 	pb.UnimplementedUserServiceServer
-	userRepo     UserRepo
-	settingsRepo SettingsRepo
-	groupRepo    GroupRepo
-	s3Client     FileStorage
-	rabbitMQ     MessagePublisher
+	userRepo           UserRepo
+	settingsRepo       SettingsRepo
+	groupRepo          GroupRepo
+	txMgr              database.TxManager
+	s3Client           FileStorage
+	rabbitMQ           MessagePublisher
+	authClient         AuthServiceClient
+	quizClient         QuizServiceClient
+	notificationClient NotificationServiceClient
 }
 
 func NewUserService(
 	db *sql.DB,
 	s3Client *storage.S3Client,
 	rabbitMQ *messaging.RabbitMQClient,
+	authClient AuthServiceClient,
+	quizClient QuizServiceClient,
+	notificationClient NotificationServiceClient,
 ) *UserService {
 	return &UserService{
-		userRepo:     repository.NewUserRepository(db),
-		settingsRepo: repository.NewNotificationSettingsRepository(db),
-		groupRepo:    repository.NewGroupRepository(db),
-		s3Client:     s3Client,
-		rabbitMQ:     rabbitMQ,
+		userRepo:           repository.NewUserRepository(db),
+		settingsRepo:       repository.NewNotificationSettingsRepository(db),
+		groupRepo:          repository.NewGroupRepository(db),
+		txMgr:              database.NewManager(db),
+		s3Client:           s3Client,
+		rabbitMQ:           rabbitMQ,
+		authClient:         authClient,
+		quizClient:         quizClient,
+		notificationClient: notificationClient,
 	}
 }
 
@@ -84,15 +114,23 @@ func NewUserServiceWithDeps(
 	userRepo UserRepo,
 	settingsRepo SettingsRepo,
 	groupRepo GroupRepo,
+	txMgr database.TxManager,
 	s3Client FileStorage,
 	rabbitMQ MessagePublisher,
+	authClient AuthServiceClient,
+	quizClient QuizServiceClient,
+	notificationClient NotificationServiceClient,
 ) *UserService {
 	return &UserService{
-		userRepo:     userRepo,
-		settingsRepo: settingsRepo,
-		groupRepo:    groupRepo,
-		s3Client:     s3Client,
-		rabbitMQ:     rabbitMQ,
+		userRepo:           userRepo,
+		settingsRepo:       settingsRepo,
+		groupRepo:          groupRepo,
+		txMgr:              txMgr,
+		s3Client:           s3Client,
+		rabbitMQ:           rabbitMQ,
+		authClient:         authClient,
+		quizClient:         quizClient,
+		notificationClient: notificationClient,
 	}
 }
 
@@ -120,17 +158,21 @@ func (s *UserService) Register(ctx context.Context, req *pb.RegisterRequest) (*p
 		user.AvatarURL = avatarURL
 	}
 
-	if err := s.userRepo.UpdateUser(ctx, user); err != nil {
-		log.Printf("Failed to update user: %v", err)
-		return nil, errors.New(codes.Internal, errors.ReasonUserUpdateFailed, "Failed to update profile", map[string]string{"user_id": req.UserId})
+	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		if err := s.userRepo.UpdateUser(ctx, user); err != nil {
+			return fmt.Errorf("update user: %w", err)
+		}
+		if _, err := s.settingsRepo.CreateDefaultSettings(ctx, user.ID); err != nil {
+			return fmt.Errorf("create default notification settings: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Printf("Register tx failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonUserUpdateFailed, "Failed to register user", map[string]string{"user_id": req.UserId})
 	}
 
 	log.Printf("User %s registered successfully", user.ID)
-
-	_, err = s.settingsRepo.CreateDefaultSettings(ctx, user.ID)
-	if err != nil {
-		log.Printf("Failed to create notification settings: %v", err)
-	}
 
 	return &pb.RegisterResponse{
 		User: s.userToProto(user),
@@ -249,31 +291,41 @@ func (s *UserService) UpdateNotificationSettings(ctx context.Context, req *pb.Up
 }
 
 func (s *UserService) CreateGroup(ctx context.Context, req *pb.CreateGroupRequest) (*pb.CreateGroupResponse, error) {
-	group, err := s.groupRepo.CreateGroup(ctx, req.Name, req.OwnerId)
-	if err != nil {
-		log.Printf("Failed to create group: %v", err)
-		return nil, errors.New(codes.Internal, errors.ReasonGroupCreateFailed, "Failed to create group", map[string]string{"owner_id": req.OwnerId})
-	}
-
 	usersMap, err := s.userRepo.GetUsersByEmailsMap(ctx, req.MemberEmails)
 	if err != nil {
 		log.Printf("Failed to get users by emails: %v", err)
 	}
 
-	userIDs := []string{req.OwnerId}
-	addedEmails := []string{}
-	for _, email := range req.MemberEmails {
-		user, exists := usersMap[email]
-		if !exists {
-			log.Printf("User not found for email %s", email)
-			continue
+	var (
+		group       *repository.Group
+		addedEmails []string
+	)
+	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		var err error
+		group, err = s.groupRepo.CreateGroup(ctx, req.Name, req.OwnerId)
+		if err != nil {
+			return fmt.Errorf("create group: %w", err)
 		}
-		userIDs = append(userIDs, user.ID)
-		addedEmails = append(addedEmails, email)
-	}
 
-	if err := s.groupRepo.AddMembers(ctx, group.ID, userIDs); err != nil {
-		log.Printf("Failed to add members: %v", err)
+		userIDs := []string{req.OwnerId}
+		for _, email := range req.MemberEmails {
+			user, exists := usersMap[email]
+			if !exists {
+				log.Printf("User not found for email %s", email)
+				continue
+			}
+			userIDs = append(userIDs, user.ID)
+			addedEmails = append(addedEmails, email)
+		}
+
+		if err := s.groupRepo.AddMembers(ctx, group.ID, userIDs); err != nil {
+			return fmt.Errorf("add members: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Printf("CreateGroup tx failed: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonGroupCreateFailed, "Failed to create group", map[string]string{"owner_id": req.OwnerId})
 	}
 
 	for _, email := range addedEmails {
@@ -356,24 +408,27 @@ func (s *UserService) UpdateGroup(ctx context.Context, req *pb.UpdateGroupReques
 		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only group owner can update group", map[string]string{"group_id": req.GroupId, "user_id": req.UserId})
 	}
 
-	if req.Name != "" {
-		group.Name = req.Name
-		if err := s.groupRepo.UpdateGroup(ctx, group); err != nil {
-			log.Printf("Failed to update group: %v", err)
-			return nil, errors.New(codes.Internal, errors.ReasonGroupUpdateFailed, "Failed to update group", map[string]string{"group_id": req.GroupId})
-		}
+	usersMap, err := s.userRepo.GetUsersByEmailsMap(ctx, req.MemberEmails)
+	if err != nil {
+		log.Printf("Failed to get users by emails: %v", err)
 	}
 
-	if len(req.MemberEmails) > 0 {
-		usersMap, err := s.userRepo.GetUsersByEmailsMap(ctx, req.MemberEmails)
-		if err != nil {
-			log.Printf("Failed to get users by emails: %v", err)
+	var addedEmails []string
+	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		if req.Name != "" {
+			group.Name = req.Name
+			if err := s.groupRepo.UpdateGroup(ctx, group); err != nil {
+				return fmt.Errorf("update group: %w", err)
+			}
+		}
+
+		if len(req.MemberEmails) == 0 {
+			return nil
 		}
 
 		existingMemberIDs, err := s.groupRepo.GetMemberIDs(ctx, req.GroupId)
 		if err != nil {
-			log.Printf("Failed to get existing members: %v", err)
-			existingMemberIDs = []string{}
+			return fmt.Errorf("get member ids: %w", err)
 		}
 		existingMembersSet := make(map[string]bool, len(existingMemberIDs))
 		for _, id := range existingMemberIDs {
@@ -381,31 +436,33 @@ func (s *UserService) UpdateGroup(ctx context.Context, req *pb.UpdateGroupReques
 		}
 
 		newUserIDs := []string{}
-		addedEmails := []string{}
 		for _, email := range req.MemberEmails {
 			user, exists := usersMap[email]
 			if !exists {
 				log.Printf("User not found for email %s", email)
 				continue
 			}
-
 			if existingMembersSet[user.ID] {
 				continue
 			}
-
 			newUserIDs = append(newUserIDs, user.ID)
 			addedEmails = append(addedEmails, email)
 		}
 
 		if len(newUserIDs) > 0 {
 			if err := s.groupRepo.AddMembers(ctx, req.GroupId, newUserIDs); err != nil {
-				log.Printf("Failed to add members: %v", err)
-			}
-
-			for _, email := range addedEmails {
-				s.publishGroupInvite(ctx, group.ID, group.Name, req.UserId, email)
+				return fmt.Errorf("add members: %w", err)
 			}
 		}
+		return nil
+	})
+	if err != nil {
+		log.Printf("UpdateGroup tx failed: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonGroupUpdateFailed, "Failed to update group", map[string]string{"group_id": req.GroupId})
+	}
+
+	for _, email := range addedEmails {
+		s.publishGroupInvite(ctx, group.ID, group.Name, req.UserId, email)
 	}
 
 	memberCount, _ := s.groupRepo.GetMemberCount(ctx, req.GroupId)
@@ -516,11 +573,24 @@ func (s *UserService) publishGroupInvite(ctx context.Context, groupID, groupName
 		inviterName = inviter.Email
 	}
 
+	inviteeUserID := ""
+	if invitee, err := s.userRepo.GetUserByEmail(ctx, inviteeEmail); err == nil && invitee != nil {
+		if invitee.IsRegistered {
+			settings, settingsErr := s.settingsRepo.GetOrCreateSettings(ctx, invitee.ID)
+			if settingsErr == nil && !settings.GroupInvites {
+				log.Printf("publishGroupInvite: user %s opted out of group_invites, skipping", invitee.ID)
+				return
+			}
+		}
+		inviteeUserID = invitee.ID
+	}
+
 	event := map[string]string{
-		"group_id":      groupID,
-		"group_name":    groupName,
-		"inviter_name":  inviterName,
-		"invitee_email": inviteeEmail,
+		"group_id":        groupID,
+		"group_name":      groupName,
+		"inviter_name":    inviterName,
+		"invitee_email":   inviteeEmail,
+		"invitee_user_id": inviteeUserID,
 	}
 	eventData, _ := json.Marshal(event)
 
@@ -597,13 +667,100 @@ func (s *UserService) GetUsersByIDs(ctx context.Context, req *pb.GetUsersByIDsRe
 	}, nil
 }
 
+func (s *UserService) GetGroupMemberIDs(ctx context.Context, req *pb.GetGroupMemberIDsRequest) (*pb.GetGroupMemberIDsResponse, error) {
+	ids, err := s.groupRepo.GetMemberIDs(ctx, req.GroupId)
+	if err != nil {
+		log.Printf("GetGroupMemberIDs: failed for group %s: %v", req.GroupId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonMembersRetrieveFailed, "Failed to get member IDs", map[string]string{"group_id": req.GroupId})
+	}
+	return &pb.GetGroupMemberIDsResponse{UserIds: ids}, nil
+}
+
+func (s *UserService) GetNotificationSettingsBatch(ctx context.Context, req *pb.GetNotificationSettingsBatchRequest) (*pb.GetNotificationSettingsBatchResponse, error) {
+	result := make(map[string]*pb.NotificationSettings, len(req.UserIds))
+	for _, userID := range req.UserIds {
+		settings, err := s.settingsRepo.GetOrCreateSettings(ctx, userID)
+		if err != nil {
+			log.Printf("GetNotificationSettingsBatch: failed for user %s: %v", userID, err)
+			result[userID] = &pb.NotificationSettings{
+				UserId:           userID,
+				NewQuizzes:       true,
+				QuizResults:      true,
+				GroupInvites:     true,
+				DeadlineReminder: "24h",
+			}
+			continue
+		}
+		result[userID] = s.settingsToProto(settings)
+	}
+	return &pb.GetNotificationSettingsBatchResponse{Settings: result}, nil
+}
+
 func (s *UserService) deleteAvatarFile(ctx context.Context, avatarURL string) error {
 	bucketPrefix := "/" + constants.AvatarBucketName + "/"
 	_, after, ok := strings.Cut(avatarURL, bucketPrefix)
 	if !ok {
+		log.Printf("deleteAvatarFile: avatar URL %q does not contain bucket prefix, skipping S3 delete", avatarURL)
 		return nil
 	}
 	objectName := after
 
 	return s.s3Client.DeleteFile(ctx, constants.AvatarBucketName, objectName)
+}
+
+func (s *UserService) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) (*pb.DeleteUserResponse, error) {
+	if req.UserId == "" {
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonUserIDRequired, "User ID is required", nil)
+	}
+
+	user, err := s.userRepo.GetUserByID(ctx, req.UserId)
+	if err != nil {
+		log.Printf("DeleteUser: user %s not found: %v", req.UserId, err)
+		return nil, errors.New(codes.NotFound, errors.ReasonUserNotFound, "User not found", map[string]string{"user_id": req.UserId})
+	}
+
+	if err := s.authClient.RevokeUser(ctx, req.UserId); err != nil {
+		log.Printf("DeleteUser: revoke failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to revoke user tokens", map[string]string{"user_id": req.UserId})
+	}
+
+	if err := s.quizClient.DeleteAllByOwner(ctx, req.UserId); err != nil {
+		log.Printf("DeleteUser: quiz cleanup failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete quiz data", map[string]string{"user_id": req.UserId})
+	}
+
+	if err := s.notificationClient.DeleteAllForUser(ctx, req.UserId); err != nil {
+		log.Printf("DeleteUser: notification cleanup failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete notifications", map[string]string{"user_id": req.UserId})
+	}
+
+	if err := s.groupRepo.DeleteOwnedGroups(ctx, req.UserId); err != nil {
+		log.Printf("DeleteUser: owned-groups cleanup failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete owned groups", map[string]string{"user_id": req.UserId})
+	}
+
+	if err := s.groupRepo.DeleteUserMemberships(ctx, req.UserId); err != nil {
+		log.Printf("DeleteUser: memberships cleanup failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete group memberships", map[string]string{"user_id": req.UserId})
+	}
+
+	if err := s.settingsRepo.DeleteSettings(ctx, req.UserId); err != nil {
+		log.Printf("DeleteUser: settings cleanup failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete notification settings", map[string]string{"user_id": req.UserId})
+	}
+
+	if user.AvatarURL != "" {
+		if err := s.deleteAvatarFile(ctx, user.AvatarURL); err != nil {
+			log.Printf("DeleteUser: avatar cleanup failed for %s: %v", req.UserId, err)
+			return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete avatar", map[string]string{"user_id": req.UserId})
+		}
+	}
+
+	if err := s.userRepo.DeleteUser(ctx, req.UserId); err != nil {
+		log.Printf("DeleteUser: users-row delete failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete user", map[string]string{"user_id": req.UserId})
+	}
+
+	log.Printf("DeleteUser: user %s deleted", req.UserId)
+	return &pb.DeleteUserResponse{}, nil
 }

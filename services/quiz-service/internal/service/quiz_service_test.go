@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"quiz-service/internal/model"
 	"quiz-service/internal/repository"
 	"quiz-service/internal/service/mocks"
 	pb "quiz-service/proto"
@@ -17,19 +18,28 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func setupTest(t *testing.T) (*QuizService, *mocks.MockTemplateRepo, *mocks.MockInstanceRepo, *mocks.MockRabbitMQPublisher, *mocks.MockUserClient) {
+// noopTxManager executes fn directly without starting a real database transaction.
+// Used in unit tests where repos are mocks.
+type noopTxManager struct{}
+
+func (noopTxManager) InTransaction(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
+func setupTest(t *testing.T) (*QuizService, *mocks.MockTemplateRepo, *mocks.MockInstanceRepo, *mocks.MockRabbitMQPublisher, *mocks.MockUserClient, *mocks.MockDeleteRepo) {
 	ctrl := gomock.NewController(t)
 	templateRepo := mocks.NewMockTemplateRepo(ctrl)
 	instanceRepo := mocks.NewMockInstanceRepo(ctrl)
+	deleteRepo := mocks.NewMockDeleteRepo(ctrl)
 	publisher := mocks.NewMockRabbitMQPublisher(ctrl)
 	userClient := mocks.NewMockUserClient(ctrl)
 
-	svc := NewQuizServiceWithDeps(templateRepo, instanceRepo, publisher, userClient)
-	return svc, templateRepo, instanceRepo, publisher, userClient
+	svc := NewQuizServiceWithDeps(templateRepo, instanceRepo, deleteRepo, noopTxManager{}, publisher, userClient)
+	return svc, templateRepo, instanceRepo, publisher, userClient, deleteRepo
 }
 
 func TestCreateTemplate_Success(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	templateRepo.EXPECT().CreateTemplate(ctx, gomock.Any()).Return(nil)
@@ -56,7 +66,7 @@ func TestCreateTemplate_Success(t *testing.T) {
 }
 
 func TestCreateTemplate_CreateFails(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	templateRepo.EXPECT().CreateTemplate(ctx, gomock.Any()).Return(fmt.Errorf("db error"))
@@ -71,7 +81,7 @@ func TestCreateTemplate_CreateFails(t *testing.T) {
 }
 
 func TestCreateTemplate_WithAsyncSettings(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	templateRepo.EXPECT().CreateTemplate(ctx, gomock.Any()).Return(nil)
@@ -92,7 +102,7 @@ func TestCreateTemplate_WithAsyncSettings(t *testing.T) {
 }
 
 func TestGetTemplate_Success(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	template := &repository.Template{
@@ -113,7 +123,7 @@ func TestGetTemplate_Success(t *testing.T) {
 }
 
 func TestGetTemplate_NotFound(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	templateRepo.EXPECT().GetTemplateByID(ctx, "tmpl-999").Return(nil, fmt.Errorf("not found"))
@@ -124,7 +134,7 @@ func TestGetTemplate_NotFound(t *testing.T) {
 }
 
 func TestGetTemplate_NotOwner(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1", Title: "Test", QuizType: "sync", Settings: "{}"}
@@ -136,7 +146,7 @@ func TestGetTemplate_NotOwner(t *testing.T) {
 }
 
 func TestDeleteTemplate_Success(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	templateRepo.EXPECT().DeleteQuestionsByTemplateID(ctx, "tmpl-1").Return(nil)
@@ -148,18 +158,18 @@ func TestDeleteTemplate_Success(t *testing.T) {
 }
 
 func TestDeleteTemplate_DeleteQuestionsFails(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	templateRepo.EXPECT().DeleteQuestionsByTemplateID(ctx, "tmpl-1").Return(fmt.Errorf("db error"))
 
 	_, err := svc.DeleteTemplate(ctx, &pb.DeleteTemplateRequest{TemplateId: "tmpl-1", UserId: "user-1"})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Failed to delete questions")
+	assert.Contains(t, err.Error(), "Failed to delete template")
 }
 
 func TestCreateInstance_Success(t *testing.T) {
-	svc, templateRepo, instanceRepo, publisher, _ := setupTest(t)
+	svc, templateRepo, instanceRepo, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1", Title: "Test", QuizType: "async", Settings: `{"time_limit_minutes":60}`}
@@ -171,7 +181,6 @@ func TestCreateInstance_Success(t *testing.T) {
 	templateRepo.EXPECT().GetTemplateByID(ctx, "tmpl-1").Return(template, nil)
 	templateRepo.EXPECT().GetQuestionsByTemplateID(ctx, "tmpl-1").Return(questions, nil)
 	instanceRepo.EXPECT().CreateInstance(ctx, gomock.Any()).Return(nil)
-	publisher.EXPECT().Publish(ctx, "quiz.created", gomock.Any()).Return(nil)
 
 	resp, err := svc.CreateInstance(ctx, &pb.CreateInstanceRequest{
 		TemplateId: "tmpl-1",
@@ -185,7 +194,7 @@ func TestCreateInstance_Success(t *testing.T) {
 }
 
 func TestCreateInstance_NotOwner(t *testing.T) {
-	svc, templateRepo, _, _, _ := setupTest(t)
+	svc, templateRepo, _, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1"}
@@ -201,7 +210,7 @@ func TestCreateInstance_NotOwner(t *testing.T) {
 }
 
 func TestCreateInstance_WithGroupAndDeadline(t *testing.T) {
-	svc, templateRepo, instanceRepo, publisher, _ := setupTest(t)
+	svc, templateRepo, instanceRepo, publisher, userClient, _ := setupTest(t)
 	ctx := context.Background()
 
 	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1", QuizType: "async", Settings: "{}"}
@@ -213,6 +222,15 @@ func TestCreateInstance_WithGroupAndDeadline(t *testing.T) {
 		assert.True(t, inst.Deadline.Valid)
 		return nil
 	})
+
+	userClient.EXPECT().GetGroupMemberIDs(ctx, "group-1").Return([]string{"user-1", "user-2"}, nil)
+	userClient.EXPECT().GetUsersByIDs(ctx, gomock.Any()).Return(map[string]*model.UserInfo{
+		"user-1": {ID: "user-1", FirstName: "Alice", LastName: "Smith", Email: "alice@example.com", IsRegistered: true},
+		"user-2": {ID: "user-2", Email: "bob@example.com", IsRegistered: true},
+	}, nil)
+	userClient.EXPECT().GetNotificationSettingsBatch(ctx, []string{"user-2"}).Return(map[string]model.NotificationSettings{
+		"user-2": {NewQuizzes: true, DeadlineReminder: "24h"},
+	}, nil)
 	publisher.EXPECT().Publish(ctx, "quiz.created", gomock.Any()).Return(nil)
 
 	deadline := timestamppb.New(time.Now().Add(48 * time.Hour))
@@ -226,8 +244,71 @@ func TestCreateInstance_WithGroupAndDeadline(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestCreateInstance_DeadlineRejectedForSync(t *testing.T) {
+	svc, templateRepo, _, _, _, _ := setupTest(t)
+	ctx := context.Background()
+
+	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1", QuizType: "sync", Settings: "{}"}
+	templateRepo.EXPECT().GetTemplateByID(ctx, "tmpl-1").Return(template, nil)
+	templateRepo.EXPECT().GetQuestionsByTemplateID(ctx, "tmpl-1").Return([]*repository.Question{}, nil)
+
+	deadline := timestamppb.New(time.Now().Add(48 * time.Hour))
+	_, err := svc.CreateInstance(ctx, &pb.CreateInstanceRequest{
+		TemplateId: "tmpl-1",
+		UserId:     "user-1",
+		Title:      "Sync With Deadline",
+		Deadline:   deadline,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Deadline can only be set for async quizzes")
+}
+
+func TestGetParticipantAnswers_SessionNotFinished_Returns404(t *testing.T) {
+	svc, _, instanceRepo, _, _, _ := setupTest(t)
+	ctx := context.Background()
+
+	iwq := &repository.InstanceWithQuestions{
+		Instance:  &repository.Instance{ID: "inst-1", CreatedBy: "creator-1", QuizType: "async"},
+		Questions: []*repository.Question{{ID: "q-1"}},
+	}
+	instanceRepo.EXPECT().GetInstanceWithQuestions(ctx, "inst-1").Return(iwq, nil)
+	instanceRepo.EXPECT().GetParticipantAnswers(ctx, "inst-1", "user-1").Return(&repository.ParticipantSession{
+		UserID: "user-1", Status: "in_progress", Answers: "[]",
+	}, nil)
+
+	_, err := svc.GetParticipantAnswers(ctx, &pb.GetParticipantAnswersRequest{
+		InstanceId:    "inst-1",
+		UserId:        "creator-1",
+		ParticipantId: "user-1",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "has not finished")
+}
+
+func TestGetParticipantAnswers_FinishedSession_Returns200(t *testing.T) {
+	svc, _, instanceRepo, _, _, _ := setupTest(t)
+	ctx := context.Background()
+
+	iwq := &repository.InstanceWithQuestions{
+		Instance:  &repository.Instance{ID: "inst-1", CreatedBy: "creator-1", QuizType: "async"},
+		Questions: []*repository.Question{{ID: "q-1"}},
+	}
+	instanceRepo.EXPECT().GetInstanceWithQuestions(ctx, "inst-1").Return(iwq, nil)
+	instanceRepo.EXPECT().GetParticipantAnswers(ctx, "inst-1", "user-1").Return(&repository.ParticipantSession{
+		UserID: "user-1", Status: "finished", Answers: "[]",
+	}, nil)
+
+	resp, err := svc.GetParticipantAnswers(ctx, &pb.GetParticipantAnswersRequest{
+		InstanceId:    "inst-1",
+		UserId:        "creator-1",
+		ParticipantId: "user-1",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, resp.Instance)
+}
+
 func TestGetInstanceByAccessCode_CreatorHasAccess(t *testing.T) {
-	svc, _, instanceRepo, _, _ := setupTest(t)
+	svc, _, instanceRepo, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	instance := &repository.Instance{
@@ -246,7 +327,7 @@ func TestGetInstanceByAccessCode_CreatorHasAccess(t *testing.T) {
 }
 
 func TestGetInstanceByAccessCode_PublicQuiz(t *testing.T) {
-	svc, _, instanceRepo, _, _ := setupTest(t)
+	svc, _, instanceRepo, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	instance := &repository.Instance{
@@ -265,7 +346,7 @@ func TestGetInstanceByAccessCode_PublicQuiz(t *testing.T) {
 }
 
 func TestGetInstanceByAccessCode_GroupMember(t *testing.T) {
-	svc, _, instanceRepo, _, userClient := setupTest(t)
+	svc, _, instanceRepo, _, userClient, _ := setupTest(t)
 	ctx := context.Background()
 
 	instance := &repository.Instance{
@@ -285,7 +366,7 @@ func TestGetInstanceByAccessCode_GroupMember(t *testing.T) {
 }
 
 func TestGetInstanceByAccessCode_GroupNonMember(t *testing.T) {
-	svc, _, instanceRepo, _, userClient := setupTest(t)
+	svc, _, instanceRepo, _, userClient, _ := setupTest(t)
 	ctx := context.Background()
 
 	instance := &repository.Instance{
@@ -305,7 +386,7 @@ func TestGetInstanceByAccessCode_GroupNonMember(t *testing.T) {
 }
 
 func TestGetInstanceByAccessCode_NotFound(t *testing.T) {
-	svc, _, instanceRepo, _, _ := setupTest(t)
+	svc, _, instanceRepo, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	instanceRepo.EXPECT().GetInstanceByAccessCode(ctx, "999999").Return(nil, fmt.Errorf("not found"))
@@ -320,7 +401,7 @@ func TestGetInstanceByAccessCode_NotFound(t *testing.T) {
 }
 
 func TestGetInstance_Success(t *testing.T) {
-	svc, _, instanceRepo, _, _ := setupTest(t)
+	svc, _, instanceRepo, _, _, _ := setupTest(t)
 	ctx := context.Background()
 
 	instWithQ := &repository.InstanceWithQuestions{
@@ -341,7 +422,7 @@ func TestGetInstance_Success(t *testing.T) {
 }
 
 func TestQuestionInputToDB_SingleChoice(t *testing.T) {
-	svc, _, _, _, _ := setupTest(t)
+	svc, _, _, _, _, _ := setupTest(t)
 	input := &pb.QuestionInput{
 		Answer: &pb.QuestionInput_SingleChoice{
 			SingleChoice: &pb.SingleChoice{Options: []string{"a", "b", "c"}, CorrectOption: 1},
@@ -355,7 +436,7 @@ func TestQuestionInputToDB_SingleChoice(t *testing.T) {
 }
 
 func TestQuestionInputToDB_MultipleChoice(t *testing.T) {
-	svc, _, _, _, _ := setupTest(t)
+	svc, _, _, _, _, _ := setupTest(t)
 	input := &pb.QuestionInput{
 		Answer: &pb.QuestionInput_MultipleChoice{
 			MultipleChoice: &pb.MultipleChoice{Options: []string{"a", "b", "c"}, CorrectOptions: []int32{0, 2}},
@@ -369,7 +450,7 @@ func TestQuestionInputToDB_MultipleChoice(t *testing.T) {
 }
 
 func TestQuestionInputToDB_OpenAnswer(t *testing.T) {
-	svc, _, _, _, _ := setupTest(t)
+	svc, _, _, _, _, _ := setupTest(t)
 	input := &pb.QuestionInput{
 		Answer: &pb.QuestionInput_OpenAnswer{
 			OpenAnswer: &pb.OpenAnswer{CorrectText: "hello world"},
@@ -383,18 +464,69 @@ func TestQuestionInputToDB_OpenAnswer(t *testing.T) {
 }
 
 func TestMarshalSettings_Sync(t *testing.T) {
-	svc, _, _, _, _ := setupTest(t)
+	svc, _, _, _, _, _ := setupTest(t)
 	result, err := svc.marshalSettings(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "{}", result)
 }
 
 func TestMarshalSettings_Async(t *testing.T) {
-	svc, _, _, _, _ := setupTest(t)
+	svc, _, _, _, _, _ := setupTest(t)
 	settings := &pb.CreateTemplateRequest_AsyncSettings{
 		AsyncSettings: &pb.QuizAsyncSettings{QuestionsRandomOrder: true},
 	}
 	result, err := svc.marshalSettings(settings)
 	require.NoError(t, err)
 	assert.Contains(t, result, "questions_random_order")
+}
+
+func TestPublishGradeChanged_SkipsWhenQuizResultsDisabled(t *testing.T) {
+	svc, _, _, _, userClient, _ := setupTest(t)
+	ctx := context.Background()
+
+	inst := &repository.Instance{ID: "inst-1", Title: "Math Quiz"}
+	iwq := &repository.InstanceWithQuestions{
+		Instance:  inst,
+		Questions: []*repository.Question{{ID: "q-1", MaxScore: 10}},
+	}
+
+	userClient.EXPECT().
+		GetNotificationSettingsBatch(ctx, []string{"user-2"}).
+		Return(map[string]model.NotificationSettings{
+			"user-2": {QuizResults: false},
+		}, nil)
+
+	svc.publishGradeChanged(ctx, inst, iwq, "user-2")
+}
+
+func TestPublishGradeChanged_PublishesWhenQuizResultsEnabled(t *testing.T) {
+	svc, _, instanceRepo, publisher, userClient, _ := setupTest(t)
+	ctx := context.Background()
+
+	inst := &repository.Instance{ID: "inst-1", Title: "Math Quiz"}
+	iwq := &repository.InstanceWithQuestions{
+		Instance:  inst,
+		Questions: []*repository.Question{{ID: "q-1", MaxScore: 10}},
+	}
+
+	userClient.EXPECT().
+		GetNotificationSettingsBatch(ctx, []string{"user-2"}).
+		Return(map[string]model.NotificationSettings{
+			"user-2": {QuizResults: true},
+		}, nil)
+	userClient.EXPECT().
+		GetEmailsByIDs(ctx, []string{"user-2"}).
+		Return(map[string]string{"user-2": "u2@example.com"}, nil)
+	instanceRepo.EXPECT().
+		GetParticipantAnswers(ctx, "inst-1", "user-2").
+		Return(&repository.ParticipantSession{
+			UserID:  "user-2",
+			Status:  "finished",
+			Answers: `[{"question_id":"q-1","score":7}]`,
+		}, nil)
+	publisher.EXPECT().
+		Publish(ctx, "quiz.grade_changed", gomock.Any()).
+		Return(nil)
+
+	svc.publishGradeChanged(ctx, inst, iwq, "user-2")
 }

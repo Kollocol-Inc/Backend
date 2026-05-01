@@ -25,4 +25,5 @@ const (
 	ReasonNotificationDeleteFailed  = "NOTIFICATION_DELETE_FAILED"
 	ReasonNotificationCreateFailed  = "NOTIFICATION_CREATE_FAILED"
 	ReasonNotificationsFetchFailed  = "NOTIFICATIONS_FETCH_FAILED"
+	ReasonUserIDRequired            = "USER_ID_REQUIRED"
 )

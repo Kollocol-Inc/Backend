@@ -41,4 +41,7 @@ const (
 	ReasonInvalidScore          = "INVALID_SCORE"
 	ReasonNotAllReviewed        = "NOT_ALL_REVIEWED"
 	ReasonPublishFailed         = "PUBLISH_FAILED"
+	ReasonInvalidArgument       = "INVALID_ARGUMENT"
+	ReasonSessionNotFinished    = "SESSION_NOT_FINISHED"
+	ReasonDeleteAllByOwnerFailed = "DELETE_ALL_BY_OWNER_FAILED"
 )

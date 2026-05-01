@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"quiz-service/internal/model"
 	pb "quiz-service/proto"
 
 	"google.golang.org/grpc"
@@ -69,4 +70,56 @@ func (c *UserClient) GetEmailsByIDs(ctx context.Context, userIDs []string) (map[
 		}
 	}
 	return emails, nil
+}
+
+func (c *UserClient) GetUsersByIDs(ctx context.Context, userIDs []string) (map[string]*model.UserInfo, error) {
+	if len(userIDs) == 0 {
+		return map[string]*model.UserInfo{}, nil
+	}
+	resp, err := c.client.GetUsersByIDs(ctx, &pb.GetUsersByIDsRequest{UserIds: userIDs})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get users by IDs: %w", err)
+	}
+	result := make(map[string]*model.UserInfo, len(resp.Users))
+	for _, u := range resp.Users {
+		result[u.Id] = &model.UserInfo{
+			ID:           u.Id,
+			Email:        u.Email,
+			FirstName:    u.FirstName,
+			LastName:     u.LastName,
+			IsRegistered: u.IsRegistered,
+		}
+	}
+	return result, nil
+}
+
+func (c *UserClient) GetGroupMemberIDs(ctx context.Context, groupID string) ([]string, error) {
+	if groupID == "" {
+		return nil, nil
+	}
+	resp, err := c.client.GetGroupMemberIDs(ctx, &pb.GetGroupMemberIDsRequest{GroupId: groupID})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get group member IDs: %w", err)
+	}
+	return resp.UserIds, nil
+}
+
+func (c *UserClient) GetNotificationSettingsBatch(ctx context.Context, userIDs []string) (map[string]model.NotificationSettings, error) {
+	if len(userIDs) == 0 {
+		return map[string]model.NotificationSettings{}, nil
+	}
+	resp, err := c.client.GetNotificationSettingsBatch(ctx, &pb.GetNotificationSettingsBatchRequest{UserIds: userIDs})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get notification settings batch: %w", err)
+	}
+	result := make(map[string]model.NotificationSettings, len(resp.Settings))
+	for uid, s := range resp.Settings {
+		result[uid] = model.NotificationSettings{
+			NewQuizzes:       s.NewQuizzes,
+			QuizResults:      s.QuizResults,
+			GroupInvites:     s.GroupInvites,
+			DeadlineReminder: s.DeadlineReminder,
+		}
+	}
+	return result, nil
 }

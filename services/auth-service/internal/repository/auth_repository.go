@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"auth-service/pkg/cache"
+	"auth-service/pkg/database"
 	"auth-service/pkg/jwt"
 )
 
@@ -43,14 +44,18 @@ func NewRefreshToken(token, userID string, expiresAt, createdAt time.Time) *Refr
 
 type AuthRepository struct {
 	redis *cache.RedisClient
-	db    *sql.DB
+	db    database.DBTX
 }
 
-func NewAuthRepository(redis *cache.RedisClient, db *sql.DB) *AuthRepository {
+func NewAuthRepository(redis *cache.RedisClient, db database.DBTX) *AuthRepository {
 	return &AuthRepository{
 		redis: redis,
 		db:    db,
 	}
+}
+
+func (r *AuthRepository) q(ctx context.Context) database.DBTX {
+	return database.Querier(ctx, r.db)
 }
 
 func (r *AuthRepository) SaveAuthCode(ctx context.Context, email, code string) error {
@@ -137,7 +142,7 @@ func (r *AuthRepository) SaveRefreshToken(ctx context.Context, token *RefreshTok
 			created_at = EXCLUDED.created_at
 	`
 
-	_, err := r.db.ExecContext(ctx, query,
+	_, err := r.q(ctx).ExecContext(ctx, query,
 		token.TokenHash,
 		token.UserID,
 		token.ExpiresAt,
@@ -160,7 +165,7 @@ func (r *AuthRepository) GetRefreshToken(ctx context.Context, token string) (*Re
 
 	hashedToken := hashToken(token)
 	storedToken := &RefreshToken{}
-	err := r.db.QueryRowContext(ctx, query, hashedToken).Scan(
+	err := r.q(ctx).QueryRowContext(ctx, query, hashedToken).Scan(
 		&storedToken.TokenHash,
 		&storedToken.UserID,
 		&storedToken.ExpiresAt,
@@ -181,7 +186,7 @@ func (r *AuthRepository) DeleteRefreshToken(ctx context.Context, token string) e
 	query := `DELETE FROM refresh_tokens WHERE token_hash = $1`
 
 	hashedToken := hashToken(token)
-	_, err := r.db.ExecContext(ctx, query, hashedToken)
+	_, err := r.q(ctx).ExecContext(ctx, query, hashedToken)
 	if err != nil {
 		return fmt.Errorf("failed to delete refresh token: %w", err)
 	}
@@ -192,12 +197,32 @@ func (r *AuthRepository) DeleteRefreshToken(ctx context.Context, token string) e
 func (r *AuthRepository) DeleteAllUserRefreshTokens(ctx context.Context, userID string) error {
 	query := `DELETE FROM refresh_tokens WHERE user_id = $1`
 
-	_, err := r.db.ExecContext(ctx, query, userID)
+	_, err := r.q(ctx).ExecContext(ctx, query, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete user refresh tokens: %w", err)
 	}
 
 	return nil
+}
+
+func (r *AuthRepository) RevokeUser(ctx context.Context, userID string) error {
+	key := fmt.Sprintf("auth:revoked_user:%s", userID)
+	if err := r.redis.Set(ctx, key, "revoked", BlacklistTTL); err != nil {
+		return fmt.Errorf("failed to set user revocation key: %w", err)
+	}
+	if err := r.DeleteAllUserRefreshTokens(ctx, userID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *AuthRepository) IsUserRevoked(ctx context.Context, userID string) (bool, error) {
+	key := fmt.Sprintf("auth:revoked_user:%s", userID)
+	count, err := r.redis.Exists(ctx, key)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func hashToken(token string) string {

@@ -1,0 +1,297 @@
+syntax = "proto3";
+
+package quiz;
+
+option go_package = "user-service/proto";
+
+import "google/protobuf/timestamp.proto";
+
+service QuizService {
+  rpc CreateTemplate(CreateTemplateRequest) returns (CreateTemplateResponse);
+  rpc GetTemplate(GetTemplateRequest) returns (GetTemplateResponse);
+  rpc GetTemplates(GetTemplatesRequest) returns (GetTemplatesResponse);
+  rpc UpdateTemplate(UpdateTemplateRequest) returns (UpdateTemplateResponse);
+  rpc DeleteTemplate(DeleteTemplateRequest) returns (DeleteTemplateResponse);
+
+  rpc CreateInstance(CreateInstanceRequest) returns (CreateInstanceResponse);
+  rpc GetInstance(GetInstanceRequest) returns (GetInstanceResponse);
+  rpc GetInstanceByAccessCode(GetInstanceByAccessCodeRequest) returns (GetInstanceByAccessCodeResponse);
+  rpc GetHostingInstances(GetHostingInstancesRequest) returns (GetHostingInstancesResponse);
+  rpc GetParticipatingInstances(GetParticipatingInstancesRequest) returns (GetParticipatingInstancesResponse);
+  rpc DeleteInstance(DeleteInstanceRequest) returns (DeleteInstanceResponse);
+
+  rpc GetInstanceParticipants(GetInstanceParticipantsRequest) returns (GetInstanceParticipantsResponse);
+  rpc GetParticipantAnswers(GetParticipantAnswersRequest) returns (GetParticipantAnswersResponse);
+  rpc GradeAnswer(GradeAnswerRequest) returns (GradeAnswerResponse);
+  rpc PublishResults(PublishResultsRequest) returns (PublishResultsResponse);
+
+  rpc DeleteAllByOwner(DeleteAllByOwnerRequest) returns (DeleteAllByOwnerResponse);
+}
+
+message QuizTemplate {
+  string id = 1;
+  string owner_id = 2;
+  string title = 3;
+  string quiz_type = 4; // "sync" or "async"
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  oneof settings {
+    QuizSyncSettings sync_settings = 8;
+    QuizAsyncSettings async_settings = 9;
+  }
+}
+
+message QuizSyncSettings {
+}
+
+message QuizAsyncSettings {
+  bool questions_random_order = 1;
+}
+
+message SingleChoice {
+  repeated string options = 1;
+  int32 correct_option = 2;
+}
+
+message MultipleChoice {
+  repeated string options = 1;
+  repeated int32 correct_options = 2;
+}
+
+message OpenAnswer {
+  string correct_text = 1;
+}
+
+message Question {
+  string id = 1;
+  string template_id = 2;
+  string text = 3;
+  int32 order_index = 4;
+  int32 max_score = 5;
+  int32 time_limit_sec = 6; // 0 = no limit
+  oneof answer {
+    SingleChoice single_choice = 7;
+    MultipleChoice multiple_choice = 8;
+    OpenAnswer open_answer = 9;
+  }
+}
+
+message QuizInstance {
+  string id = 1;
+  string template_id = 2;
+  string title = 3;
+  string access_code = 4; // 6-digit code
+  string status = 5; // "waiting", "active", "finished"
+  string group_id = 6;
+  string created_by = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp start_time = 9;
+  google.protobuf.Timestamp deadline = 10;
+  string quiz_type = 11;
+  uint64 total_time = 13;
+  uint64 total_questions = 14;
+  oneof settings {
+    QuizSyncSettings sync_settings = 15;
+    QuizAsyncSettings async_settings = 16;
+  }
+}
+
+message CreateTemplateRequest {
+  string user_id = 1;
+  string title = 2;
+  string quiz_type = 3;
+  repeated QuestionInput questions = 5;
+  oneof settings {
+    QuizSyncSettings sync_settings = 6;
+    QuizAsyncSettings async_settings = 7;
+  }
+}
+
+message QuestionInput {
+  string text = 1;
+  int32 max_score = 2;
+  int32 time_limit_sec = 3;
+  oneof answer {
+    SingleChoice single_choice = 4;
+    MultipleChoice multiple_choice = 5;
+    OpenAnswer open_answer = 6;
+  }
+}
+
+message CreateTemplateResponse {
+  QuizTemplate template = 1;
+  repeated Question questions = 2;
+}
+
+message GetTemplateRequest {
+  string template_id = 1;
+  string user_id = 2;
+}
+
+message GetTemplateResponse {
+  QuizTemplate template = 1;
+  repeated Question questions = 2;
+}
+
+message GetTemplatesRequest {
+  string user_id = 1;
+}
+
+message TemplateWithQuestions {
+  QuizTemplate template = 1;
+  repeated Question questions = 2;
+}
+
+message GetTemplatesResponse {
+  repeated TemplateWithQuestions templates = 1;
+}
+
+message UpdateTemplateRequest {
+  string template_id = 1;
+  string user_id = 2;
+  string title = 3;
+  repeated QuestionInput questions = 5;
+  string quiz_type = 6;
+  oneof settings {
+    QuizSyncSettings sync_settings = 7;
+    QuizAsyncSettings async_settings = 8;
+  }
+}
+
+message UpdateTemplateResponse {
+  QuizTemplate template = 1;
+  repeated Question questions = 2;
+}
+
+message DeleteTemplateRequest {
+  string template_id = 1;
+  string user_id = 2;
+}
+
+message DeleteTemplateResponse {
+}
+
+message CreateInstanceRequest {
+  string user_id = 1;
+  string template_id = 2;
+  string title = 3;
+  string group_id = 4;
+  google.protobuf.Timestamp deadline = 5;
+}
+
+message CreateInstanceResponse {
+  QuizInstance instance = 1;
+}
+
+message GetInstanceRequest {
+  string instance_id = 1;
+  string user_id = 2;
+}
+
+message GetInstanceResponse {
+  QuizInstance instance = 1;
+  repeated Question questions = 2;
+}
+
+message GetInstanceByAccessCodeRequest {
+  string access_code = 1;
+  string user_id = 2;
+}
+
+message GetInstanceByAccessCodeResponse {
+  QuizInstance instance = 1;
+  bool has_access = 2;
+}
+
+message GetHostingInstancesRequest {
+  string user_id = 1;
+  string status = 2; // "active", "pending_review", "reviewed", "" = all
+}
+
+message GetHostingInstancesResponse {
+  repeated QuizInstance instances = 1;
+}
+
+message GetParticipatingInstancesRequest {
+  string user_id = 1;
+  string session_status = 2; // "not_started", "joined", "in_progress", "finished", "" = all
+}
+
+message ParticipatingInstance {
+  QuizInstance instance = 1;
+  string session_status = 2; // "not_started", "joined", "in_progress", "finished"
+}
+
+message GetParticipatingInstancesResponse {
+  repeated ParticipatingInstance instances = 1;
+}
+
+message DeleteInstanceRequest {
+  string instance_id = 1;
+  string user_id = 2;
+}
+
+message DeleteInstanceResponse {
+}
+
+message ParticipantInfo {
+  string user_id = 1;
+  string session_status = 2;  // "joined", "in_progress", "finished"
+  string review_status = 3;   // "not_finished", "pending_review", "reviewed"
+  int32 total_score = 4;
+  int32 max_possible_score = 5;
+}
+
+message GetInstanceParticipantsRequest {
+  string instance_id = 1;
+  string user_id = 2;
+}
+
+message GetInstanceParticipantsResponse {
+  repeated ParticipantInfo participants = 1;
+}
+
+message AnswerInfo {
+  string question_id = 1;
+  string answer = 2;
+  bool is_correct = 3;
+  int32 score = 4;
+  int64 time_spent_ms = 5;
+  bool is_reviewed = 6;
+  bool is_time_expired = 7;
+}
+
+message GetParticipantAnswersRequest {
+  string instance_id = 1;
+  string user_id = 2;
+  string participant_id = 3;
+}
+
+message GetParticipantAnswersResponse {
+  QuizInstance instance = 1;
+  repeated Question questions = 2;
+  repeated AnswerInfo answers = 3;
+}
+
+message GradeAnswerRequest {
+  string instance_id = 1;
+  string user_id = 2;
+  string participant_id = 3;
+  string question_id = 4;
+  int32 score = 5;
+}
+
+message GradeAnswerResponse {}
+
+message PublishResultsRequest {
+  string instance_id = 1;
+  string user_id = 2;
+}
+
+message PublishResultsResponse {}
+
+message DeleteAllByOwnerRequest {
+  string user_id = 1;
+}
+
+message DeleteAllByOwnerResponse {}

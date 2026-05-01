@@ -6,11 +6,19 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig
-	DB       DBConfig
-	Redis    RedisConfig
-	RabbitMQ RabbitMQConfig
-	S3       S3Config
+	Server       ServerConfig
+	DB           DBConfig
+	Redis        RedisConfig
+	RabbitMQ     RabbitMQConfig
+	S3           S3Config
+	Auth         ServiceAddress
+	Quiz         ServiceAddress
+	Notification ServiceAddress
+}
+
+type ServiceAddress struct {
+	Host string
+	Port string
 }
 
 type ServerConfig struct {
@@ -81,6 +89,18 @@ func Load() *Config {
 			AccessKey:      getEnv("S3_ACCESS_KEY", "minioadmin"),
 			SecretKey:      getEnv("S3_SECRET_KEY", "minioadmin"),
 			UseSSL:         getEnv("S3_USE_SSL", "false") == "true",
+		},
+		Auth: ServiceAddress{
+			Host: getEnv("AUTH_SERVICE_HOST", "auth-service"),
+			Port: getEnv("AUTH_SERVICE_PORT", "50051"),
+		},
+		Quiz: ServiceAddress{
+			Host: getEnv("QUIZ_SERVICE_HOST", "quiz-service"),
+			Port: getEnv("QUIZ_SERVICE_PORT", "50051"),
+		},
+		Notification: ServiceAddress{
+			Host: getEnv("NOTIFICATION_SERVICE_HOST", "notification-service"),
+			Port: getEnv("NOTIFICATION_SERVICE_PORT", "50051"),
 		},
 	}
 }

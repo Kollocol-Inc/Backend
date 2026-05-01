@@ -8,14 +8,19 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"quiz-service/pkg/database"
 )
 
 type TemplateRepository struct {
-	db *sql.DB
+	db database.DBTX
 }
 
-func NewTemplateRepository(db *sql.DB) *TemplateRepository {
+func NewTemplateRepository(db database.DBTX) *TemplateRepository {
 	return &TemplateRepository{db: db}
+}
+
+func (r *TemplateRepository) q(ctx context.Context) database.DBTX {
+	return database.Querier(ctx, r.db)
 }
 
 type Template struct {
@@ -49,7 +54,7 @@ func (r *TemplateRepository) CreateTemplate(ctx context.Context, template *Templ
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 
-	_, err := r.db.ExecContext(ctx, query,
+	_, err := r.q(ctx).ExecContext(ctx, query,
 		template.ID,
 		template.OwnerID,
 		template.Title,
@@ -70,7 +75,7 @@ func (r *TemplateRepository) GetTemplateByID(ctx context.Context, templateID str
 	`
 
 	template := &Template{}
-	err := r.db.QueryRowContext(ctx, query, templateID).Scan(
+	err := r.q(ctx).QueryRowContext(ctx, query, templateID).Scan(
 		&template.ID,
 		&template.OwnerID,
 		&template.Title,
@@ -98,7 +103,7 @@ func (r *TemplateRepository) GetTemplatesByOwner(ctx context.Context, ownerID st
 		ORDER BY created_at DESC
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, ownerID)
+	rows, err := r.q(ctx).QueryContext(ctx, query, ownerID)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +139,7 @@ func (r *TemplateRepository) UpdateTemplate(ctx context.Context, template *Templ
 		WHERE id = $5 AND owner_id = $6
 	`
 
-	result, err := r.db.ExecContext(ctx, query,
+	result, err := r.q(ctx).ExecContext(ctx, query,
 		template.Title,
 		template.QuizType,
 		template.Settings,
@@ -160,7 +165,7 @@ func (r *TemplateRepository) UpdateTemplate(ctx context.Context, template *Templ
 func (r *TemplateRepository) DeleteTemplate(ctx context.Context, templateID, ownerID string) error {
 	query := `DELETE FROM quiz_templates WHERE id = $1 AND owner_id = $2`
 
-	result, err := r.db.ExecContext(ctx, query, templateID, ownerID)
+	result, err := r.q(ctx).ExecContext(ctx, query, templateID, ownerID)
 	if err != nil {
 		return err
 	}
@@ -179,26 +184,18 @@ func (r *TemplateRepository) DeleteTemplate(ctx context.Context, templateID, own
 func (r *TemplateRepository) CreateQuestion(ctx context.Context, question *Question) error {
 	question.ID = uuid.New().String()
 
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
 	queryQuestion := `
 		INSERT INTO questions (id, text, type, correct_answer, max_score, time_limit_sec)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`
-
-	_, err = tx.ExecContext(ctx, queryQuestion,
+	if _, err := r.q(ctx).ExecContext(ctx, queryQuestion,
 		question.ID,
 		question.Text,
 		question.Type,
 		question.CorrectAnswer,
 		question.MaxScore,
 		question.TimeLimitSec,
-	)
-	if err != nil {
+	); err != nil {
 		return err
 	}
 
@@ -206,17 +203,12 @@ func (r *TemplateRepository) CreateQuestion(ctx context.Context, question *Quest
 		INSERT INTO template_questions (template_id, question_id, order_index)
 		VALUES ($1, $2, $3)
 	`
-
-	_, err = tx.ExecContext(ctx, queryLink,
+	_, err := r.q(ctx).ExecContext(ctx, queryLink,
 		question.TemplateID,
 		question.ID,
 		question.OrderIndex,
 	)
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit()
+	return err
 }
 
 func (r *TemplateRepository) LinkQuestionToTemplate(ctx context.Context, templateID, questionID string, orderIndex int) error {
@@ -224,7 +216,7 @@ func (r *TemplateRepository) LinkQuestionToTemplate(ctx context.Context, templat
 		INSERT INTO template_questions (template_id, question_id, order_index)
 		VALUES ($1, $2, $3)
 	`
-	_, err := r.db.ExecContext(ctx, query, templateID, questionID, orderIndex)
+	_, err := r.q(ctx).ExecContext(ctx, query, templateID, questionID, orderIndex)
 	return err
 }
 
@@ -237,7 +229,7 @@ func (r *TemplateRepository) GetQuestionsByTemplateID(ctx context.Context, templ
 		ORDER BY tq.order_index ASC
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, templateID)
+	rows, err := r.q(ctx).QueryContext(ctx, query, templateID)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +260,7 @@ func (r *TemplateRepository) GetQuestionsByTemplateID(ctx context.Context, templ
 func (r *TemplateRepository) DeleteQuestionsByTemplateID(ctx context.Context, templateID string) error {
 	// TODO: Maybe delete questions that are not used by any other template/instance.
 	query := `DELETE FROM template_questions WHERE template_id = $1`
-	_, err := r.db.ExecContext(ctx, query, templateID)
+	_, err := r.q(ctx).ExecContext(ctx, query, templateID)
 	return err
 }
 

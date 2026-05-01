@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"quiz-service/internal/constants"
+	"quiz-service/internal/model"
 	"quiz-service/internal/repository"
+	"quiz-service/pkg/database"
 	"quiz-service/pkg/errors"
 	pb "quiz-service/proto"
 
@@ -24,6 +26,9 @@ type RabbitMQPublisher interface {
 type UserClient interface {
 	CheckGroupMembership(ctx context.Context, groupID, userID string) (bool, string, error)
 	GetEmailsByIDs(ctx context.Context, userIDs []string) (map[string]string, error)
+	GetUsersByIDs(ctx context.Context, userIDs []string) (map[string]*model.UserInfo, error)
+	GetGroupMemberIDs(ctx context.Context, groupID string) ([]string, error)
+	GetNotificationSettingsBatch(ctx context.Context, userIDs []string) (map[string]model.NotificationSettings, error)
 }
 
 type TemplateRepo interface {
@@ -51,10 +56,16 @@ type InstanceRepo interface {
 	DeleteInstance(ctx context.Context, instanceID, createdBy string) error
 }
 
+type DeleteRepo interface {
+	DeleteAllByOwner(ctx context.Context, userID string) error
+}
+
 type QuizService struct {
 	pb.UnimplementedQuizServiceServer
 	templateRepo TemplateRepo
 	instanceRepo InstanceRepo
+	deleteRepo   DeleteRepo
+	txMgr        database.TxManager
 	mqPublisher  RabbitMQPublisher
 	userClient   UserClient
 }
@@ -67,6 +78,8 @@ func NewQuizService(
 	return &QuizService{
 		templateRepo: repository.NewTemplateRepository(db),
 		instanceRepo: repository.NewInstanceRepository(db),
+		deleteRepo:   repository.NewDeleteRepository(db),
+		txMgr:        database.NewManager(db),
 		mqPublisher:  mqPublisher,
 		userClient:   userClient,
 	}
@@ -75,15 +88,32 @@ func NewQuizService(
 func NewQuizServiceWithDeps(
 	templateRepo TemplateRepo,
 	instanceRepo InstanceRepo,
+	deleteRepo DeleteRepo,
+	txMgr database.TxManager,
 	mqPublisher RabbitMQPublisher,
 	userClient UserClient,
 ) *QuizService {
 	return &QuizService{
 		templateRepo: templateRepo,
 		instanceRepo: instanceRepo,
+		deleteRepo:   deleteRepo,
+		txMgr:        txMgr,
 		mqPublisher:  mqPublisher,
 		userClient:   userClient,
 	}
+}
+
+func (s *QuizService) DeleteAllByOwner(ctx context.Context, req *pb.DeleteAllByOwnerRequest) (*pb.DeleteAllByOwnerResponse, error) {
+	if req.UserId == "" {
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonInvalidArgument, "User ID is required", nil)
+	}
+
+	if err := s.deleteRepo.DeleteAllByOwner(ctx, req.UserId); err != nil {
+		log.Printf("DeleteAllByOwner: failed for user %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteAllByOwnerFailed, "Failed to delete quiz data", map[string]string{"user_id": req.UserId})
+	}
+
+	return &pb.DeleteAllByOwnerResponse{}, nil
 }
 
 func (s *QuizService) CreateTemplate(ctx context.Context, req *pb.CreateTemplateRequest) (*pb.CreateTemplateResponse, error) {
@@ -99,31 +129,35 @@ func (s *QuizService) CreateTemplate(ctx context.Context, req *pb.CreateTemplate
 		Settings: settingsJSON,
 	}
 
-	if err := s.templateRepo.CreateTemplate(ctx, template); err != nil {
-		return nil, errors.New(codes.Internal, errors.ReasonTemplateCreateFailed, "Failed to create template", map[string]string{"user_id": req.UserId})
-	}
-
 	var questions []*repository.Question
-	for i, q := range req.Questions {
-		questionType, correctAnswerJSON, err := s.questionInputToDB(q)
-		if err != nil {
-			return nil, errors.New(codes.Internal, errors.ReasonAnswerMarshalFailed, "Failed to marshal answer", map[string]string{"template_id": template.ID})
+	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		if err := s.templateRepo.CreateTemplate(ctx, template); err != nil {
+			return fmt.Errorf("create template: %w", err)
 		}
-
-		question := &repository.Question{
-			TemplateID:    template.ID,
-			Text:          q.Text,
-			Type:          questionType,
-			CorrectAnswer: correctAnswerJSON,
-			OrderIndex:    i,
-			MaxScore:      int(q.MaxScore),
-			TimeLimitSec:  int(q.TimeLimitSec),
+		for i, q := range req.Questions {
+			questionType, correctAnswerJSON, err := s.questionInputToDB(q)
+			if err != nil {
+				return fmt.Errorf("marshal answer for question %d: %w", i, err)
+			}
+			question := &repository.Question{
+				TemplateID:    template.ID,
+				Text:          q.Text,
+				Type:          questionType,
+				CorrectAnswer: correctAnswerJSON,
+				OrderIndex:    i,
+				MaxScore:      int(q.MaxScore),
+				TimeLimitSec:  int(q.TimeLimitSec),
+			}
+			if err := s.templateRepo.CreateQuestion(ctx, question); err != nil {
+				return fmt.Errorf("create question %d: %w", i, err)
+			}
+			questions = append(questions, question)
 		}
-
-		if err := s.templateRepo.CreateQuestion(ctx, question); err != nil {
-			return nil, errors.New(codes.Internal, errors.ReasonQuestionCreateFailed, "Failed to create question", map[string]string{"template_id": template.ID})
-		}
-		questions = append(questions, question)
+		return nil
+	})
+	if err != nil {
+		log.Printf("CreateTemplate tx failed for user %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonTemplateCreateFailed, "Failed to create template", map[string]string{"user_id": req.UserId})
 	}
 
 	return &pb.CreateTemplateResponse{
@@ -201,34 +235,38 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 		Settings: settingsJSON,
 	}
 
-	if err := s.templateRepo.UpdateTemplate(ctx, template); err != nil {
-		return nil, errors.New(codes.Internal, errors.ReasonTemplateUpdateFailed, "Failed to update template", map[string]string{"template_id": req.TemplateId})
-	}
-
-	if err := s.templateRepo.DeleteQuestionsByTemplateID(ctx, req.TemplateId); err != nil {
-		return nil, errors.New(codes.Internal, errors.ReasonQuestionDeleteFailed, "Failed to unlink old questions", map[string]string{"template_id": req.TemplateId})
-	}
-
 	var questions []*repository.Question
-	for i, q := range req.Questions {
-		questionType, correctAnswerJSON, err := s.questionInputToDB(q)
-		if err != nil {
-			return nil, errors.New(codes.Internal, errors.ReasonAnswerMarshalFailed, "Failed to marshal answer", map[string]string{"template_id": req.TemplateId})
+	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		if err := s.templateRepo.UpdateTemplate(ctx, template); err != nil {
+			return fmt.Errorf("update template: %w", err)
 		}
-
-		question := &repository.Question{
-			TemplateID:    req.TemplateId,
-			Text:          q.Text,
-			Type:          questionType,
-			CorrectAnswer: correctAnswerJSON,
-			OrderIndex:    i,
-			MaxScore:      int(q.MaxScore),
-			TimeLimitSec:  int(q.TimeLimitSec),
+		if err := s.templateRepo.DeleteQuestionsByTemplateID(ctx, req.TemplateId); err != nil {
+			return fmt.Errorf("delete old questions: %w", err)
 		}
-		if err := s.templateRepo.CreateQuestion(ctx, question); err != nil {
-			return nil, errors.New(codes.Internal, errors.ReasonQuestionCreateFailed, "Failed to create question", map[string]string{"template_id": req.TemplateId})
+		for i, q := range req.Questions {
+			questionType, correctAnswerJSON, err := s.questionInputToDB(q)
+			if err != nil {
+				return fmt.Errorf("marshal answer for question %d: %w", i, err)
+			}
+			question := &repository.Question{
+				TemplateID:    req.TemplateId,
+				Text:          q.Text,
+				Type:          questionType,
+				CorrectAnswer: correctAnswerJSON,
+				OrderIndex:    i,
+				MaxScore:      int(q.MaxScore),
+				TimeLimitSec:  int(q.TimeLimitSec),
+			}
+			if err := s.templateRepo.CreateQuestion(ctx, question); err != nil {
+				return fmt.Errorf("create question %d: %w", i, err)
+			}
+			questions = append(questions, question)
 		}
-		questions = append(questions, question)
+		return nil
+	})
+	if err != nil {
+		log.Printf("UpdateTemplate tx failed: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonTemplateUpdateFailed, "Failed to update template", map[string]string{"template_id": req.TemplateId})
 	}
 
 	updatedTemplate, err := s.templateRepo.GetTemplateByID(ctx, req.TemplateId)
@@ -243,14 +281,19 @@ func (s *QuizService) UpdateTemplate(ctx context.Context, req *pb.UpdateTemplate
 }
 
 func (s *QuizService) DeleteTemplate(ctx context.Context, req *pb.DeleteTemplateRequest) (*pb.DeleteTemplateResponse, error) {
-	if err := s.templateRepo.DeleteQuestionsByTemplateID(ctx, req.TemplateId); err != nil {
-		return nil, errors.New(codes.Internal, errors.ReasonQuestionDeleteFailed, "Failed to delete questions", map[string]string{"template_id": req.TemplateId})
-	}
-
-	if err := s.templateRepo.DeleteTemplate(ctx, req.TemplateId, req.UserId); err != nil {
+	err := s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
+		if err := s.templateRepo.DeleteQuestionsByTemplateID(ctx, req.TemplateId); err != nil {
+			return fmt.Errorf("delete questions: %w", err)
+		}
+		if err := s.templateRepo.DeleteTemplate(ctx, req.TemplateId, req.UserId); err != nil {
+			return fmt.Errorf("delete template: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Printf("DeleteTemplate tx failed: %v", err)
 		return nil, errors.New(codes.Internal, errors.ReasonTemplateDeleteFailed, "Failed to delete template", map[string]string{"template_id": req.TemplateId})
 	}
-
 	return &pb.DeleteTemplateResponse{}, nil
 }
 
@@ -288,6 +331,11 @@ func (s *QuizService) CreateInstance(ctx context.Context, req *pb.CreateInstance
 	}
 
 	if req.Deadline != nil {
+		if template.QuizType != constants.QuizTypeAsync {
+			return nil, errors.New(codes.InvalidArgument, errors.ReasonInvalidArgument,
+				"Deadline can only be set for async quizzes",
+				map[string]string{"quiz_type": template.QuizType})
+		}
 		instance.Deadline = sql.NullTime{Time: req.Deadline.AsTime(), Valid: true}
 	}
 
@@ -618,6 +666,10 @@ func (s *QuizService) GetParticipantAnswers(ctx context.Context, req *pb.GetPart
 		return nil, errors.New(codes.NotFound, errors.ReasonParticipantNotFound, "Participant not found", map[string]string{"instance_id": req.InstanceId, "participant_id": req.ParticipantId})
 	}
 
+	if session.Status != constants.SessionStatusFinished {
+		return nil, errors.New(codes.NotFound, errors.ReasonSessionNotFinished, "Participant has not finished the quiz", map[string]string{"instance_id": req.InstanceId, "participant_id": req.ParticipantId, "status": session.Status})
+	}
+
 	var answers []repository.SessionAnswer
 	json.Unmarshal([]byte(session.Answers), &answers)
 
@@ -781,8 +833,18 @@ func (s *QuizService) publishQuizResults(ctx context.Context, instance *reposito
 		emailsByID = map[string]string{}
 	}
 
+	settingsBatch, err := s.userClient.GetNotificationSettingsBatch(ctx, userIDs)
+	if err != nil {
+		log.Printf("Failed to fetch notification settings for quiz_results_ready: %v", err)
+		settingsBatch = map[string]model.NotificationSettings{}
+	}
+
 	participants := make([]ParticipantResult, 0, len(sessions))
 	for _, session := range sessions {
+		if settings, ok := settingsBatch[session.UserID]; ok && !settings.QuizResults {
+			continue
+		}
+
 		var answers []repository.SessionAnswer
 		json.Unmarshal([]byte(session.Answers), &answers)
 		total := 0
@@ -816,6 +878,14 @@ func (s *QuizService) publishQuizResults(ctx context.Context, instance *reposito
 
 func (s *QuizService) publishGradeChanged(ctx context.Context, instance *repository.Instance, instanceWithQuestions *repository.InstanceWithQuestions, participantID string) {
 	if s.mqPublisher == nil {
+		return
+	}
+
+	settingsBatch, err := s.userClient.GetNotificationSettingsBatch(ctx, []string{participantID})
+	if err != nil {
+		log.Printf("Failed to fetch notification settings for quiz.grade_changed: %v", err)
+	} else if settings, ok := settingsBatch[participantID]; ok && !settings.QuizResults {
+		log.Printf("publishGradeChanged: user %s opted out of quiz_results, skipping", participantID)
 		return
 	}
 
@@ -875,24 +945,88 @@ func (s *QuizService) publishQuizCreated(ctx context.Context, instance *reposito
 		return
 	}
 
+	if !instance.GroupID.Valid {
+		return
+	}
+	groupID := instance.GroupID.String
+
+	type Participant struct {
+		UserID string `json:"user_id"`
+		Email  string `json:"email"`
+	}
+
 	type QuizCreatedEvent struct {
-		InstanceID string `json:"instance_id"`
-		Title      string `json:"title"`
-		GroupID    string `json:"group_id,omitempty"`
-		CreatorID  string `json:"creator_id"`
-		Deadline   string `json:"deadline,omitempty"`
+		InstanceID   string        `json:"instance_id"`
+		Title        string        `json:"title"`
+		GroupID      string        `json:"group_id"`
+		CreatorID    string        `json:"creator_id"`
+		CreatorName  string        `json:"creator_name"`
+		Deadline     string        `json:"deadline,omitempty"`
+		Participants []Participant `json:"participants"`
+	}
+
+	memberIDs, err := s.userClient.GetGroupMemberIDs(ctx, groupID)
+	if err != nil {
+		log.Printf("publishQuizCreated: failed to get member IDs for group %s: %v", groupID, err)
+		return
+	}
+
+	filtered := make([]string, 0, len(memberIDs))
+	for _, id := range memberIDs {
+		if id != instance.CreatedBy {
+			filtered = append(filtered, id)
+		}
+	}
+
+	allIDs := append([]string{}, filtered...)
+	allIDs = append(allIDs, instance.CreatedBy)
+	usersMap, err := s.userClient.GetUsersByIDs(ctx, allIDs)
+	if err != nil {
+		log.Printf("publishQuizCreated: failed to fetch user details: %v", err)
+		usersMap = map[string]*model.UserInfo{}
+	}
+
+	creatorName := instance.CreatedBy
+	if creator, ok := usersMap[instance.CreatedBy]; ok {
+		fullName := creator.FirstName + " " + creator.LastName
+		if fullName != " " {
+			creatorName = fullName
+		} else if creator.Email != "" {
+			creatorName = creator.Email
+		}
+	}
+
+	settingsBatch, err := s.userClient.GetNotificationSettingsBatch(ctx, filtered)
+	if err != nil {
+		log.Printf("publishQuizCreated: failed to fetch notification settings: %v", err)
+		settingsBatch = map[string]model.NotificationSettings{}
+	}
+
+	participants := make([]Participant, 0, len(filtered))
+	for _, uid := range filtered {
+		if settings, ok := settingsBatch[uid]; ok && !settings.NewQuizzes {
+			continue
+		}
+
+		email := ""
+		if info, ok := usersMap[uid]; ok && info.IsRegistered {
+			email = info.Email
+		}
+		participants = append(participants, Participant{UserID: uid, Email: email})
+	}
+
+	if len(participants) == 0 {
+		return
 	}
 
 	event := QuizCreatedEvent{
-		InstanceID: instance.ID,
-		Title:      instance.Title,
-		CreatorID:  instance.CreatedBy,
+		InstanceID:   instance.ID,
+		Title:        instance.Title,
+		GroupID:      groupID,
+		CreatorID:    instance.CreatedBy,
+		CreatorName:  creatorName,
+		Participants: participants,
 	}
-
-	if instance.GroupID.Valid {
-		event.GroupID = instance.GroupID.String
-	}
-
 	if instance.Deadline.Valid {
 		event.Deadline = instance.Deadline.Time.Format(time.RFC3339)
 	}

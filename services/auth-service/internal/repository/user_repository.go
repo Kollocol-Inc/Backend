@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"auth-service/pkg/database"
+
 	"github.com/google/uuid"
 )
 
@@ -21,13 +23,17 @@ type User struct {
 }
 
 type UserRepository struct {
-	db *sql.DB
+	db database.DBTX
 }
 
-func NewUserRepository(db *sql.DB) *UserRepository {
+func NewUserRepository(db database.DBTX) *UserRepository {
 	return &UserRepository{
 		db: db,
 	}
+}
+
+func (r *UserRepository) q(ctx context.Context) database.DBTX {
+	return database.Querier(ctx, r.db)
 }
 
 func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*User, error) {
@@ -38,7 +44,7 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*Use
 	`
 
 	user := &User{}
-	err := r.db.QueryRowContext(ctx, query, email).Scan(
+	err := r.q(ctx).QueryRowContext(ctx, query, email).Scan(
 		&user.ID,
 		&user.Email,
 		&user.FirstName,
@@ -82,7 +88,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, email string) (*User, e
 		RETURNING id, email, first_name, last_name, avatar_url, is_registered, role, created_at
 	`
 
-	err := r.db.QueryRowContext(ctx, query,
+	err := r.q(ctx).QueryRowContext(ctx, query,
 		user.ID,
 		user.Email,
 		user.FirstName,

@@ -128,6 +128,12 @@ func (c *UserClient) DeleteAvatar(ctx context.Context, userID string) (*pb.Delet
 	})
 }
 
+func (c *UserClient) DeleteUser(ctx context.Context, userID string) (*pb.DeleteUserResponse, error) {
+	return c.client.DeleteUser(ctx, &pb.DeleteUserRequest{
+		UserId: userID,
+	})
+}
+
 func (c *UserClient) GetUsersByIDs(ctx context.Context, userIDs []string) (*pb.GetUsersByIDsResponse, error) {
 	return c.client.GetUsersByIDs(ctx, &pb.GetUsersByIDsRequest{
 		UserIds: userIDs,

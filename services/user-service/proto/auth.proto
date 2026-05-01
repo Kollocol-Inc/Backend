@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "user-service/proto";
+
+service AuthService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+
+  rpc VerifyCode(VerifyCodeRequest) returns (VerifyCodeResponse);
+
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+
+  rpc RevokeUser(RevokeUserRequest) returns (RevokeUserResponse);
+
+  rpc CreateAIBan(CreateAIBanRequest) returns (CreateAIBanResponse);
+  rpc DeleteAIBan(DeleteAIBanRequest) returns (DeleteAIBanResponse);
+  rpc GetAIBan(GetAIBanRequest) returns (GetAIBanResponse);
+  rpc ListAIBans(ListAIBansRequest) returns (ListAIBansResponse);
+  rpc CheckAIBan(CheckAIBanRequest) returns (CheckAIBanResponse);
+}
+
+message LoginRequest {
+  string email = 1;
+}
+
+message LoginResponse {
+}
+
+message VerifyCodeRequest {
+  string email = 1;
+  string code = 2;
+}
+
+message VerifyCodeResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  bool is_registered = 3;
+  string user_id = 4;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message RefreshTokenResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+}
+
+message LogoutRequest {
+  string access_token = 1;
+  string refresh_token = 2;
+}
+
+message LogoutResponse {
+}
+
+message ValidateTokenRequest {
+  string access_token = 1;
+}
+
+message ValidateTokenResponse {
+  string user_id = 1;
+  string email = 2;
+  string role = 3;
+}
+
+message RevokeUserRequest {
+  string user_id = 1;
+}
+
+message RevokeUserResponse {}
+
+message AIBan {
+  string user_id = 1;
+  string reason = 2;
+  string banned_by = 3;
+  int64 created_at = 4;
+}
+
+message CreateAIBanRequest {
+  string user_id = 1;
+  string reason = 2;
+  string banned_by = 3;
+}
+
+message CreateAIBanResponse {
+  AIBan ban = 1;
+}
+
+message DeleteAIBanRequest {
+  string user_id = 1;
+}
+
+message DeleteAIBanResponse {}
+
+message GetAIBanRequest {
+  string user_id = 1;
+}
+
+message GetAIBanResponse {
+  AIBan ban = 1;
+}
+
+message ListAIBansRequest {}
+
+message ListAIBansResponse {
+  repeated AIBan bans = 1;
+}
+
+message CheckAIBanRequest {
+  string user_id = 1;
+}
+
+message CheckAIBanResponse {
+  bool is_banned = 1;
+  string reason = 2;
+}

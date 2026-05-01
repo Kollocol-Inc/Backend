@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"user-service/pkg/database"
 )
 
 type NotificationSettings struct {
@@ -13,16 +15,20 @@ type NotificationSettings struct {
 	NewQuizzes       bool
 	QuizResults      bool
 	GroupInvites     bool
-	DeadlineReminder string // "1h", "24h", "never"
+	DeadlineReminder string // "never", "1h", "3h", "6h", "12h", "24h"
 	UpdatedAt        time.Time
 }
 
 type NotificationSettingsRepository struct {
-	db *sql.DB
+	db database.DBTX
 }
 
-func NewNotificationSettingsRepository(db *sql.DB) *NotificationSettingsRepository {
+func NewNotificationSettingsRepository(db database.DBTX) *NotificationSettingsRepository {
 	return &NotificationSettingsRepository{db: db}
+}
+
+func (r *NotificationSettingsRepository) q(ctx context.Context) database.DBTX {
+	return database.Querier(ctx, r.db)
 }
 
 func (r *NotificationSettingsRepository) GetSettings(ctx context.Context, userID string) (*NotificationSettings, error) {
@@ -33,7 +39,7 @@ func (r *NotificationSettingsRepository) GetSettings(ctx context.Context, userID
 	`
 
 	settings := &NotificationSettings{}
-	err := r.db.QueryRowContext(ctx, query, userID).Scan(
+	err := r.q(ctx).QueryRowContext(ctx, query, userID).Scan(
 		&settings.UserID,
 		&settings.NewQuizzes,
 		&settings.QuizResults,
@@ -74,7 +80,7 @@ func (r *NotificationSettingsRepository) CreateDefaultSettings(ctx context.Conte
 		RETURNING user_id, new_quizzes, quiz_results, group_invites, deadline_reminder, updated_at
 	`
 
-	err := r.db.QueryRowContext(ctx, query,
+	err := r.q(ctx).QueryRowContext(ctx, query,
 		settings.UserID,
 		settings.NewQuizzes,
 		settings.QuizResults,
@@ -111,7 +117,7 @@ func (r *NotificationSettingsRepository) UpdateSettings(ctx context.Context, set
 			updated_at = EXCLUDED.updated_at
 	`
 
-	_, err := r.db.ExecContext(ctx, query,
+	_, err := r.q(ctx).ExecContext(ctx, query,
 		settings.UserID,
 		settings.NewQuizzes,
 		settings.QuizResults,
@@ -124,6 +130,14 @@ func (r *NotificationSettingsRepository) UpdateSettings(ctx context.Context, set
 		return fmt.Errorf("failed to update settings: %w", err)
 	}
 
+	return nil
+}
+
+func (r *NotificationSettingsRepository) DeleteSettings(ctx context.Context, userID string) error {
+	query := `DELETE FROM user_notification_settings WHERE user_id = $1`
+	if _, err := r.q(ctx).ExecContext(ctx, query, userID); err != nil {
+		return fmt.Errorf("failed to delete notification settings: %w", err)
+	}
 	return nil
 }
 

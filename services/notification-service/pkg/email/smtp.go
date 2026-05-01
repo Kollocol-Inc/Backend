@@ -239,6 +239,55 @@ func (c *SMTPClient) SendGradeChanged(email, quizTitle string, score, maxScore i
 	})
 }
 
+func (c *SMTPClient) SendDeadlineReminder(emailAddr, quizTitle, deadline, remainingTime string) error {
+	tmpl := `
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .highlight { color: #007bff; font-weight: bold; }
+        .deadline { font-size: 20px; font-weight: bold; color: #dc3545; margin: 15px 0; }
+        .footer { margin-top: 30px; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Kollocol - Quiz Deadline Reminder</h2>
+        <p>The quiz <span class="highlight">{{.QuizTitle}}</span> is due in <span class="highlight">{{.RemainingTime}}</span>.</p>
+        <div class="deadline">Deadline: {{.Deadline}}</div>
+        <p>Log in to Kollocol to complete the quiz before the deadline.</p>
+        <div class="footer">
+            <p>This is an automated message from Kollocol.</p>
+        </div>
+    </div>
+</body>
+</html>
+`
+
+	t, err := template.New("deadline_reminder").Parse(tmpl)
+	if err != nil {
+		return fmt.Errorf("failed to parse template: %w", err)
+	}
+
+	var body bytes.Buffer
+	data := map[string]string{
+		"QuizTitle":     quizTitle,
+		"Deadline":      deadline,
+		"RemainingTime": remainingTime,
+	}
+	if err := t.Execute(&body, data); err != nil {
+		return fmt.Errorf("failed to execute template: %w", err)
+	}
+
+	return c.SendEmail(EmailData{
+		To:      emailAddr,
+		Subject: fmt.Sprintf("Kollocol - Reminder: %s due in %s", quizTitle, remainingTime),
+		Body:    body.String(),
+	})
+}
+
 func (c *SMTPClient) SendQuizResults(email, quizTitle string, score, maxScore int) error {
 	tmpl := `
 <!DOCTYPE html>

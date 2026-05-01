@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"auth-service/pkg/database"
 )
 
 type AIBan struct {
@@ -15,11 +17,15 @@ type AIBan struct {
 }
 
 type AIBanRepository struct {
-	db *sql.DB
+	db database.DBTX
 }
 
-func NewAIBanRepository(db *sql.DB) *AIBanRepository {
+func NewAIBanRepository(db database.DBTX) *AIBanRepository {
 	return &AIBanRepository{db: db}
+}
+
+func (r *AIBanRepository) q(ctx context.Context) database.DBTX {
+	return database.Querier(ctx, r.db)
 }
 
 func (r *AIBanRepository) CreateAIBan(ctx context.Context, ban *AIBan) (*AIBan, error) {
@@ -34,7 +40,7 @@ func (r *AIBanRepository) CreateAIBan(ctx context.Context, ban *AIBan) (*AIBan, 
 	`
 
 	result := &AIBan{}
-	err := r.db.QueryRowContext(ctx, query,
+	err := r.q(ctx).QueryRowContext(ctx, query,
 		ban.UserID,
 		ban.Reason,
 		ban.BannedBy,
@@ -55,7 +61,7 @@ func (r *AIBanRepository) CreateAIBan(ctx context.Context, ban *AIBan) (*AIBan, 
 func (r *AIBanRepository) DeleteAIBan(ctx context.Context, userID string) error {
 	query := `DELETE FROM ai_bans WHERE user_id = $1`
 
-	result, err := r.db.ExecContext(ctx, query, userID)
+	result, err := r.q(ctx).ExecContext(ctx, query, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete AI ban: %w", err)
 	}
@@ -79,7 +85,7 @@ func (r *AIBanRepository) GetAIBan(ctx context.Context, userID string) (*AIBan, 
 	`
 
 	ban := &AIBan{}
-	err := r.db.QueryRowContext(ctx, query, userID).Scan(
+	err := r.q(ctx).QueryRowContext(ctx, query, userID).Scan(
 		&ban.UserID,
 		&ban.Reason,
 		&ban.BannedBy,
@@ -102,7 +108,7 @@ func (r *AIBanRepository) ListAIBans(ctx context.Context) ([]*AIBan, error) {
 		ORDER BY created_at DESC
 	`
 
-	rows, err := r.db.QueryContext(ctx, query)
+	rows, err := r.q(ctx).QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list AI bans: %w", err)
 	}
@@ -128,7 +134,7 @@ func (r *AIBanRepository) IsAIBanned(ctx context.Context, userID string) (bool, 
 	query := `SELECT reason FROM ai_bans WHERE user_id = $1`
 
 	var reason string
-	err := r.db.QueryRowContext(ctx, query, userID).Scan(&reason)
+	err := r.q(ctx).QueryRowContext(ctx, query, userID).Scan(&reason)
 	if err == sql.ErrNoRows {
 		return false, "", nil
 	}

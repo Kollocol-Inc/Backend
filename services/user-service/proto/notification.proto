@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package notification;
+
+option go_package = "user-service/proto";
+
+service NotificationService {
+  rpc GetNotifications(GetNotificationsRequest) returns (GetNotificationsResponse);
+  rpc MarkAsRead(MarkAsReadRequest) returns (MarkAsReadResponse);
+  rpc DeleteNotification(DeleteNotificationRequest) returns (DeleteNotificationResponse);
+  rpc DeleteAllForUser(DeleteAllForUserRequest) returns (DeleteAllForUserResponse);
+}
+
+message Notification {
+  string id = 1;
+  string user_id = 2;
+  string type = 3;
+  string title = 4;
+  string content = 5;
+  bool is_read = 6;
+  string created_at = 7;
+}
+
+message GetNotificationsRequest {
+  string user_id = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message GetNotificationsResponse {
+  repeated Notification notifications = 1;
+  int32 total = 2;
+}
+
+message MarkAsReadRequest {
+  repeated string notification_ids = 1;
+  string user_id = 2;
+}
+
+message MarkAsReadResponse {
+}
+
+message DeleteNotificationRequest {
+  repeated string notification_ids = 1;
+  string user_id = 2;
+}
+
+message DeleteNotificationResponse {
+}
+
+message DeleteAllForUserRequest {
+  string user_id = 1;
+}
+
+message DeleteAllForUserResponse {
+}

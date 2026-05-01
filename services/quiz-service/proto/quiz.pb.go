@@ -2750,6 +2750,86 @@ func (*PublishResultsResponse) Descriptor() ([]byte, []int) {
 	return file_quiz_proto_rawDescGZIP(), []int{42}
 }
 
+type DeleteAllByOwnerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAllByOwnerRequest) Reset() {
+	*x = DeleteAllByOwnerRequest{}
+	mi := &file_quiz_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAllByOwnerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAllByOwnerRequest) ProtoMessage() {}
+
+func (x *DeleteAllByOwnerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quiz_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAllByOwnerRequest.ProtoReflect.Descriptor instead.
+func (*DeleteAllByOwnerRequest) Descriptor() ([]byte, []int) {
+	return file_quiz_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *DeleteAllByOwnerRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type DeleteAllByOwnerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAllByOwnerResponse) Reset() {
+	*x = DeleteAllByOwnerResponse{}
+	mi := &file_quiz_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAllByOwnerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAllByOwnerResponse) ProtoMessage() {}
+
+func (x *DeleteAllByOwnerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_quiz_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAllByOwnerResponse.ProtoReflect.Descriptor instead.
+func (*DeleteAllByOwnerResponse) Descriptor() ([]byte, []int) {
+	return file_quiz_proto_rawDescGZIP(), []int{44}
+}
+
 var File_quiz_proto protoreflect.FileDescriptor
 
 const file_quiz_proto_rawDesc = "" +
@@ -2963,7 +3043,11 @@ const file_quiz_proto_rawDesc = "" +
 	"\vinstance_id\x18\x01 \x01(\tR\n" +
 	"instanceId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x18\n" +
-	"\x16PublishResultsResponse2\xea\t\n" +
+	"\x16PublishResultsResponse\"2\n" +
+	"\x17DeleteAllByOwnerRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x1a\n" +
+	"\x18DeleteAllByOwnerResponse2\xbd\n" +
+	"\n" +
 	"\vQuizService\x12K\n" +
 	"\x0eCreateTemplate\x12\x1b.quiz.CreateTemplateRequest\x1a\x1c.quiz.CreateTemplateResponse\x12B\n" +
 	"\vGetTemplate\x12\x18.quiz.GetTemplateRequest\x1a\x19.quiz.GetTemplateResponse\x12E\n" +
@@ -2979,7 +3063,8 @@ const file_quiz_proto_rawDesc = "" +
 	"\x17GetInstanceParticipants\x12$.quiz.GetInstanceParticipantsRequest\x1a%.quiz.GetInstanceParticipantsResponse\x12`\n" +
 	"\x15GetParticipantAnswers\x12\".quiz.GetParticipantAnswersRequest\x1a#.quiz.GetParticipantAnswersResponse\x12B\n" +
 	"\vGradeAnswer\x12\x18.quiz.GradeAnswerRequest\x1a\x19.quiz.GradeAnswerResponse\x12K\n" +
-	"\x0ePublishResults\x12\x1b.quiz.PublishResultsRequest\x1a\x1c.quiz.PublishResultsResponseB\x14Z\x12quiz-service/protob\x06proto3"
+	"\x0ePublishResults\x12\x1b.quiz.PublishResultsRequest\x1a\x1c.quiz.PublishResultsResponse\x12Q\n" +
+	"\x10DeleteAllByOwner\x12\x1d.quiz.DeleteAllByOwnerRequest\x1a\x1e.quiz.DeleteAllByOwnerResponseB\x14Z\x12quiz-service/protob\x06proto3"
 
 var (
 	file_quiz_proto_rawDescOnce sync.Once
@@ -2993,7 +3078,7 @@ func file_quiz_proto_rawDescGZIP() []byte {
 	return file_quiz_proto_rawDescData
 }
 
-var file_quiz_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
+var file_quiz_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
 var file_quiz_proto_goTypes = []any{
 	(*QuizTemplate)(nil),                      // 0: quiz.QuizTemplate
 	(*QuizSyncSettings)(nil),                  // 1: quiz.QuizSyncSettings
@@ -3038,19 +3123,21 @@ var file_quiz_proto_goTypes = []any{
 	(*GradeAnswerResponse)(nil),               // 40: quiz.GradeAnswerResponse
 	(*PublishResultsRequest)(nil),             // 41: quiz.PublishResultsRequest
 	(*PublishResultsResponse)(nil),            // 42: quiz.PublishResultsResponse
-	(*timestamppb.Timestamp)(nil),             // 43: google.protobuf.Timestamp
+	(*DeleteAllByOwnerRequest)(nil),           // 43: quiz.DeleteAllByOwnerRequest
+	(*DeleteAllByOwnerResponse)(nil),          // 44: quiz.DeleteAllByOwnerResponse
+	(*timestamppb.Timestamp)(nil),             // 45: google.protobuf.Timestamp
 }
 var file_quiz_proto_depIdxs = []int32{
-	43, // 0: quiz.QuizTemplate.created_at:type_name -> google.protobuf.Timestamp
-	43, // 1: quiz.QuizTemplate.updated_at:type_name -> google.protobuf.Timestamp
+	45, // 0: quiz.QuizTemplate.created_at:type_name -> google.protobuf.Timestamp
+	45, // 1: quiz.QuizTemplate.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: quiz.QuizTemplate.sync_settings:type_name -> quiz.QuizSyncSettings
 	2,  // 3: quiz.QuizTemplate.async_settings:type_name -> quiz.QuizAsyncSettings
 	3,  // 4: quiz.Question.single_choice:type_name -> quiz.SingleChoice
 	4,  // 5: quiz.Question.multiple_choice:type_name -> quiz.MultipleChoice
 	5,  // 6: quiz.Question.open_answer:type_name -> quiz.OpenAnswer
-	43, // 7: quiz.QuizInstance.created_at:type_name -> google.protobuf.Timestamp
-	43, // 8: quiz.QuizInstance.start_time:type_name -> google.protobuf.Timestamp
-	43, // 9: quiz.QuizInstance.deadline:type_name -> google.protobuf.Timestamp
+	45, // 7: quiz.QuizInstance.created_at:type_name -> google.protobuf.Timestamp
+	45, // 8: quiz.QuizInstance.start_time:type_name -> google.protobuf.Timestamp
+	45, // 9: quiz.QuizInstance.deadline:type_name -> google.protobuf.Timestamp
 	1,  // 10: quiz.QuizInstance.sync_settings:type_name -> quiz.QuizSyncSettings
 	2,  // 11: quiz.QuizInstance.async_settings:type_name -> quiz.QuizAsyncSettings
 	9,  // 12: quiz.CreateTemplateRequest.questions:type_name -> quiz.QuestionInput
@@ -3071,7 +3158,7 @@ var file_quiz_proto_depIdxs = []int32{
 	2,  // 27: quiz.UpdateTemplateRequest.async_settings:type_name -> quiz.QuizAsyncSettings
 	0,  // 28: quiz.UpdateTemplateResponse.template:type_name -> quiz.QuizTemplate
 	6,  // 29: quiz.UpdateTemplateResponse.questions:type_name -> quiz.Question
-	43, // 30: quiz.CreateInstanceRequest.deadline:type_name -> google.protobuf.Timestamp
+	45, // 30: quiz.CreateInstanceRequest.deadline:type_name -> google.protobuf.Timestamp
 	7,  // 31: quiz.CreateInstanceResponse.instance:type_name -> quiz.QuizInstance
 	7,  // 32: quiz.GetInstanceResponse.instance:type_name -> quiz.QuizInstance
 	6,  // 33: quiz.GetInstanceResponse.questions:type_name -> quiz.Question
@@ -3098,23 +3185,25 @@ var file_quiz_proto_depIdxs = []int32{
 	37, // 54: quiz.QuizService.GetParticipantAnswers:input_type -> quiz.GetParticipantAnswersRequest
 	39, // 55: quiz.QuizService.GradeAnswer:input_type -> quiz.GradeAnswerRequest
 	41, // 56: quiz.QuizService.PublishResults:input_type -> quiz.PublishResultsRequest
-	10, // 57: quiz.QuizService.CreateTemplate:output_type -> quiz.CreateTemplateResponse
-	12, // 58: quiz.QuizService.GetTemplate:output_type -> quiz.GetTemplateResponse
-	15, // 59: quiz.QuizService.GetTemplates:output_type -> quiz.GetTemplatesResponse
-	17, // 60: quiz.QuizService.UpdateTemplate:output_type -> quiz.UpdateTemplateResponse
-	19, // 61: quiz.QuizService.DeleteTemplate:output_type -> quiz.DeleteTemplateResponse
-	21, // 62: quiz.QuizService.CreateInstance:output_type -> quiz.CreateInstanceResponse
-	23, // 63: quiz.QuizService.GetInstance:output_type -> quiz.GetInstanceResponse
-	25, // 64: quiz.QuizService.GetInstanceByAccessCode:output_type -> quiz.GetInstanceByAccessCodeResponse
-	27, // 65: quiz.QuizService.GetHostingInstances:output_type -> quiz.GetHostingInstancesResponse
-	30, // 66: quiz.QuizService.GetParticipatingInstances:output_type -> quiz.GetParticipatingInstancesResponse
-	32, // 67: quiz.QuizService.DeleteInstance:output_type -> quiz.DeleteInstanceResponse
-	35, // 68: quiz.QuizService.GetInstanceParticipants:output_type -> quiz.GetInstanceParticipantsResponse
-	38, // 69: quiz.QuizService.GetParticipantAnswers:output_type -> quiz.GetParticipantAnswersResponse
-	40, // 70: quiz.QuizService.GradeAnswer:output_type -> quiz.GradeAnswerResponse
-	42, // 71: quiz.QuizService.PublishResults:output_type -> quiz.PublishResultsResponse
-	57, // [57:72] is the sub-list for method output_type
-	42, // [42:57] is the sub-list for method input_type
+	43, // 57: quiz.QuizService.DeleteAllByOwner:input_type -> quiz.DeleteAllByOwnerRequest
+	10, // 58: quiz.QuizService.CreateTemplate:output_type -> quiz.CreateTemplateResponse
+	12, // 59: quiz.QuizService.GetTemplate:output_type -> quiz.GetTemplateResponse
+	15, // 60: quiz.QuizService.GetTemplates:output_type -> quiz.GetTemplatesResponse
+	17, // 61: quiz.QuizService.UpdateTemplate:output_type -> quiz.UpdateTemplateResponse
+	19, // 62: quiz.QuizService.DeleteTemplate:output_type -> quiz.DeleteTemplateResponse
+	21, // 63: quiz.QuizService.CreateInstance:output_type -> quiz.CreateInstanceResponse
+	23, // 64: quiz.QuizService.GetInstance:output_type -> quiz.GetInstanceResponse
+	25, // 65: quiz.QuizService.GetInstanceByAccessCode:output_type -> quiz.GetInstanceByAccessCodeResponse
+	27, // 66: quiz.QuizService.GetHostingInstances:output_type -> quiz.GetHostingInstancesResponse
+	30, // 67: quiz.QuizService.GetParticipatingInstances:output_type -> quiz.GetParticipatingInstancesResponse
+	32, // 68: quiz.QuizService.DeleteInstance:output_type -> quiz.DeleteInstanceResponse
+	35, // 69: quiz.QuizService.GetInstanceParticipants:output_type -> quiz.GetInstanceParticipantsResponse
+	38, // 70: quiz.QuizService.GetParticipantAnswers:output_type -> quiz.GetParticipantAnswersResponse
+	40, // 71: quiz.QuizService.GradeAnswer:output_type -> quiz.GradeAnswerResponse
+	42, // 72: quiz.QuizService.PublishResults:output_type -> quiz.PublishResultsResponse
+	44, // 73: quiz.QuizService.DeleteAllByOwner:output_type -> quiz.DeleteAllByOwnerResponse
+	58, // [58:74] is the sub-list for method output_type
+	42, // [42:58] is the sub-list for method input_type
 	42, // [42:42] is the sub-list for extension type_name
 	42, // [42:42] is the sub-list for extension extendee
 	0,  // [0:42] is the sub-list for field type_name
@@ -3157,7 +3246,7 @@ func file_quiz_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_quiz_proto_rawDesc), len(file_quiz_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   43,
+			NumMessages:   45,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

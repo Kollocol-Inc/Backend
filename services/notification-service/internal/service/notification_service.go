@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -20,14 +21,17 @@ type NotificationRepo interface {
 	GetNotifications(ctx context.Context, userID string, limit, offset int) ([]*repository.Notification, int, error)
 	MarkAsRead(ctx context.Context, notificationIDs []string, userID string) error
 	DeleteNotification(ctx context.Context, notificationIDs []string, userID string) error
+	DeleteAllForUser(ctx context.Context, userID string) error
 }
 
 type EmailSender interface {
 	SendEmail(data email.EmailData) error
 	SendAuthCode(emailAddr, code string) error
 	SendGroupInvite(emailAddr, groupName, inviterName string) error
+	SendQuizCreated(emailAddr, quizTitle, creatorName string) error
 	SendQuizResults(emailAddr, quizTitle string, score, maxScore int) error
 	SendGradeChanged(emailAddr, quizTitle string, score, maxScore int) error
+	SendDeadlineReminder(emailAddr, quizTitle, deadline, remainingTime string) error
 }
 
 type NotificationService struct {
@@ -100,6 +104,19 @@ func (s *NotificationService) DeleteNotification(ctx context.Context, req *pb.De
 	return &pb.DeleteNotificationResponse{}, nil
 }
 
+func (s *NotificationService) DeleteAllForUser(ctx context.Context, req *pb.DeleteAllForUserRequest) (*pb.DeleteAllForUserResponse, error) {
+	if req.UserId == "" {
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonUserIDRequired, "User ID is required", nil)
+	}
+
+	if err := s.repo.DeleteAllForUser(ctx, req.UserId); err != nil {
+		log.Printf("DeleteAllForUser: failed for user %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonNotificationDeleteFailed, "Failed to delete notifications", map[string]string{"user_id": req.UserId})
+	}
+
+	return &pb.DeleteAllForUserResponse{}, nil
+}
+
 func (s *NotificationService) HandleSendAuthCode(ctx context.Context, data []byte) error {
 	var event struct {
 		Email string `json:"email"`
@@ -116,47 +133,117 @@ func (s *NotificationService) HandleSendAuthCode(ctx context.Context, data []byt
 
 func (s *NotificationService) HandleGroupInvite(ctx context.Context, data []byte) error {
 	var event struct {
-		GroupID      string `json:"group_id"`
-		GroupName    string `json:"group_name"`
-		InviterName  string `json:"inviter_name"`
-		InviteeEmail string `json:"invitee_email"`
+		GroupID       string `json:"group_id"`
+		GroupName     string `json:"group_name"`
+		InviterName   string `json:"inviter_name"`
+		InviteeEmail  string `json:"invitee_email"`
+		InviteeUserID string `json:"invitee_user_id"`
 	}
 
 	if err := json.Unmarshal(data, &event); err != nil {
 		return err
 	}
 
-	log.Printf("Sending group invite to %s for group %s", event.InviteeEmail, event.GroupName)
+	log.Printf("Processing group_invite: group=%s, invitee=%s", event.GroupName, event.InviteeEmail)
+
+	if event.InviteeUserID != "" {
+		notification := &repository.Notification{
+			UserID:  event.InviteeUserID,
+			Type:    "group_invite",
+			Title:   "Group Invitation",
+			Content: fmt.Sprintf("%s invited you to %s", event.InviterName, event.GroupName),
+			IsRead:  false,
+		}
+		if err := s.repo.CreateNotification(ctx, notification); err != nil {
+			log.Printf("HandleGroupInvite: failed to create in-app notification for user %s: %v", event.InviteeUserID, err)
+		}
+	}
+
+	if event.InviteeEmail == "" {
+		return nil
+	}
 	return s.smtpClient.SendGroupInvite(event.InviteeEmail, event.GroupName, event.InviterName)
 }
 
 func (s *NotificationService) HandleQuizCreated(ctx context.Context, data []byte) error {
 	var event struct {
-		InstanceID   string   `json:"instance_id"`
-		Title        string   `json:"title"`
-		GroupID      string   `json:"group_id"`
-		CreatorID    string   `json:"creator_id"`
-		Deadline     string   `json:"deadline"`
-		Participants []string `json:"participants"`
+		InstanceID   string `json:"instance_id"`
+		Title        string `json:"title"`
+		GroupID      string `json:"group_id"`
+		CreatorID    string `json:"creator_id"`
+		CreatorName  string `json:"creator_name"`
+		Deadline     string `json:"deadline"`
+		Participants []struct {
+			UserID string `json:"user_id"`
+			Email  string `json:"email"`
+		} `json:"participants"`
 	}
 
 	if err := json.Unmarshal(data, &event); err != nil {
 		return err
 	}
 
-	log.Printf("Processing quiz_created event for instance %s", event.InstanceID)
+	log.Printf("Processing quiz_created event for instance %s, %d participants", event.InstanceID, len(event.Participants))
 
-	for _, userID := range event.Participants {
+	for _, p := range event.Participants {
 		notification := &repository.Notification{
-			UserID:  userID,
+			UserID:  p.UserID,
 			Type:    "quiz_created",
 			Title:   "New Quiz Available",
 			Content: event.Title,
 			IsRead:  false,
 		}
-
 		if err := s.repo.CreateNotification(ctx, notification); err != nil {
-			log.Printf("Failed to create notification for user %s: %v", userID, err)
+			log.Printf("HandleQuizCreated: failed to create in-app notification for user %s: %v", p.UserID, err)
+		}
+
+		if p.Email == "" {
+			continue
+		}
+		if err := s.smtpClient.SendQuizCreated(p.Email, event.Title, event.CreatorName); err != nil {
+			log.Printf("HandleQuizCreated: failed to send email to %s: %v", p.Email, err)
+		}
+	}
+
+	return nil
+}
+
+func (s *NotificationService) HandleQuizDeadlineReminder(ctx context.Context, data []byte) error {
+	var event struct {
+		InstanceID     string `json:"instance_id"`
+		Title          string `json:"title"`
+		Deadline       string `json:"deadline"`
+		ReminderOffset string `json:"reminder_offset"`
+		Participants   []struct {
+			UserID string `json:"user_id"`
+			Email  string `json:"email"`
+		} `json:"participants"`
+	}
+
+	if err := json.Unmarshal(data, &event); err != nil {
+		return err
+	}
+
+	log.Printf("Processing deadline_reminder for instance %s, offset %s, %d participants",
+		event.InstanceID, event.ReminderOffset, len(event.Participants))
+
+	for _, p := range event.Participants {
+		notification := &repository.Notification{
+			UserID:  p.UserID,
+			Type:    "deadline_reminder",
+			Title:   "Quiz Deadline Approaching",
+			Content: fmt.Sprintf("%s — %s remaining", event.Title, event.ReminderOffset),
+			IsRead:  false,
+		}
+		if err := s.repo.CreateNotification(ctx, notification); err != nil {
+			log.Printf("HandleQuizDeadlineReminder: failed to create in-app notification for user %s: %v", p.UserID, err)
+		}
+
+		if p.Email == "" {
+			continue
+		}
+		if err := s.smtpClient.SendDeadlineReminder(p.Email, event.Title, event.Deadline, event.ReminderOffset); err != nil {
+			log.Printf("HandleQuizDeadlineReminder: failed to send email to %s: %v", p.Email, err)
 		}
 	}
 

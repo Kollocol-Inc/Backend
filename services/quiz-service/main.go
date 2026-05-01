@@ -1,16 +1,19 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"quiz-service/config"
 	"quiz-service/internal/client"
 	"quiz-service/internal/service"
+	"quiz-service/internal/sweeper"
 	"quiz-service/pkg/cache"
 	"quiz-service/pkg/database"
 	"quiz-service/pkg/messaging"
@@ -100,6 +103,18 @@ func main() {
 	}()
 
 	quizService := service.NewQuizService(pgClient.GetDB(), rabbitClient, userClient)
+
+	sweeperCtx, cancelSweeper := context.WithCancel(context.Background())
+	defer cancelSweeper()
+	if rabbitClient != nil {
+		go sweeper.NewDeadlineReminderSweeper(
+			pgClient.GetDB(),
+			rabbitClient,
+			userClient,
+			5*time.Minute,
+		).Run(sweeperCtx)
+		log.Println("Deadline reminder sweeper started")
+	}
 
 	grpcServer := grpc.NewServer()
 	pb.RegisterQuizServiceServer(grpcServer, quizService)

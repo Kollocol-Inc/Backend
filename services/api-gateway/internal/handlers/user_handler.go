@@ -186,6 +186,35 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	c.JSON(http.StatusOK, convertUserToDTO(resp.User))
 }
 
+// DeleteUser godoc
+// @Summary Delete current user account
+// @Description Permanently deletes the authenticated user's account and all associated data (avatar, notification settings, group memberships, owned groups, quiz templates and instances, sessions, notifications). All tokens are revoked.
+// @Tags users
+// @Produce json
+// @Security BearerAuth
+// @Success 204
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /users/me [delete]
+func (h *UserHandler) DeleteUser(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		dto.JsonError(c, errors.ErrUserIDNotFound)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if _, err := h.userClient.DeleteUser(ctx, userID.(string)); err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 // DeleteAvatar godoc
 // @Summary Delete avatar
 // @Description Delete current user's avatar

@@ -8,6 +8,7 @@ service NotificationService {
   rpc GetNotifications(GetNotificationsRequest) returns (GetNotificationsResponse);
   rpc MarkAsRead(MarkAsReadRequest) returns (MarkAsReadResponse);
   rpc DeleteNotification(DeleteNotificationRequest) returns (DeleteNotificationResponse);
+  rpc DeleteAllForUser(DeleteAllForUserRequest) returns (DeleteAllForUserResponse);
 }
 
 message Notification {
@@ -45,4 +46,11 @@ message DeleteNotificationRequest {
 }
 
 message DeleteNotificationResponse {
+}
+
+message DeleteAllForUserRequest {
+  string user_id = 1;
+}
+
+message DeleteAllForUserResponse {
 }

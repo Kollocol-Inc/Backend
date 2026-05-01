@@ -10,6 +10,7 @@ service UserService {
   rpc GetProfileByEmail(GetProfileByEmailRequest) returns (GetProfileByEmailResponse);
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
   rpc DeleteAvatar(DeleteAvatarRequest) returns (DeleteAvatarResponse);
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
 
   rpc GetNotificationSettings(GetNotificationSettingsRequest) returns (GetNotificationSettingsResponse);
   rpc UpdateNotificationSettings(UpdateNotificationSettingsRequest) returns (UpdateNotificationSettingsResponse);
@@ -100,6 +101,13 @@ message DeleteAvatarRequest {
 }
 
 message DeleteAvatarResponse {
+}
+
+message DeleteUserRequest {
+  string user_id = 1;
+}
+
+message DeleteUserResponse {
 }
 
 message GetNotificationSettingsRequest {

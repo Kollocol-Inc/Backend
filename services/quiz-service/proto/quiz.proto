@@ -24,6 +24,8 @@ service QuizService {
   rpc GetParticipantAnswers(GetParticipantAnswersRequest) returns (GetParticipantAnswersResponse);
   rpc GradeAnswer(GradeAnswerRequest) returns (GradeAnswerResponse);
   rpc PublishResults(PublishResultsRequest) returns (PublishResultsResponse);
+
+  rpc DeleteAllByOwner(DeleteAllByOwnerRequest) returns (DeleteAllByOwnerResponse);
 }
 
 message QuizTemplate {
@@ -287,3 +289,9 @@ message PublishResultsRequest {
 }
 
 message PublishResultsResponse {}
+
+message DeleteAllByOwnerRequest {
+  string user_id = 1;
+}
+
+message DeleteAllByOwnerResponse {}

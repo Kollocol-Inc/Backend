@@ -113,6 +113,7 @@ func main() {
 		usersGroup.POST("/register", userHandler.Register)
 		usersGroup.GET("/me", userHandler.GetProfile)
 		usersGroup.PUT("/me", userHandler.UpdateProfile)
+		usersGroup.DELETE("/me", userHandler.DeleteUser)
 		usersGroup.POST("/me/avatar/upload", userHandler.UploadAvatar)
 		usersGroup.DELETE("/me/avatar/delete", userHandler.DeleteAvatar)
 		usersGroup.GET("/me/notifications", userHandler.GetNotificationSettings)

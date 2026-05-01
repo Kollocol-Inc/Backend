@@ -10,6 +10,7 @@ service UserService {
   rpc GetProfileByEmail(GetProfileByEmailRequest) returns (GetProfileByEmailResponse);
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
   rpc DeleteAvatar(DeleteAvatarRequest) returns (DeleteAvatarResponse);
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
 
   rpc GetNotificationSettings(GetNotificationSettingsRequest) returns (GetNotificationSettingsResponse);
   rpc UpdateNotificationSettings(UpdateNotificationSettingsRequest) returns (UpdateNotificationSettingsResponse);
@@ -21,6 +22,8 @@ service UserService {
   rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse);
   rpc CheckGroupMembership(CheckGroupMembershipRequest) returns (CheckGroupMembershipResponse);
   rpc GetUsersByIDs(GetUsersByIDsRequest) returns (GetUsersByIDsResponse);
+  rpc GetGroupMemberIDs(GetGroupMemberIDsRequest) returns (GetGroupMemberIDsResponse);
+  rpc GetNotificationSettingsBatch(GetNotificationSettingsBatchRequest) returns (GetNotificationSettingsBatchResponse);
 }
 
 message User {
@@ -100,6 +103,13 @@ message DeleteAvatarRequest {
 }
 
 message DeleteAvatarResponse {
+}
+
+message DeleteUserRequest {
+  string user_id = 1;
+}
+
+message DeleteUserResponse {
 }
 
 message GetNotificationSettingsRequest {
@@ -185,4 +195,20 @@ message GetUsersByIDsRequest {
 
 message GetUsersByIDsResponse {
   repeated User users = 1;
+}
+
+message GetGroupMemberIDsRequest {
+  string group_id = 1;
+}
+
+message GetGroupMemberIDsResponse {
+  repeated string user_ids = 1;
+}
+
+message GetNotificationSettingsBatchRequest {
+  repeated string user_ids = 1;
+}
+
+message GetNotificationSettingsBatchResponse {
+  map<string, NotificationSettings> settings = 1;
 }

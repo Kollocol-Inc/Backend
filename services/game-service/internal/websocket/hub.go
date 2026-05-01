@@ -15,6 +15,7 @@ import (
 	"game-service/internal/models"
 	"game-service/internal/repository"
 	"game-service/pkg/cache"
+	"game-service/pkg/database"
 	pb "game-service/proto"
 )
 
@@ -41,18 +42,17 @@ type RedisClientInterface interface {
 }
 
 type SessionRepoInterface interface {
-	CreateSession(ctx context.Context, session *models.GameSession) error
+	CreateSession(ctx context.Context, session *models.GameSession) (bool, error)
 	GetSession(ctx context.Context, instanceID, userID string) (*models.GameSession, error)
 	UpdateSession(ctx context.Context, session *models.GameSession) error
 	GetSessionsByInstance(ctx context.Context, instanceID string) ([]*models.GameSession, error)
 	SessionExists(ctx context.Context, instanceID, userID string) (bool, error)
 	DeleteSession(ctx context.Context, instanceID, userID string) error
 	UpdateSessionStatus(ctx context.Context, instanceID, userID, status string) error
+	BulkFinishInProgress(ctx context.Context, instanceID string) (int64, error)
 }
 
-type DBExecer interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-}
+type DBExecer = database.DBTX
 
 type Hub struct {
 	clients       map[string]map[*Client]bool
@@ -64,7 +64,8 @@ type Hub struct {
 	userClient  UserClientInterface
 	redisClient RedisClientInterface
 	sessionRepo SessionRepoInterface
-	db          DBExecer
+	db          database.DBTX
+	txMgr       database.TxManager
 
 	mu sync.RWMutex
 
@@ -82,15 +83,16 @@ func NewHub(
 	db *sql.DB,
 ) *Hub {
 	return &Hub{
-		clients:        make(map[string]map[*Client]bool),
-		Register:       make(chan *Client),
-		Unregister:     make(chan *Client),
-		HandleMessage:  make(chan *ClientMessage),
-		quizClient:     quizClient,
-		userClient:     userClient,
-		redisClient:    redisClient,
-		sessionRepo:    sessionRepo,
-		db:             db,
+		clients:            make(map[string]map[*Client]bool),
+		Register:           make(chan *Client),
+		Unregister:         make(chan *Client),
+		HandleMessage:      make(chan *ClientMessage),
+		quizClient:         quizClient,
+		userClient:         userClient,
+		redisClient:        redisClient,
+		sessionRepo:        sessionRepo,
+		db:                 db,
+		txMgr:              database.NewManager(db),
 		questionTimers:     make(map[string]*time.Timer),
 		frozenParticipants: make(map[string][]User),
 	}
@@ -101,7 +103,8 @@ func NewHubWithDeps(
 	userClient UserClientInterface,
 	redisClient RedisClientInterface,
 	sessionRepo SessionRepoInterface,
-	db DBExecer,
+	db database.DBTX,
+	txMgr database.TxManager,
 ) *Hub {
 	return &Hub{
 		clients:            make(map[string]map[*Client]bool),
@@ -113,6 +116,7 @@ func NewHubWithDeps(
 		redisClient:        redisClient,
 		sessionRepo:        sessionRepo,
 		db:                 db,
+		txMgr:              txMgr,
 		questionTimers:     make(map[string]*time.Timer),
 		frozenParticipants: make(map[string][]User),
 	}
@@ -317,39 +321,33 @@ func (h *Hub) handleJoin(client *Client) {
 		return
 	}
 
-	exists, err := h.sessionRepo.SessionExists(ctx, client.InstanceID, client.UserID)
+	session := &models.GameSession{
+		InstanceID:           client.InstanceID,
+		UserID:               client.UserID,
+		Status:               constants.SessionStatusJoined,
+		CurrentQuestionIndex: 0,
+		Score:                0,
+		Answers:              "[]",
+		StartedAt:            time.Now(),
+	}
+	created, err := h.sessionRepo.CreateSession(ctx, session)
 	if err != nil {
-		log.Printf("Failed to check session existence: %v", err)
+		log.Printf("Failed to create session: %v", err)
 		client.SendError("Failed to join quiz")
 		return
 	}
 
-	if !exists && !client.IsCreator && quizResp.Instance.Status == constants.InstanceStatusActive && quizData.QuizType == constants.QuizTypeSync {
+	if created && !client.IsCreator && quizResp.Instance.Status == constants.InstanceStatusActive && quizData.QuizType == constants.QuizTypeSync {
 		log.Printf("Rejecting late join for user %s in active sync quiz %s", client.UserID, client.InstanceID)
+		if delErr := h.sessionRepo.DeleteSession(ctx, client.InstanceID, client.UserID); delErr != nil {
+			log.Printf("Failed to clean up rejected session: %v", delErr)
+		}
 		client.SendError("Quiz has already started")
-
 		go func() {
 			time.Sleep(500 * time.Millisecond)
 			h.Unregister <- client
 		}()
 		return
-	}
-
-	if !exists {
-		session := &models.GameSession{
-			InstanceID:           client.InstanceID,
-			UserID:               client.UserID,
-			Status:               constants.SessionStatusJoined,
-			CurrentQuestionIndex: 0,
-			Score:                0,
-			Answers:              "[]",
-			StartedAt:            time.Now(),
-		}
-		if err := h.sessionRepo.CreateSession(ctx, session); err != nil {
-			log.Printf("Failed to create session: %v", err)
-			client.SendError("Failed to join quiz")
-			return
-		}
 	}
 
 	log.Printf("Sending connected message to user %s (status=%s)", client.UserID, quizResp.Instance.Status)
@@ -430,6 +428,11 @@ func (h *Hub) convertToQuizData(resp *pb.GetInstanceResponse) *models.QuizData {
 		settings.QuestionsRandomOrder = asyncSettings.QuestionsRandomOrder
 	}
 
+	var deadlineMs int64
+	if d := resp.Instance.GetDeadline(); d != nil {
+		deadlineMs = d.AsTime().UnixMilli()
+	}
+
 	return &models.QuizData{
 		QuizType:   resp.Instance.QuizType,
 		CreatedBy:  resp.Instance.CreatedBy,
@@ -437,6 +440,7 @@ func (h *Hub) convertToQuizData(resp *pb.GetInstanceResponse) *models.QuizData {
 		TemplateID: resp.Instance.TemplateId,
 		Title:      resp.Instance.Title,
 		Settings:   settings,
+		DeadlineMs: deadlineMs,
 	}
 }
 
@@ -786,7 +790,7 @@ func (h *Hub) calculateScore(maxScore int, timeSpentMs, timeLimitMs int64) int {
 
 func (h *Hub) updateInstanceStatus(ctx context.Context, instanceID, status string) error {
 	query := `UPDATE quiz_instances SET status = $1 WHERE id = $2`
-	_, err := h.db.ExecContext(ctx, query, status, instanceID)
+	_, err := database.Querier(ctx, h.db).ExecContext(ctx, query, status, instanceID)
 	if err != nil {
 		log.Printf("Failed to update instance status: %v", err)
 		return err
