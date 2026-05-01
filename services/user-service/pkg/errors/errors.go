@@ -37,4 +37,5 @@ const (
 	ReasonMembersRetrieveFailed = "MEMBERS_RETRIEVE_FAILED"
 	ReasonDeleteUserFailed      = "DELETE_USER_FAILED"
 	ReasonUserIDRequired        = "USER_ID_REQUIRED"
+	ReasonInvalidLanguage       = "INVALID_LANGUAGE"
 )

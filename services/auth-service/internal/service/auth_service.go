@@ -15,6 +15,7 @@ import (
 	"auth-service/pkg/database"
 	"auth-service/pkg/errors"
 	"auth-service/pkg/jwt"
+	"auth-service/pkg/lang"
 	"auth-service/pkg/messaging"
 	"auth-service/pkg/validator"
 	pb "auth-service/proto"
@@ -118,8 +119,9 @@ func (s *AuthService) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Logi
 
 	if !isAppleReview {
 		event := map[string]string{
-			"email": email,
-			"code":  code,
+			"email":    email,
+			"code":     code,
+			"language": string(lang.Parse(req.Language)),
 		}
 		eventData, _ := json.Marshal(event)
 

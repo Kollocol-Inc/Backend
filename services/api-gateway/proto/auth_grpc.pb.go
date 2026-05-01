@@ -24,6 +24,7 @@ const (
 	AuthService_RefreshToken_FullMethodName  = "/auth.AuthService/RefreshToken"
 	AuthService_Logout_FullMethodName        = "/auth.AuthService/Logout"
 	AuthService_ValidateToken_FullMethodName = "/auth.AuthService/ValidateToken"
+	AuthService_RevokeUser_FullMethodName    = "/auth.AuthService/RevokeUser"
 	AuthService_CreateAIBan_FullMethodName   = "/auth.AuthService/CreateAIBan"
 	AuthService_DeleteAIBan_FullMethodName   = "/auth.AuthService/DeleteAIBan"
 	AuthService_GetAIBan_FullMethodName      = "/auth.AuthService/GetAIBan"
@@ -40,6 +41,7 @@ type AuthServiceClient interface {
 	RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error)
 	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
 	ValidateToken(ctx context.Context, in *ValidateTokenRequest, opts ...grpc.CallOption) (*ValidateTokenResponse, error)
+	RevokeUser(ctx context.Context, in *RevokeUserRequest, opts ...grpc.CallOption) (*RevokeUserResponse, error)
 	CreateAIBan(ctx context.Context, in *CreateAIBanRequest, opts ...grpc.CallOption) (*CreateAIBanResponse, error)
 	DeleteAIBan(ctx context.Context, in *DeleteAIBanRequest, opts ...grpc.CallOption) (*DeleteAIBanResponse, error)
 	GetAIBan(ctx context.Context, in *GetAIBanRequest, opts ...grpc.CallOption) (*GetAIBanResponse, error)
@@ -105,6 +107,16 @@ func (c *authServiceClient) ValidateToken(ctx context.Context, in *ValidateToken
 	return out, nil
 }
 
+func (c *authServiceClient) RevokeUser(ctx context.Context, in *RevokeUserRequest, opts ...grpc.CallOption) (*RevokeUserResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RevokeUserResponse)
+	err := c.cc.Invoke(ctx, AuthService_RevokeUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *authServiceClient) CreateAIBan(ctx context.Context, in *CreateAIBanRequest, opts ...grpc.CallOption) (*CreateAIBanResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateAIBanResponse)
@@ -164,6 +176,7 @@ type AuthServiceServer interface {
 	RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error)
 	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
 	ValidateToken(context.Context, *ValidateTokenRequest) (*ValidateTokenResponse, error)
+	RevokeUser(context.Context, *RevokeUserRequest) (*RevokeUserResponse, error)
 	CreateAIBan(context.Context, *CreateAIBanRequest) (*CreateAIBanResponse, error)
 	DeleteAIBan(context.Context, *DeleteAIBanRequest) (*DeleteAIBanResponse, error)
 	GetAIBan(context.Context, *GetAIBanRequest) (*GetAIBanResponse, error)
@@ -193,6 +206,9 @@ func (UnimplementedAuthServiceServer) Logout(context.Context, *LogoutRequest) (*
 }
 func (UnimplementedAuthServiceServer) ValidateToken(context.Context, *ValidateTokenRequest) (*ValidateTokenResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ValidateToken not implemented")
+}
+func (UnimplementedAuthServiceServer) RevokeUser(context.Context, *RevokeUserRequest) (*RevokeUserResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RevokeUser not implemented")
 }
 func (UnimplementedAuthServiceServer) CreateAIBan(context.Context, *CreateAIBanRequest) (*CreateAIBanResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateAIBan not implemented")
@@ -320,6 +336,24 @@ func _AuthService_ValidateToken_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_RevokeUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeUserRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).RevokeUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_RevokeUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).RevokeUser(ctx, req.(*RevokeUserRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AuthService_CreateAIBan_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateAIBanRequest)
 	if err := dec(in); err != nil {
@@ -436,6 +470,10 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ValidateToken",
 			Handler:    _AuthService_ValidateToken_Handler,
+		},
+		{
+			MethodName: "RevokeUser",
+			Handler:    _AuthService_RevokeUser_Handler,
 		},
 		{
 			MethodName: "CreateAIBan",

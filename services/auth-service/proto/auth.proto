@@ -26,6 +26,7 @@ service AuthService {
 
 message LoginRequest {
   string email = 1;
+  string language = 2;
 }
 
 message LoginResponse {

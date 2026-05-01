@@ -9,6 +9,7 @@ import (
 	"api-gateway/internal/client"
 	"api-gateway/internal/dto"
 	"api-gateway/pkg/errors"
+	"api-gateway/pkg/lang"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,7 +46,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err := h.authClient.Login(ctx, req.Email)
+	language := lang.ParseAcceptLanguage(c.GetHeader("X-Accept-Language"), c.GetHeader("Accept-Language"))
+
+	_, err := h.authClient.Login(ctx, req.Email, string(language))
 	if err != nil {
 		dto.JsonError(c, err)
 		return

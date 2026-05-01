@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"time"
 
 	"notification-service/internal/repository"
 	"notification-service/pkg/email"
 	"notification-service/pkg/errors"
+	"notification-service/pkg/lang"
 	pb "notification-service/proto"
 
 	"google.golang.org/grpc/codes"
@@ -26,12 +26,12 @@ type NotificationRepo interface {
 
 type EmailSender interface {
 	SendEmail(data email.EmailData) error
-	SendAuthCode(emailAddr, code string) error
-	SendGroupInvite(emailAddr, groupName, inviterName string) error
-	SendQuizCreated(emailAddr, quizTitle, creatorName string) error
-	SendQuizResults(emailAddr, quizTitle string, score, maxScore int) error
-	SendGradeChanged(emailAddr, quizTitle string, score, maxScore int) error
-	SendDeadlineReminder(emailAddr, quizTitle, deadline, remainingTime string) error
+	SendAuthCode(emailAddr, code string, l lang.Lang) error
+	SendGroupInvite(emailAddr, groupName, inviterName string, l lang.Lang) error
+	SendQuizCreated(emailAddr, quizTitle, creatorName string, l lang.Lang) error
+	SendQuizResults(emailAddr, quizTitle string, score, maxScore int, l lang.Lang) error
+	SendGradeChanged(emailAddr, quizTitle string, score, maxScore int, l lang.Lang) error
+	SendDeadlineReminder(emailAddr, quizTitle, deadline, remainingTime string, l lang.Lang) error
 }
 
 type NotificationService struct {
@@ -119,16 +119,18 @@ func (s *NotificationService) DeleteAllForUser(ctx context.Context, req *pb.Dele
 
 func (s *NotificationService) HandleSendAuthCode(ctx context.Context, data []byte) error {
 	var event struct {
-		Email string `json:"email"`
-		Code  string `json:"code"`
+		Email    string `json:"email"`
+		Code     string `json:"code"`
+		Language string `json:"language"`
 	}
 
 	if err := json.Unmarshal(data, &event); err != nil {
 		return err
 	}
 
-	log.Printf("Sending auth code to %s", event.Email)
-	return s.smtpClient.SendAuthCode(event.Email, event.Code)
+	l := lang.Parse(event.Language)
+	log.Printf("Sending auth code to %s [lang=%s]", event.Email, l)
+	return s.smtpClient.SendAuthCode(event.Email, event.Code, l)
 }
 
 func (s *NotificationService) HandleGroupInvite(ctx context.Context, data []byte) error {
@@ -138,20 +140,22 @@ func (s *NotificationService) HandleGroupInvite(ctx context.Context, data []byte
 		InviterName   string `json:"inviter_name"`
 		InviteeEmail  string `json:"invitee_email"`
 		InviteeUserID string `json:"invitee_user_id"`
+		Language      string `json:"language"`
 	}
 
 	if err := json.Unmarshal(data, &event); err != nil {
 		return err
 	}
 
-	log.Printf("Processing group_invite: group=%s, invitee=%s", event.GroupName, event.InviteeEmail)
+	l := lang.Parse(event.Language)
+	log.Printf("Processing group_invite: group=%s, invitee=%s, lang=%s", event.GroupName, event.InviteeEmail, l)
 
 	if event.InviteeUserID != "" {
 		notification := &repository.Notification{
 			UserID:  event.InviteeUserID,
-			Type:    "group_invite",
-			Title:   "Group Invitation",
-			Content: fmt.Sprintf("%s invited you to %s", event.InviterName, event.GroupName),
+			Type:    email.TmplGroupInvite,
+			Title:   email.InAppTitle(l, email.TmplGroupInvite),
+			Content: email.InAppContent(l, email.TmplGroupInvite, event.InviterName, event.GroupName),
 			IsRead:  false,
 		}
 		if err := s.repo.CreateNotification(ctx, notification); err != nil {
@@ -162,7 +166,7 @@ func (s *NotificationService) HandleGroupInvite(ctx context.Context, data []byte
 	if event.InviteeEmail == "" {
 		return nil
 	}
-	return s.smtpClient.SendGroupInvite(event.InviteeEmail, event.GroupName, event.InviterName)
+	return s.smtpClient.SendGroupInvite(event.InviteeEmail, event.GroupName, event.InviterName, l)
 }
 
 func (s *NotificationService) HandleQuizCreated(ctx context.Context, data []byte) error {
@@ -174,8 +178,9 @@ func (s *NotificationService) HandleQuizCreated(ctx context.Context, data []byte
 		CreatorName  string `json:"creator_name"`
 		Deadline     string `json:"deadline"`
 		Participants []struct {
-			UserID string `json:"user_id"`
-			Email  string `json:"email"`
+			UserID   string `json:"user_id"`
+			Email    string `json:"email"`
+			Language string `json:"language"`
 		} `json:"participants"`
 	}
 
@@ -186,10 +191,11 @@ func (s *NotificationService) HandleQuizCreated(ctx context.Context, data []byte
 	log.Printf("Processing quiz_created event for instance %s, %d participants", event.InstanceID, len(event.Participants))
 
 	for _, p := range event.Participants {
+		l := lang.Parse(p.Language)
 		notification := &repository.Notification{
 			UserID:  p.UserID,
-			Type:    "quiz_created",
-			Title:   "New Quiz Available",
+			Type:    email.TmplQuizCreated,
+			Title:   email.InAppTitle(l, email.TmplQuizCreated),
 			Content: event.Title,
 			IsRead:  false,
 		}
@@ -200,7 +206,7 @@ func (s *NotificationService) HandleQuizCreated(ctx context.Context, data []byte
 		if p.Email == "" {
 			continue
 		}
-		if err := s.smtpClient.SendQuizCreated(p.Email, event.Title, event.CreatorName); err != nil {
+		if err := s.smtpClient.SendQuizCreated(p.Email, event.Title, event.CreatorName, l); err != nil {
 			log.Printf("HandleQuizCreated: failed to send email to %s: %v", p.Email, err)
 		}
 	}
@@ -215,8 +221,9 @@ func (s *NotificationService) HandleQuizDeadlineReminder(ctx context.Context, da
 		Deadline       string `json:"deadline"`
 		ReminderOffset string `json:"reminder_offset"`
 		Participants   []struct {
-			UserID string `json:"user_id"`
-			Email  string `json:"email"`
+			UserID   string `json:"user_id"`
+			Email    string `json:"email"`
+			Language string `json:"language"`
 		} `json:"participants"`
 	}
 
@@ -228,11 +235,12 @@ func (s *NotificationService) HandleQuizDeadlineReminder(ctx context.Context, da
 		event.InstanceID, event.ReminderOffset, len(event.Participants))
 
 	for _, p := range event.Participants {
+		l := lang.Parse(p.Language)
 		notification := &repository.Notification{
 			UserID:  p.UserID,
-			Type:    "deadline_reminder",
-			Title:   "Quiz Deadline Approaching",
-			Content: fmt.Sprintf("%s — %s remaining", event.Title, event.ReminderOffset),
+			Type:    email.TmplDeadlineReminder,
+			Title:   email.InAppTitle(l, email.TmplDeadlineReminder),
+			Content: email.InAppContent(l, email.TmplDeadlineReminder, event.Title, event.ReminderOffset),
 			IsRead:  false,
 		}
 		if err := s.repo.CreateNotification(ctx, notification); err != nil {
@@ -242,7 +250,7 @@ func (s *NotificationService) HandleQuizDeadlineReminder(ctx context.Context, da
 		if p.Email == "" {
 			continue
 		}
-		if err := s.smtpClient.SendDeadlineReminder(p.Email, event.Title, event.Deadline, event.ReminderOffset); err != nil {
+		if err := s.smtpClient.SendDeadlineReminder(p.Email, event.Title, event.Deadline, event.ReminderOffset, l); err != nil {
 			log.Printf("HandleQuizDeadlineReminder: failed to send email to %s: %v", p.Email, err)
 		}
 	}
@@ -259,6 +267,7 @@ func (s *NotificationService) HandleQuizResultsReady(ctx context.Context, data [
 			Email    string `json:"email"`
 			Score    int    `json:"score"`
 			MaxScore int    `json:"max_score"`
+			Language string `json:"language"`
 		} `json:"participants"`
 	}
 
@@ -269,10 +278,11 @@ func (s *NotificationService) HandleQuizResultsReady(ctx context.Context, data [
 	log.Printf("Processing quiz_results_ready event for instance %s", event.InstanceID)
 
 	for _, p := range event.Participants {
+		l := lang.Parse(p.Language)
 		notification := &repository.Notification{
 			UserID:  p.UserID,
-			Type:    "quiz_results",
-			Title:   "Quiz Results Ready",
+			Type:    email.TmplQuizResults,
+			Title:   email.InAppTitle(l, email.TmplQuizResults),
 			Content: event.Title,
 			IsRead:  false,
 		}
@@ -284,7 +294,7 @@ func (s *NotificationService) HandleQuizResultsReady(ctx context.Context, data [
 		if p.Email == "" {
 			continue
 		}
-		if err := s.smtpClient.SendQuizResults(p.Email, event.Title, p.Score, p.MaxScore); err != nil {
+		if err := s.smtpClient.SendQuizResults(p.Email, event.Title, p.Score, p.MaxScore, l); err != nil {
 			log.Printf("Failed to send quiz_results email to %s: %v", p.Email, err)
 		}
 	}
@@ -300,18 +310,20 @@ func (s *NotificationService) HandleGradeChanged(ctx context.Context, data []byt
 		Title            string `json:"title"`
 		Score            int    `json:"score"`
 		MaxScore         int    `json:"max_score"`
+		Language         string `json:"language"`
 	}
 
 	if err := json.Unmarshal(data, &event); err != nil {
 		return err
 	}
 
-	log.Printf("Processing quiz.grade_changed event for instance %s, participant %s", event.InstanceID, event.ParticipantID)
+	l := lang.Parse(event.Language)
+	log.Printf("Processing quiz.grade_changed event for instance %s, participant %s, lang=%s", event.InstanceID, event.ParticipantID, l)
 
 	notification := &repository.Notification{
 		UserID:  event.ParticipantID,
-		Type:    "grade_changed",
-		Title:   "Grade Updated",
+		Type:    email.TmplGradeChanged,
+		Title:   email.InAppTitle(l, email.TmplGradeChanged),
 		Content: event.Title,
 		IsRead:  false,
 	}
@@ -321,7 +333,7 @@ func (s *NotificationService) HandleGradeChanged(ctx context.Context, data []byt
 	}
 
 	if event.ParticipantEmail != "" {
-		if err := s.smtpClient.SendGradeChanged(event.ParticipantEmail, event.Title, event.Score, event.MaxScore); err != nil {
+		if err := s.smtpClient.SendGradeChanged(event.ParticipantEmail, event.Title, event.Score, event.MaxScore, l); err != nil {
 			log.Printf("Failed to send grade_changed email to %s: %v", event.ParticipantEmail, err)
 		}
 	}

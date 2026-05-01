@@ -10,6 +10,7 @@ import (
 	"notification-service/internal/repository"
 	"notification-service/internal/service/mocks"
 	"notification-service/pkg/email"
+	"notification-service/pkg/lang"
 	pb "notification-service/proto"
 
 	"github.com/stretchr/testify/assert"
@@ -101,8 +102,8 @@ func TestHandleSendAuthCode_Success(t *testing.T) {
 	svc, _, smtp := setupTest(t)
 	ctx := context.Background()
 
-	data, _ := json.Marshal(map[string]string{"email": "test@example.com", "code": "1234"})
-	smtp.EXPECT().SendAuthCode("test@example.com", "1234").Return(nil)
+	data, _ := json.Marshal(map[string]string{"email": "test@example.com", "code": "1234", "language": "ru"})
+	smtp.EXPECT().SendAuthCode("test@example.com", "1234", lang.RU).Return(nil)
 
 	err := svc.HandleSendAuthCode(ctx, data)
 	require.NoError(t, err)
@@ -123,8 +124,9 @@ func TestHandleGroupInvite_Success(t *testing.T) {
 	data, _ := json.Marshal(map[string]string{
 		"group_id": "grp-1", "group_name": "Test Group",
 		"inviter_name": "John", "invitee_email": "jane@example.com",
+		"language": "en",
 	})
-	smtp.EXPECT().SendGroupInvite("jane@example.com", "Test Group", "John").Return(nil)
+	smtp.EXPECT().SendGroupInvite("jane@example.com", "Test Group", "John", lang.EN).Return(nil)
 
 	err := svc.HandleGroupInvite(ctx, data)
 	require.NoError(t, err)
@@ -140,9 +142,10 @@ func TestHandleGroupInvite_WithUserID_CreatesInAppNotification(t *testing.T) {
 		"inviter_name":    "John",
 		"invitee_email":   "jane@example.com",
 		"invitee_user_id": "user-42",
+		"language":        "ru",
 	})
 	repo.EXPECT().CreateNotification(ctx, gomock.Any()).Return(nil)
-	smtp.EXPECT().SendGroupInvite("jane@example.com", "Test Group", "John").Return(nil)
+	smtp.EXPECT().SendGroupInvite("jane@example.com", "Test Group", "John", lang.RU).Return(nil)
 
 	err := svc.HandleGroupInvite(ctx, data)
 	require.NoError(t, err)

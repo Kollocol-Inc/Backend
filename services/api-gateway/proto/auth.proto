@@ -15,6 +15,8 @@ service AuthService {
 
   rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
 
+  rpc RevokeUser(RevokeUserRequest) returns (RevokeUserResponse);
+
   rpc CreateAIBan(CreateAIBanRequest) returns (CreateAIBanResponse);
   rpc DeleteAIBan(DeleteAIBanRequest) returns (DeleteAIBanResponse);
   rpc GetAIBan(GetAIBanRequest) returns (GetAIBanResponse);
@@ -24,6 +26,7 @@ service AuthService {
 
 message LoginRequest {
   string email = 1;
+  string language = 2;
 }
 
 message LoginResponse {
@@ -67,6 +70,12 @@ message ValidateTokenResponse {
   string email = 2;
   string role = 3;
 }
+
+message RevokeUserRequest {
+  string user_id = 1;
+}
+
+message RevokeUserResponse {}
 
 message AIBan {
   string user_id = 1;

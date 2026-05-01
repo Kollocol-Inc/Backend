@@ -7,8 +7,9 @@ type RegisterRequest struct {
 }
 
 type UpdateProfileRequest struct {
-	FirstName string `json:"first_name,omitempty" binding:"omitempty,min=2,max=50" example:"John"`
-	LastName  string `json:"last_name,omitempty" binding:"omitempty,min=2,max=50" example:"Doe"`
+	FirstName string  `json:"first_name,omitempty" binding:"omitempty,min=2,max=50" example:"John"`
+	LastName  string  `json:"last_name,omitempty" binding:"omitempty,min=2,max=50" example:"Doe"`
+	Language  *string `json:"language,omitempty" binding:"omitempty,oneof=ru en" enums:"ru,en" example:"ru"`
 }
 
 type UpdateNotificationSettingsRequest struct {
@@ -36,6 +37,7 @@ type UserDTO struct {
 	FirstName string `json:"first_name" example:"John"`
 	LastName  string `json:"last_name" example:"Doe"`
 	AvatarURL string `json:"avatar_url,omitempty" example:"https://storage.example.com/avatars/user123.jpg"`
+	Language  string `json:"language" enums:"ru,en" example:"ru"`
 	CreatedAt string `json:"created_at" example:"2024-01-15T10:30:00Z"`
 	UpdatedAt string `json:"updated_at" example:"2024-01-15T10:30:00Z"`
 }

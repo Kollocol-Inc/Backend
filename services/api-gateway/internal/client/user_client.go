@@ -64,13 +64,14 @@ func (c *UserClient) GetProfileByEmail(ctx context.Context, email string) (*pb.G
 	})
 }
 
-func (c *UserClient) UpdateProfile(ctx context.Context, userID, firstName, lastName string, avatarData []byte, avatarFilename string) (*pb.UpdateProfileResponse, error) {
+func (c *UserClient) UpdateProfile(ctx context.Context, userID, firstName, lastName string, avatarData []byte, avatarFilename string, language *string) (*pb.UpdateProfileResponse, error) {
 	return c.client.UpdateProfile(ctx, &pb.UpdateProfileRequest{
 		UserId:         userID,
 		FirstName:      firstName,
 		LastName:       lastName,
 		AvatarData:     avatarData,
 		AvatarFilename: avatarFilename,
+		Language:       language,
 	})
 }
 

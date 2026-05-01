@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .code { font-size: 32px; font-weight: bold; color: #007bff; letter-spacing: 5px; margin: 20px 0; }
+        .footer { margin-top: 30px; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Kollocol — Код подтверждения</h2>
+        <p>Ваш код подтверждения:</p>
+        <div class="code">{{.Code}}</div>
+        <p>Код действителен в течение 5 минут.</p>
+        <div class="footer">
+            <p>Если вы не запрашивали этот код, проигнорируйте письмо.</p>
+        </div>
+    </div>
+</body>
+</html>

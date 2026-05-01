@@ -6,6 +6,7 @@ type UserInfo struct {
 	FirstName    string
 	LastName     string
 	IsRegistered bool
+	Language     string
 }
 
 type NotificationSettings struct {
@@ -13,4 +14,5 @@ type NotificationSettings struct {
 	QuizResults      bool
 	GroupInvites     bool
 	DeadlineReminder string
+	Language         string
 }
