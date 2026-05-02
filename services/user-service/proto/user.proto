@@ -34,6 +34,7 @@ message User {
   string avatar_url = 5;
   bool is_registered = 6;
   int64 created_at = 7; // Unix timestamp
+  string language = 8;
 }
 
 message NotificationSettings {
@@ -92,6 +93,7 @@ message UpdateProfileRequest {
   string last_name = 3; // Optional
   bytes avatar_data = 4; // Optional
   string avatar_filename = 5; // Optional
+  optional string language = 6;
 }
 
 message UpdateProfileResponse {
@@ -211,4 +213,5 @@ message GetNotificationSettingsBatchRequest {
 
 message GetNotificationSettingsBatchResponse {
   map<string, NotificationSettings> settings = 1;
+  map<string, string> languages = 2;
 }

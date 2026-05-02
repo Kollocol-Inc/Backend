@@ -13,6 +13,7 @@ import (
 	context "context"
 	repository "notification-service/internal/repository"
 	email "notification-service/pkg/email"
+	lang "notification-service/pkg/lang"
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
@@ -139,31 +140,31 @@ func (m *MockEmailSender) EXPECT() *MockEmailSenderMockRecorder {
 }
 
 // SendAuthCode mocks base method.
-func (m *MockEmailSender) SendAuthCode(emailAddr, code string) error {
+func (m *MockEmailSender) SendAuthCode(emailAddr, code string, l lang.Lang) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendAuthCode", emailAddr, code)
+	ret := m.ctrl.Call(m, "SendAuthCode", emailAddr, code, l)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SendAuthCode indicates an expected call of SendAuthCode.
-func (mr *MockEmailSenderMockRecorder) SendAuthCode(emailAddr, code any) *gomock.Call {
+func (mr *MockEmailSenderMockRecorder) SendAuthCode(emailAddr, code, l any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendAuthCode", reflect.TypeOf((*MockEmailSender)(nil).SendAuthCode), emailAddr, code)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendAuthCode", reflect.TypeOf((*MockEmailSender)(nil).SendAuthCode), emailAddr, code, l)
 }
 
 // SendDeadlineReminder mocks base method.
-func (m *MockEmailSender) SendDeadlineReminder(emailAddr, quizTitle, deadline, remainingTime string) error {
+func (m *MockEmailSender) SendDeadlineReminder(emailAddr, quizTitle, deadline, remainingTime string, l lang.Lang) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendDeadlineReminder", emailAddr, quizTitle, deadline, remainingTime)
+	ret := m.ctrl.Call(m, "SendDeadlineReminder", emailAddr, quizTitle, deadline, remainingTime, l)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SendDeadlineReminder indicates an expected call of SendDeadlineReminder.
-func (mr *MockEmailSenderMockRecorder) SendDeadlineReminder(emailAddr, quizTitle, deadline, remainingTime any) *gomock.Call {
+func (mr *MockEmailSenderMockRecorder) SendDeadlineReminder(emailAddr, quizTitle, deadline, remainingTime, l any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendDeadlineReminder", reflect.TypeOf((*MockEmailSender)(nil).SendDeadlineReminder), emailAddr, quizTitle, deadline, remainingTime)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendDeadlineReminder", reflect.TypeOf((*MockEmailSender)(nil).SendDeadlineReminder), emailAddr, quizTitle, deadline, remainingTime, l)
 }
 
 // SendEmail mocks base method.
@@ -181,57 +182,57 @@ func (mr *MockEmailSenderMockRecorder) SendEmail(data any) *gomock.Call {
 }
 
 // SendGradeChanged mocks base method.
-func (m *MockEmailSender) SendGradeChanged(emailAddr, quizTitle string, score, maxScore int) error {
+func (m *MockEmailSender) SendGradeChanged(emailAddr, quizTitle string, score, maxScore int, l lang.Lang) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendGradeChanged", emailAddr, quizTitle, score, maxScore)
+	ret := m.ctrl.Call(m, "SendGradeChanged", emailAddr, quizTitle, score, maxScore, l)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SendGradeChanged indicates an expected call of SendGradeChanged.
-func (mr *MockEmailSenderMockRecorder) SendGradeChanged(emailAddr, quizTitle, score, maxScore any) *gomock.Call {
+func (mr *MockEmailSenderMockRecorder) SendGradeChanged(emailAddr, quizTitle, score, maxScore, l any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendGradeChanged", reflect.TypeOf((*MockEmailSender)(nil).SendGradeChanged), emailAddr, quizTitle, score, maxScore)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendGradeChanged", reflect.TypeOf((*MockEmailSender)(nil).SendGradeChanged), emailAddr, quizTitle, score, maxScore, l)
 }
 
 // SendGroupInvite mocks base method.
-func (m *MockEmailSender) SendGroupInvite(emailAddr, groupName, inviterName string) error {
+func (m *MockEmailSender) SendGroupInvite(emailAddr, groupName, inviterName string, l lang.Lang) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendGroupInvite", emailAddr, groupName, inviterName)
+	ret := m.ctrl.Call(m, "SendGroupInvite", emailAddr, groupName, inviterName, l)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SendGroupInvite indicates an expected call of SendGroupInvite.
-func (mr *MockEmailSenderMockRecorder) SendGroupInvite(emailAddr, groupName, inviterName any) *gomock.Call {
+func (mr *MockEmailSenderMockRecorder) SendGroupInvite(emailAddr, groupName, inviterName, l any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendGroupInvite", reflect.TypeOf((*MockEmailSender)(nil).SendGroupInvite), emailAddr, groupName, inviterName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendGroupInvite", reflect.TypeOf((*MockEmailSender)(nil).SendGroupInvite), emailAddr, groupName, inviterName, l)
 }
 
 // SendQuizCreated mocks base method.
-func (m *MockEmailSender) SendQuizCreated(emailAddr, quizTitle, creatorName string) error {
+func (m *MockEmailSender) SendQuizCreated(emailAddr, quizTitle, creatorName string, l lang.Lang) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendQuizCreated", emailAddr, quizTitle, creatorName)
+	ret := m.ctrl.Call(m, "SendQuizCreated", emailAddr, quizTitle, creatorName, l)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SendQuizCreated indicates an expected call of SendQuizCreated.
-func (mr *MockEmailSenderMockRecorder) SendQuizCreated(emailAddr, quizTitle, creatorName any) *gomock.Call {
+func (mr *MockEmailSenderMockRecorder) SendQuizCreated(emailAddr, quizTitle, creatorName, l any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendQuizCreated", reflect.TypeOf((*MockEmailSender)(nil).SendQuizCreated), emailAddr, quizTitle, creatorName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendQuizCreated", reflect.TypeOf((*MockEmailSender)(nil).SendQuizCreated), emailAddr, quizTitle, creatorName, l)
 }
 
 // SendQuizResults mocks base method.
-func (m *MockEmailSender) SendQuizResults(emailAddr, quizTitle string, score, maxScore int) error {
+func (m *MockEmailSender) SendQuizResults(emailAddr, quizTitle string, score, maxScore int, l lang.Lang) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendQuizResults", emailAddr, quizTitle, score, maxScore)
+	ret := m.ctrl.Call(m, "SendQuizResults", emailAddr, quizTitle, score, maxScore, l)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SendQuizResults indicates an expected call of SendQuizResults.
-func (mr *MockEmailSenderMockRecorder) SendQuizResults(emailAddr, quizTitle, score, maxScore any) *gomock.Call {
+func (mr *MockEmailSenderMockRecorder) SendQuizResults(emailAddr, quizTitle, score, maxScore, l any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendQuizResults", reflect.TypeOf((*MockEmailSender)(nil).SendQuizResults), emailAddr, quizTitle, score, maxScore)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendQuizResults", reflect.TypeOf((*MockEmailSender)(nil).SendQuizResults), emailAddr, quizTitle, score, maxScore, l)
 }

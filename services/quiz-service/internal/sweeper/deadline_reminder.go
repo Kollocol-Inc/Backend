@@ -10,6 +10,7 @@ import (
 
 	"quiz-service/internal/model"
 	"quiz-service/pkg/database"
+	"quiz-service/pkg/lang"
 )
 
 type ReminderPublisher interface {
@@ -162,8 +163,9 @@ func (s *DeadlineReminderSweeper) processInstance(ctx context.Context, inst upco
 }
 
 type reminderParticipant struct {
-	UserID string `json:"user_id"`
-	Email  string `json:"email"`
+	UserID   string `json:"user_id"`
+	Email    string `json:"email"`
+	Language string `json:"language"`
 }
 
 type deadlineReminderEvent struct {
@@ -209,10 +211,16 @@ func (s *DeadlineReminderSweeper) sendReminders(
 		}
 
 		email := ""
-		if info, ok := usersMap[uid]; ok && info.IsRegistered {
-			email = info.Email
+		language := string(lang.Default)
+		if info, ok := usersMap[uid]; ok {
+			if info.IsRegistered {
+				email = info.Email
+			}
+			if info.Language != "" {
+				language = info.Language
+			}
 		}
-		toSend = append(toSend, reminderParticipant{UserID: uid, Email: email})
+		toSend = append(toSend, reminderParticipant{UserID: uid, Email: email, Language: language})
 	}
 
 	if len(toSend) == 0 {

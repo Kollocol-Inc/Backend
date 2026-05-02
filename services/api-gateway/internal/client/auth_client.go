@@ -42,9 +42,10 @@ func (c *AuthClient) Close() error {
 	return nil
 }
 
-func (c *AuthClient) Login(ctx context.Context, email string) (*pb.LoginResponse, error) {
+func (c *AuthClient) Login(ctx context.Context, email, language string) (*pb.LoginResponse, error) {
 	return c.client.Login(ctx, &pb.LoginRequest{
-		Email: email,
+		Email:    email,
+		Language: language,
 	})
 }
 

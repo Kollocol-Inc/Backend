@@ -2,13 +2,15 @@ syntax = "proto3";
 
 package user;
 
-option go_package = "quiz-service/proto";
+option go_package = "user-service/proto";
 
 service UserService {
   rpc Register(RegisterRequest) returns (RegisterResponse);
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
   rpc GetProfileByEmail(GetProfileByEmailRequest) returns (GetProfileByEmailResponse);
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+  rpc DeleteAvatar(DeleteAvatarRequest) returns (DeleteAvatarResponse);
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
 
   rpc GetNotificationSettings(GetNotificationSettingsRequest) returns (GetNotificationSettingsResponse);
   rpc UpdateNotificationSettings(UpdateNotificationSettingsRequest) returns (UpdateNotificationSettingsResponse);
@@ -32,6 +34,7 @@ message User {
   string avatar_url = 5;
   bool is_registered = 6;
   int64 created_at = 7; // Unix timestamp
+  string language = 8;
 }
 
 message NotificationSettings {
@@ -65,9 +68,7 @@ message RegisterRequest {
 }
 
 message RegisterResponse {
-  bool success = 1;
-  User user = 2;
-  string message = 3;
+  User user = 1;
 }
 
 message GetProfileRequest {
@@ -75,9 +76,7 @@ message GetProfileRequest {
 }
 
 message GetProfileResponse {
-  bool success = 1;
-  User user = 2;
-  string message = 3;
+  User user = 1;
 }
 
 message GetProfileByEmailRequest {
@@ -85,9 +84,7 @@ message GetProfileByEmailRequest {
 }
 
 message GetProfileByEmailResponse {
-  bool success = 1;
-  User user = 2;
-  string message = 3;
+  User user = 1;
 }
 
 message UpdateProfileRequest {
@@ -96,12 +93,25 @@ message UpdateProfileRequest {
   string last_name = 3; // Optional
   bytes avatar_data = 4; // Optional
   string avatar_filename = 5; // Optional
+  optional string language = 6;
 }
 
 message UpdateProfileResponse {
-  bool success = 1;
-  User user = 2;
-  string message = 3;
+  User user = 1;
+}
+
+message DeleteAvatarRequest {
+  string user_id = 1;
+}
+
+message DeleteAvatarResponse {
+}
+
+message DeleteUserRequest {
+  string user_id = 1;
+}
+
+message DeleteUserResponse {
 }
 
 message GetNotificationSettingsRequest {
@@ -109,9 +119,7 @@ message GetNotificationSettingsRequest {
 }
 
 message GetNotificationSettingsResponse {
-  bool success = 1;
-  NotificationSettings settings = 2;
-  string message = 3;
+  NotificationSettings settings = 1;
 }
 
 message UpdateNotificationSettingsRequest {
@@ -123,9 +131,7 @@ message UpdateNotificationSettingsRequest {
 }
 
 message UpdateNotificationSettingsResponse {
-  bool success = 1;
-  NotificationSettings settings = 2;
-  string message = 3;
+  NotificationSettings settings = 1;
 }
 
 message CreateGroupRequest {
@@ -135,9 +141,7 @@ message CreateGroupRequest {
 }
 
 message CreateGroupResponse {
-  bool success = 1;
-  Group group = 2;
-  string message = 3;
+  Group group = 1;
 }
 
 message GetGroupsRequest {
@@ -146,9 +150,7 @@ message GetGroupsRequest {
 }
 
 message GetGroupsResponse {
-  bool success = 1;
-  repeated Group groups = 2;
-  string message = 3;
+  repeated Group groups = 1;
 }
 
 message GetGroupRequest {
@@ -157,9 +159,7 @@ message GetGroupRequest {
 }
 
 message GetGroupResponse {
-  bool success = 1;
-  GroupWithMembers group = 2;
-  string message = 3;
+  GroupWithMembers group = 1;
 }
 
 message UpdateGroupRequest {
@@ -170,9 +170,7 @@ message UpdateGroupRequest {
 }
 
 message UpdateGroupResponse {
-  bool success = 1;
-  Group group = 2;
-  string message = 3;
+  Group group = 1;
 }
 
 message DeleteGroupRequest {
@@ -181,8 +179,6 @@ message DeleteGroupRequest {
 }
 
 message DeleteGroupResponse {
-  bool success = 1;
-  string message = 2;
 }
 
 message CheckGroupMembershipRequest {
@@ -217,4 +213,5 @@ message GetNotificationSettingsBatchRequest {
 
 message GetNotificationSettingsBatchResponse {
   map<string, NotificationSettings> settings = 1;
+  map<string, string> languages = 2;
 }

@@ -15,6 +15,7 @@ import (
 	"user-service/internal/repository"
 	"user-service/pkg/database"
 	"user-service/pkg/errors"
+	"user-service/pkg/lang"
 	"user-service/pkg/messaging"
 	"user-service/pkg/storage"
 	pb "user-service/proto"
@@ -212,6 +213,14 @@ func (s *UserService) UpdateProfile(ctx context.Context, req *pb.UpdateProfileRe
 	}
 	if req.LastName != "" {
 		user.LastName = req.LastName
+	}
+	if req.Language != nil {
+		normalized := strings.ToLower(strings.TrimSpace(*req.Language))
+		l := lang.Lang(normalized)
+		if !lang.IsSupported(l) {
+			return nil, errors.New(codes.InvalidArgument, errors.ReasonInvalidLanguage, "Unsupported language", map[string]string{"language": *req.Language})
+		}
+		user.Language = string(l)
 	}
 
 	if len(req.AvatarData) > 0 && req.AvatarFilename != "" {
@@ -536,6 +545,7 @@ func (s *UserService) userToProto(user *repository.User) *pb.User {
 		LastName:     user.LastName,
 		AvatarUrl:    user.AvatarURL,
 		IsRegistered: user.IsRegistered,
+		Language:     user.Language,
 		CreatedAt:    user.CreatedAt.Unix(),
 	}
 }
@@ -574,6 +584,7 @@ func (s *UserService) publishGroupInvite(ctx context.Context, groupID, groupName
 	}
 
 	inviteeUserID := ""
+	inviteeLanguage := string(lang.Default)
 	if invitee, err := s.userRepo.GetUserByEmail(ctx, inviteeEmail); err == nil && invitee != nil {
 		if invitee.IsRegistered {
 			settings, settingsErr := s.settingsRepo.GetOrCreateSettings(ctx, invitee.ID)
@@ -583,6 +594,9 @@ func (s *UserService) publishGroupInvite(ctx context.Context, groupID, groupName
 			}
 		}
 		inviteeUserID = invitee.ID
+		if invitee.Language != "" {
+			inviteeLanguage = invitee.Language
+		}
 	}
 
 	event := map[string]string{
@@ -591,6 +605,7 @@ func (s *UserService) publishGroupInvite(ctx context.Context, groupID, groupName
 		"inviter_name":    inviterName,
 		"invitee_email":   inviteeEmail,
 		"invitee_user_id": inviteeUserID,
+		"language":        inviteeLanguage,
 	}
 	eventData, _ := json.Marshal(event)
 
@@ -693,7 +708,23 @@ func (s *UserService) GetNotificationSettingsBatch(ctx context.Context, req *pb.
 		}
 		result[userID] = s.settingsToProto(settings)
 	}
-	return &pb.GetNotificationSettingsBatchResponse{Settings: result}, nil
+
+	languages := make(map[string]string, len(req.UserIds))
+	users, err := s.userRepo.GetUsersByIDs(ctx, req.UserIds)
+	if err != nil {
+		log.Printf("GetNotificationSettingsBatch: failed to fetch user languages: %v", err)
+	} else {
+		for _, u := range users {
+			languages[u.ID] = u.Language
+		}
+	}
+	for _, uid := range req.UserIds {
+		if _, ok := languages[uid]; !ok {
+			languages[uid] = string(lang.Default)
+		}
+	}
+
+	return &pb.GetNotificationSettingsBatchResponse{Settings: result, Languages: languages}, nil
 }
 
 func (s *UserService) deleteAvatarFile(ctx context.Context, avatarURL string) error {

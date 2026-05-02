@@ -121,7 +121,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := h.userClient.UpdateProfile(ctx, userID.(string), req.FirstName, req.LastName, nil, "")
+	resp, err := h.userClient.UpdateProfile(ctx, userID.(string), req.FirstName, req.LastName, nil, "", req.Language)
 	if err != nil {
 		dto.JsonError(c, err)
 		return
@@ -177,7 +177,7 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	resp, err := h.userClient.UpdateProfile(ctx, userID.(string), "", "", avatarData, file.Filename)
+	resp, err := h.userClient.UpdateProfile(ctx, userID.(string), "", "", avatarData, file.Filename, nil)
 	if err != nil {
 		dto.JsonError(c, err)
 		return
@@ -537,6 +537,7 @@ func convertUserToDTO(u *pb.User) dto.UserDTO {
 		FirstName: u.FirstName,
 		LastName:  u.LastName,
 		AvatarURL: u.AvatarUrl,
+		Language:  u.Language,
 		CreatedAt: time.Unix(u.CreatedAt, 0).Format(time.RFC3339),
 		UpdatedAt: time.Unix(u.CreatedAt, 0).Format(time.RFC3339),
 	}

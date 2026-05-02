@@ -13,6 +13,7 @@ import (
 	"quiz-service/internal/repository"
 	"quiz-service/pkg/database"
 	"quiz-service/pkg/errors"
+	"quiz-service/pkg/lang"
 	pb "quiz-service/proto"
 
 	"google.golang.org/grpc/codes"
@@ -810,6 +811,7 @@ func (s *QuizService) publishQuizResults(ctx context.Context, instance *reposito
 		Email    string `json:"email"`
 		Score    int    `json:"score"`
 		MaxScore int    `json:"max_score"`
+		Language string `json:"language"`
 	}
 
 	type QuizResultsEvent struct {
@@ -851,11 +853,16 @@ func (s *QuizService) publishQuizResults(ctx context.Context, instance *reposito
 		for _, a := range answers {
 			total += a.Score
 		}
+		language := string(lang.Default)
+		if settings, ok := settingsBatch[session.UserID]; ok && settings.Language != "" {
+			language = settings.Language
+		}
 		participants = append(participants, ParticipantResult{
 			UserID:   session.UserID,
 			Email:    emailsByID[session.UserID],
 			Score:    total,
 			MaxScore: maxScore,
+			Language: language,
 		})
 	}
 
@@ -896,6 +903,7 @@ func (s *QuizService) publishGradeChanged(ctx context.Context, instance *reposit
 		Title            string `json:"title"`
 		Score            int    `json:"score"`
 		MaxScore         int    `json:"max_score"`
+		Language         string `json:"language"`
 	}
 
 	emailsByID, err := s.userClient.GetEmailsByIDs(ctx, []string{participantID})
@@ -920,6 +928,11 @@ func (s *QuizService) publishGradeChanged(ctx context.Context, instance *reposit
 		log.Printf("Failed to load participant session for quiz.grade_changed: %v", err)
 	}
 
+	language := string(lang.Default)
+	if settings, ok := settingsBatch[participantID]; ok && settings.Language != "" {
+		language = settings.Language
+	}
+
 	event := GradeChangedEvent{
 		InstanceID:       instance.ID,
 		ParticipantID:    participantID,
@@ -927,6 +940,7 @@ func (s *QuizService) publishGradeChanged(ctx context.Context, instance *reposit
 		Title:            instance.Title,
 		Score:            total,
 		MaxScore:         maxScore,
+		Language:         language,
 	}
 
 	eventBytes, err := json.Marshal(event)
@@ -951,8 +965,9 @@ func (s *QuizService) publishQuizCreated(ctx context.Context, instance *reposito
 	groupID := instance.GroupID.String
 
 	type Participant struct {
-		UserID string `json:"user_id"`
-		Email  string `json:"email"`
+		UserID   string `json:"user_id"`
+		Email    string `json:"email"`
+		Language string `json:"language"`
 	}
 
 	type QuizCreatedEvent struct {
@@ -1009,10 +1024,16 @@ func (s *QuizService) publishQuizCreated(ctx context.Context, instance *reposito
 		}
 
 		email := ""
-		if info, ok := usersMap[uid]; ok && info.IsRegistered {
-			email = info.Email
+		language := string(lang.Default)
+		if info, ok := usersMap[uid]; ok {
+			if info.IsRegistered {
+				email = info.Email
+			}
+			if info.Language != "" {
+				language = info.Language
+			}
 		}
-		participants = append(participants, Participant{UserID: uid, Email: email})
+		participants = append(participants, Participant{UserID: uid, Email: email, Language: language})
 	}
 
 	if len(participants) == 0 {

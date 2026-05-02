@@ -19,6 +19,7 @@ type User struct {
 	AvatarURL    string
 	IsRegistered bool
 	Role         string
+	Language     string
 	CreatedAt    time.Time
 }
 
@@ -38,7 +39,7 @@ func (r *UserRepository) q(ctx context.Context) database.DBTX {
 
 func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	query := `
-		SELECT id, email, first_name, last_name, avatar_url, is_registered, role, created_at
+		SELECT id, email, first_name, last_name, avatar_url, is_registered, role, language, created_at
 		FROM users
 		WHERE email = $1
 	`
@@ -52,6 +53,7 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*Use
 		&user.AvatarURL,
 		&user.IsRegistered,
 		&user.Role,
+		&user.Language,
 		&user.CreatedAt,
 	)
 
@@ -74,18 +76,19 @@ func (r *UserRepository) CreateUser(ctx context.Context, email string) (*User, e
 		AvatarURL:    "",
 		IsRegistered: false,
 		Role:         "user",
+		Language:     "ru",
 		CreatedAt:    time.Now(),
 	}
 
 	query := `
-		INSERT INTO users (id, email, first_name, last_name, avatar_url, is_registered, role, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO users (id, email, first_name, last_name, avatar_url, is_registered, role, language, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (email) DO UPDATE SET
 			first_name = EXCLUDED.first_name,
 			last_name = EXCLUDED.last_name,
 			avatar_url = EXCLUDED.avatar_url,
 			is_registered = EXCLUDED.is_registered
-		RETURNING id, email, first_name, last_name, avatar_url, is_registered, role, created_at
+		RETURNING id, email, first_name, last_name, avatar_url, is_registered, role, language, created_at
 	`
 
 	err := r.q(ctx).QueryRowContext(ctx, query,
@@ -96,6 +99,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, email string) (*User, e
 		user.AvatarURL,
 		user.IsRegistered,
 		user.Role,
+		user.Language,
 		user.CreatedAt,
 	).Scan(
 		&user.ID,
@@ -105,6 +109,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, email string) (*User, e
 		&user.AvatarURL,
 		&user.IsRegistered,
 		&user.Role,
+		&user.Language,
 		&user.CreatedAt,
 	)
 

@@ -19,6 +19,7 @@ type User struct {
 	LastName     string
 	AvatarURL    string
 	IsRegistered bool
+	Language     string
 	CreatedAt    time.Time
 }
 
@@ -36,7 +37,7 @@ func (r *UserRepository) q(ctx context.Context) database.DBTX {
 
 func (r *UserRepository) GetUserByID(ctx context.Context, userID string) (*User, error) {
 	query := `
-		SELECT id, email, first_name, last_name, avatar_url, is_registered, created_at
+		SELECT id, email, first_name, last_name, avatar_url, is_registered, language, created_at
 		FROM users
 		WHERE id = $1
 	`
@@ -49,6 +50,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID string) (*User,
 		&user.LastName,
 		&user.AvatarURL,
 		&user.IsRegistered,
+		&user.Language,
 		&user.CreatedAt,
 	)
 
@@ -64,7 +66,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID string) (*User,
 
 func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	query := `
-		SELECT id, email, first_name, last_name, avatar_url, is_registered, created_at
+		SELECT id, email, first_name, last_name, avatar_url, is_registered, language, created_at
 		FROM users
 		WHERE email = $1
 	`
@@ -77,6 +79,7 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*Use
 		&user.LastName,
 		&user.AvatarURL,
 		&user.IsRegistered,
+		&user.Language,
 		&user.CreatedAt,
 	)
 
@@ -98,18 +101,19 @@ func (r *UserRepository) CreateUser(ctx context.Context, email string) (*User, e
 		LastName:     "",
 		AvatarURL:    "",
 		IsRegistered: false,
+		Language:     "ru",
 		CreatedAt:    time.Now(),
 	}
 
 	query := `
-		INSERT INTO users (id, email, first_name, last_name, avatar_url, is_registered, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO users (id, email, first_name, last_name, avatar_url, is_registered, language, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (email) DO UPDATE SET
 			first_name = EXCLUDED.first_name,
 			last_name = EXCLUDED.last_name,
 			avatar_url = EXCLUDED.avatar_url,
 			is_registered = EXCLUDED.is_registered
-		RETURNING id, email, first_name, last_name, avatar_url, is_registered, created_at
+		RETURNING id, email, first_name, last_name, avatar_url, is_registered, language, created_at
 	`
 
 	err := r.q(ctx).QueryRowContext(ctx, query,
@@ -119,6 +123,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, email string) (*User, e
 		user.LastName,
 		user.AvatarURL,
 		user.IsRegistered,
+		user.Language,
 		user.CreatedAt,
 	).Scan(
 		&user.ID,
@@ -127,6 +132,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, email string) (*User, e
 		&user.LastName,
 		&user.AvatarURL,
 		&user.IsRegistered,
+		&user.Language,
 		&user.CreatedAt,
 	)
 
@@ -143,7 +149,8 @@ func (r *UserRepository) UpdateUser(ctx context.Context, user *User) error {
 		SET first_name = $2,
 		    last_name = $3,
 		    avatar_url = $4,
-		    is_registered = $5
+		    is_registered = $5,
+		    language = $6
 		WHERE id = $1
 	`
 
@@ -153,6 +160,7 @@ func (r *UserRepository) UpdateUser(ctx context.Context, user *User) error {
 		user.LastName,
 		user.AvatarURL,
 		user.IsRegistered,
+		user.Language,
 	)
 
 	if err != nil {
@@ -196,7 +204,7 @@ func (r *UserRepository) GetUsersByEmails(ctx context.Context, emails []string) 
 	}
 
 	query := `
-		SELECT id, email, first_name, last_name, avatar_url, is_registered, created_at
+		SELECT id, email, first_name, last_name, avatar_url, is_registered, language, created_at
 		FROM users
 		WHERE email = ANY($1)
 	`
@@ -210,7 +218,7 @@ func (r *UserRepository) GetUsersByEmails(ctx context.Context, emails []string) 
 	var users []*User
 	for rows.Next() {
 		var user User
-		if err := rows.Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.AvatarURL, &user.IsRegistered, &user.CreatedAt); err != nil {
+		if err := rows.Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.AvatarURL, &user.IsRegistered, &user.Language, &user.CreatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
 		users = append(users, &user)
@@ -243,7 +251,7 @@ func (r *UserRepository) GetUsersByIDs(ctx context.Context, userIDs []string) ([
 	}
 
 	query := `
-		SELECT id, email, first_name, last_name, avatar_url, is_registered, created_at
+		SELECT id, email, first_name, last_name, avatar_url, is_registered, language, created_at
 		FROM users
 		WHERE id = ANY($1)
 	`
@@ -257,7 +265,7 @@ func (r *UserRepository) GetUsersByIDs(ctx context.Context, userIDs []string) ([
 	var users []*User
 	for rows.Next() {
 		var user User
-		if err := rows.Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.AvatarURL, &user.IsRegistered, &user.CreatedAt); err != nil {
+		if err := rows.Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.AvatarURL, &user.IsRegistered, &user.Language, &user.CreatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
 		users = append(users, &user)

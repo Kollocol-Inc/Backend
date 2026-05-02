@@ -22,6 +22,8 @@ service UserService {
   rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse);
   rpc CheckGroupMembership(CheckGroupMembershipRequest) returns (CheckGroupMembershipResponse);
   rpc GetUsersByIDs(GetUsersByIDsRequest) returns (GetUsersByIDsResponse);
+  rpc GetGroupMemberIDs(GetGroupMemberIDsRequest) returns (GetGroupMemberIDsResponse);
+  rpc GetNotificationSettingsBatch(GetNotificationSettingsBatchRequest) returns (GetNotificationSettingsBatchResponse);
 }
 
 message User {
@@ -32,6 +34,7 @@ message User {
   string avatar_url = 5;
   bool is_registered = 6;
   int64 created_at = 7; // Unix timestamp
+  string language = 8;
 }
 
 message NotificationSettings {
@@ -90,6 +93,7 @@ message UpdateProfileRequest {
   string last_name = 3; // Optional
   bytes avatar_data = 4; // Optional
   string avatar_filename = 5; // Optional
+  optional string language = 6;
 }
 
 message UpdateProfileResponse {
@@ -193,4 +197,21 @@ message GetUsersByIDsRequest {
 
 message GetUsersByIDsResponse {
   repeated User users = 1;
+}
+
+message GetGroupMemberIDsRequest {
+  string group_id = 1;
+}
+
+message GetGroupMemberIDsResponse {
+  repeated string user_ids = 1;
+}
+
+message GetNotificationSettingsBatchRequest {
+  repeated string user_ids = 1;
+}
+
+message GetNotificationSettingsBatchResponse {
+  map<string, NotificationSettings> settings = 1;
+  map<string, string> languages = 2;
 }

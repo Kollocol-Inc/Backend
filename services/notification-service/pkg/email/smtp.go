@@ -3,10 +3,10 @@ package email
 import (
 	"bytes"
 	"fmt"
-	"html/template"
 	"net/smtp"
 
 	"notification-service/config"
+	"notification-service/pkg/lang"
 )
 
 type SMTPClient struct {
@@ -55,284 +55,54 @@ func (c *SMTPClient) buildMessage(data EmailData) string {
 	return msg
 }
 
-func (c *SMTPClient) SendAuthCode(email, code string) error {
-	tmpl := `
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .code { font-size: 32px; font-weight: bold; color: #007bff; letter-spacing: 5px; margin: 20px 0; }
-        .footer { margin-top: 30px; font-size: 12px; color: #666; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Kollocol - Verification Code</h2>
-        <p>Your verification code is:</p>
-        <div class="code">{{.Code}}</div>
-        <p>This code will expire in 5 minutes.</p>
-        <div class="footer">
-            <p>If you didn't request this code, please ignore this email.</p>
-        </div>
-    </div>
-</body>
-</html>
-`
-
-	t, err := template.New("auth_code").Parse(tmpl)
-	if err != nil {
-		return fmt.Errorf("failed to parse template: %w", err)
+func (c *SMTPClient) renderAndSend(to string, l lang.Lang, tmplName string, data any, subject string) error {
+	tmpl := Template(l, tmplName)
+	if tmpl == nil {
+		return fmt.Errorf("template %q not found for language %q", tmplName, l)
 	}
-
 	var body bytes.Buffer
-	if err := t.Execute(&body, map[string]string{"Code": code}); err != nil {
-		return fmt.Errorf("failed to execute template: %w", err)
+	if err := tmpl.Execute(&body, data); err != nil {
+		return fmt.Errorf("failed to execute template %q: %w", tmplName, err)
 	}
-
 	return c.SendEmail(EmailData{
-		To:      email,
-		Subject: "Kollocol - Your Verification Code",
+		To:      to,
+		Subject: subject,
 		Body:    body.String(),
 	})
 }
 
-func (c *SMTPClient) SendGroupInvite(email, groupName, inviterName string) error {
-	tmpl := `
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .highlight { color: #007bff; font-weight: bold; }
-        .footer { margin-top: 30px; font-size: 12px; color: #666; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Kollocol - Group Invitation</h2>
-        <p><span class="highlight">{{.InviterName}}</span> has invited you to join the group <span class="highlight">{{.GroupName}}</span>.</p>
-        <p>Log in to Kollocol to accept the invitation and start collaborating!</p>
-        <div class="footer">
-            <p>This is an automated message from Kollocol.</p>
-        </div>
-    </div>
-</body>
-</html>
-`
-
-	t, err := template.New("group_invite").Parse(tmpl)
-	if err != nil {
-		return fmt.Errorf("failed to parse template: %w", err)
-	}
-
-	var body bytes.Buffer
-	data := map[string]string{
-		"GroupName":   groupName,
-		"InviterName": inviterName,
-	}
-	if err := t.Execute(&body, data); err != nil {
-		return fmt.Errorf("failed to execute template: %w", err)
-	}
-
-	return c.SendEmail(EmailData{
-		To:      email,
-		Subject: fmt.Sprintf("Kollocol - Invitation to join %s", groupName),
-		Body:    body.String(),
-	})
+func (c *SMTPClient) SendAuthCode(emailAddr, code string, l lang.Lang) error {
+	return c.renderAndSend(emailAddr, l, TmplAuthCode,
+		map[string]string{"Code": code},
+		Subject(l, TmplAuthCode))
 }
 
-func (c *SMTPClient) SendQuizCreated(email, quizTitle, creatorName string) error {
-	tmpl := `
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .highlight { color: #007bff; font-weight: bold; }
-        .footer { margin-top: 30px; font-size: 12px; color: #666; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Kollocol - New Quiz Available</h2>
-        <p><span class="highlight">{{.CreatorName}}</span> has created a new quiz: <span class="highlight">{{.QuizTitle}}</span></p>
-        <p>Log in to Kollocol to participate!</p>
-        <div class="footer">
-            <p>This is an automated message from Kollocol.</p>
-        </div>
-    </div>
-</body>
-</html>
-`
-
-	t, err := template.New("quiz_created").Parse(tmpl)
-	if err != nil {
-		return fmt.Errorf("failed to parse template: %w", err)
-	}
-
-	var body bytes.Buffer
-	data := map[string]string{
-		"QuizTitle":   quizTitle,
-		"CreatorName": creatorName,
-	}
-	if err := t.Execute(&body, data); err != nil {
-		return fmt.Errorf("failed to execute template: %w", err)
-	}
-
-	return c.SendEmail(EmailData{
-		To:      email,
-		Subject: fmt.Sprintf("Kollocol - New Quiz: %s", quizTitle),
-		Body:    body.String(),
-	})
+func (c *SMTPClient) SendGroupInvite(emailAddr, groupName, inviterName string, l lang.Lang) error {
+	return c.renderAndSend(emailAddr, l, TmplGroupInvite,
+		map[string]string{"GroupName": groupName, "InviterName": inviterName},
+		Subject(l, TmplGroupInvite, groupName))
 }
 
-func (c *SMTPClient) SendGradeChanged(email, quizTitle string, score, maxScore int) error {
-	tmpl := `
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .highlight { color: #007bff; font-weight: bold; }
-        .score { font-size: 28px; font-weight: bold; color: #007bff; margin: 20px 0; }
-        .footer { margin-top: 30px; font-size: 12px; color: #666; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Kollocol - Grade Updated</h2>
-        <p>Your grade for <span class="highlight">{{.QuizTitle}}</span> has been updated.</p>
-        <p>Your current score:</p>
-        <div class="score">{{.Score}} / {{.MaxScore}}</div>
-        <div class="footer">
-            <p>This is an automated message from Kollocol.</p>
-        </div>
-    </div>
-</body>
-</html>
-`
-
-	t, err := template.New("grade_changed").Parse(tmpl)
-	if err != nil {
-		return fmt.Errorf("failed to parse template: %w", err)
-	}
-
-	var body bytes.Buffer
-	data := map[string]any{
-		"QuizTitle": quizTitle,
-		"Score":     score,
-		"MaxScore":  maxScore,
-	}
-	if err := t.Execute(&body, data); err != nil {
-		return fmt.Errorf("failed to execute template: %w", err)
-	}
-
-	return c.SendEmail(EmailData{
-		To:      email,
-		Subject: fmt.Sprintf("Kollocol - Grade Updated: %s (%d/%d)", quizTitle, score, maxScore),
-		Body:    body.String(),
-	})
+func (c *SMTPClient) SendQuizCreated(emailAddr, quizTitle, creatorName string, l lang.Lang) error {
+	return c.renderAndSend(emailAddr, l, TmplQuizCreated,
+		map[string]string{"QuizTitle": quizTitle, "CreatorName": creatorName},
+		Subject(l, TmplQuizCreated, quizTitle))
 }
 
-func (c *SMTPClient) SendDeadlineReminder(emailAddr, quizTitle, deadline, remainingTime string) error {
-	tmpl := `
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .highlight { color: #007bff; font-weight: bold; }
-        .deadline { font-size: 20px; font-weight: bold; color: #dc3545; margin: 15px 0; }
-        .footer { margin-top: 30px; font-size: 12px; color: #666; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Kollocol - Quiz Deadline Reminder</h2>
-        <p>The quiz <span class="highlight">{{.QuizTitle}}</span> is due in <span class="highlight">{{.RemainingTime}}</span>.</p>
-        <div class="deadline">Deadline: {{.Deadline}}</div>
-        <p>Log in to Kollocol to complete the quiz before the deadline.</p>
-        <div class="footer">
-            <p>This is an automated message from Kollocol.</p>
-        </div>
-    </div>
-</body>
-</html>
-`
-
-	t, err := template.New("deadline_reminder").Parse(tmpl)
-	if err != nil {
-		return fmt.Errorf("failed to parse template: %w", err)
-	}
-
-	var body bytes.Buffer
-	data := map[string]string{
-		"QuizTitle":     quizTitle,
-		"Deadline":      deadline,
-		"RemainingTime": remainingTime,
-	}
-	if err := t.Execute(&body, data); err != nil {
-		return fmt.Errorf("failed to execute template: %w", err)
-	}
-
-	return c.SendEmail(EmailData{
-		To:      emailAddr,
-		Subject: fmt.Sprintf("Kollocol - Reminder: %s due in %s", quizTitle, remainingTime),
-		Body:    body.String(),
-	})
+func (c *SMTPClient) SendQuizResults(emailAddr, quizTitle string, score, maxScore int, l lang.Lang) error {
+	return c.renderAndSend(emailAddr, l, TmplQuizResults,
+		map[string]any{"QuizTitle": quizTitle, "Score": score, "MaxScore": maxScore},
+		Subject(l, TmplQuizResults, quizTitle, score, maxScore))
 }
 
-func (c *SMTPClient) SendQuizResults(email, quizTitle string, score, maxScore int) error {
-	tmpl := `
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .highlight { color: #007bff; font-weight: bold; }
-        .score { font-size: 28px; font-weight: bold; color: #007bff; margin: 20px 0; }
-        .footer { margin-top: 30px; font-size: 12px; color: #666; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Kollocol - Quiz Results Ready</h2>
-        <p>The results for <span class="highlight">{{.QuizTitle}}</span> are now available.</p>
-        <p>Your score:</p>
-        <div class="score">{{.Score}} / {{.MaxScore}}</div>
-        <div class="footer">
-            <p>This is an automated message from Kollocol.</p>
-        </div>
-    </div>
-</body>
-</html>
-`
+func (c *SMTPClient) SendGradeChanged(emailAddr, quizTitle string, score, maxScore int, l lang.Lang) error {
+	return c.renderAndSend(emailAddr, l, TmplGradeChanged,
+		map[string]any{"QuizTitle": quizTitle, "Score": score, "MaxScore": maxScore},
+		Subject(l, TmplGradeChanged, quizTitle, score, maxScore))
+}
 
-	t, err := template.New("quiz_results").Parse(tmpl)
-	if err != nil {
-		return fmt.Errorf("failed to parse template: %w", err)
-	}
-
-	var body bytes.Buffer
-	data := map[string]any{
-		"QuizTitle": quizTitle,
-		"Score":     score,
-		"MaxScore":  maxScore,
-	}
-	if err := t.Execute(&body, data); err != nil {
-		return fmt.Errorf("failed to execute template: %w", err)
-	}
-
-	return c.SendEmail(EmailData{
-		To:      email,
-		Subject: fmt.Sprintf("Kollocol - Results for %s (%d/%d)", quizTitle, score, maxScore),
-		Body:    body.String(),
-	})
+func (c *SMTPClient) SendDeadlineReminder(emailAddr, quizTitle, deadline, remainingTime string, l lang.Lang) error {
+	return c.renderAndSend(emailAddr, l, TmplDeadlineReminder,
+		map[string]string{"QuizTitle": quizTitle, "Deadline": deadline, "RemainingTime": remainingTime},
+		Subject(l, TmplDeadlineReminder, quizTitle, remainingTime))
 }

@@ -88,6 +88,7 @@ func (c *UserClient) GetUsersByIDs(ctx context.Context, userIDs []string) (map[s
 			FirstName:    u.FirstName,
 			LastName:     u.LastName,
 			IsRegistered: u.IsRegistered,
+			Language:     u.Language,
 		}
 	}
 	return result, nil
@@ -114,12 +115,16 @@ func (c *UserClient) GetNotificationSettingsBatch(ctx context.Context, userIDs [
 	}
 	result := make(map[string]model.NotificationSettings, len(resp.Settings))
 	for uid, s := range resp.Settings {
-		result[uid] = model.NotificationSettings{
+		settings := model.NotificationSettings{
 			NewQuizzes:       s.NewQuizzes,
 			QuizResults:      s.QuizResults,
 			GroupInvites:     s.GroupInvites,
 			DeadlineReminder: s.DeadlineReminder,
 		}
+		if l, ok := resp.Languages[uid]; ok {
+			settings.Language = l
+		}
+		result[uid] = settings
 	}
 	return result, nil
 }
