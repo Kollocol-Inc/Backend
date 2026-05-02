@@ -43,6 +43,12 @@ func timerKey(quizType, instanceID, userID string, questionIndex int) string {
 }
 
 func userFromProfile(p *pb.User, isCreator bool) User {
+	if p == nil {
+		return User{
+			IsCreator: isCreator,
+			IsOnline:  true,
+		}
+	}
 	return User{
 		UserID:    p.Id,
 		FirstName: p.FirstName,

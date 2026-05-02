@@ -11,6 +11,7 @@ import (
 	"api-gateway/internal/client"
 	"api-gateway/internal/handlers"
 	"api-gateway/internal/middleware"
+	"api-gateway/pkg/safego"
 
 	_ "api-gateway/docs"
 
@@ -184,11 +185,11 @@ func main() {
 	log.Printf("API Gateway starting on %s", addr)
 	log.Printf("Swagger doc available at http://%s/swagger/index.html", addr)
 
-	go func() {
+	safego.Go("api-gateway.httpServer", func() {
 		if err := router.Run(addr); err != nil {
 			log.Fatalf("Failed to start server: %v", err)
 		}
-	}()
+	})
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

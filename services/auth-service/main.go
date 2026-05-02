@@ -13,6 +13,7 @@ import (
 	"auth-service/pkg/cache"
 	"auth-service/pkg/database"
 	"auth-service/pkg/messaging"
+	"auth-service/pkg/safego"
 	pb "auth-service/proto"
 
 	"github.com/gin-gonic/gin"
@@ -33,7 +34,7 @@ func main() {
 	defer pgClient.Close()
 
 	if err := pgClient.RunMigrations(); err != nil {
-		log.Printf("Warning: Failed to run migrations: %v", err)
+		log.Fatalf("Failed to run migrations: %v", err)
 	} else {
 		log.Println("Database migrations applied")
 	}
@@ -86,11 +87,11 @@ func main() {
 
 	httpAddr := ":" + cfg.Server.HTTPPort
 	log.Printf("Auth Service HTTP server starting on port %s...", cfg.Server.HTTPPort)
-	go func() {
+	safego.Go("auth-service.httpServer", func() {
 		if err := router.Run(httpAddr); err != nil {
 			log.Fatalf("Failed to start HTTP server: %v", err)
 		}
-	}()
+	})
 
 	authService := service.NewAuthService(redisClient, pgClient.GetDB(), rabbitClient, cfg.JWT.Secret)
 
@@ -99,7 +100,7 @@ func main() {
 	reflection.Register(grpcServer)
 	log.Printf("Auth Service gRPC server starting on port %s...", cfg.Server.GRPCPort)
 
-	go func() {
+	safego.Go("auth-service.grpcServer", func() {
 		lis, err := net.Listen("tcp", ":"+cfg.Server.GRPCPort)
 		if err != nil {
 			log.Fatalf("Failed to listen on gRPC port: %v", err)
@@ -108,7 +109,7 @@ func main() {
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("Failed to serve gRPC: %v", err)
 		}
-	}()
+	})
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

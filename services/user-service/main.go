@@ -16,6 +16,7 @@ import (
 	"user-service/pkg/cache"
 	"user-service/pkg/database"
 	"user-service/pkg/messaging"
+	"user-service/pkg/safego"
 	"user-service/pkg/storage"
 	pb "user-service/proto"
 
@@ -37,7 +38,7 @@ func main() {
 	defer pgClient.Close()
 
 	if err := pgClient.RunMigrations(); err != nil {
-		log.Printf("Warning: Failed to run migrations: %v", err)
+		log.Fatalf("Failed to run migrations: %v", err)
 	} else {
 		log.Println("Database migrations applied")
 	}
@@ -108,11 +109,11 @@ func main() {
 
 	httpAddr := ":" + cfg.Server.HTTPPort
 	log.Printf("User Service HTTP server starting on port %s...", cfg.Server.HTTPPort)
-	go func() {
+	safego.Go("user-service.httpServer", func() {
 		if err := router.Run(httpAddr); err != nil {
 			log.Fatalf("Failed to start HTTP server: %v", err)
 		}
-	}()
+	})
 
 	authClient, err := client.NewAuthClient(cfg.Auth.Host, cfg.Auth.Port)
 	if err != nil {
@@ -139,7 +140,7 @@ func main() {
 	reflection.Register(grpcServer)
 	log.Printf("User Service gRPC server starting on port %s...", cfg.Server.GRPCPort)
 
-	go func() {
+	safego.Go("user-service.grpcServer", func() {
 		lis, err := net.Listen("tcp", ":"+cfg.Server.GRPCPort)
 		if err != nil {
 			log.Fatalf("Failed to listen on gRPC port: %v", err)
@@ -148,7 +149,7 @@ func main() {
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("Failed to serve gRPC: %v", err)
 		}
-	}()
+	})
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

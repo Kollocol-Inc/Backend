@@ -17,6 +17,7 @@ import (
 	ws "game-service/internal/websocket"
 	"game-service/pkg/cache"
 	"game-service/pkg/database"
+	"game-service/pkg/safego"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -34,7 +35,7 @@ func main() {
 	defer pgClient.Close()
 
 	if err := pgClient.RunMigrations(); err != nil {
-		log.Printf("Warning: Failed to run migrations: %v", err)
+		log.Fatalf("Failed to run migrations: %v", err)
 	} else {
 		log.Println("Database migrations applied")
 	}
@@ -65,12 +66,14 @@ func main() {
 	sessionRepo := repository.NewSessionRepository(pgClient.GetDB())
 
 	hub := ws.NewHub(quizClient, userClient, redisClient, sessionRepo, pgClient.GetDB())
-	go hub.Run()
+	safego.Go("hub.Run", hub.Run)
 	log.Println("WebSocket hub started")
 
 	sweeperCtx, cancelSweeper := context.WithCancel(context.Background())
 	defer cancelSweeper()
-	go sweeper.New(pgClient.GetDB(), time.Minute).Run(sweeperCtx)
+	safego.Go("game-service.deadlineSweeper", func() {
+		sweeper.New(pgClient.GetDB(), time.Minute).Run(sweeperCtx)
+	})
 	log.Println("Deadline sweeper started")
 
 	if os.Getenv("GIN_MODE") == "" {
@@ -108,11 +111,11 @@ func main() {
 	httpAddr := ":" + cfg.Server.HTTPPort
 	log.Printf("Game Service HTTP server starting on port %s...", cfg.Server.HTTPPort)
 
-	go func() {
+	safego.Go("game-service.httpServer", func() {
 		if err := router.Run(httpAddr); err != nil {
 			log.Fatalf("Failed to start HTTP server: %v", err)
 		}
-	}()
+	})
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

@@ -16,6 +16,7 @@ import (
 	"game-service/internal/repository"
 	"game-service/pkg/cache"
 	"game-service/pkg/database"
+	"game-service/pkg/safego"
 	pb "game-service/proto"
 )
 
@@ -159,7 +160,7 @@ func (h *Hub) registerClient(client *Client) {
 	log.Printf("Client registered: user=%s, instance=%s, isCreator=%v",
 		client.UserID, client.InstanceID, client.IsCreator)
 
-	go h.handleJoin(client)
+	safego.Go("hub.handleJoin", func() { h.handleJoin(client) })
 }
 
 func (h *Hub) unregisterClient(client *Client) {
@@ -179,19 +180,19 @@ func (h *Hub) unregisterClient(client *Client) {
 				userProfile, err := h.userClient.GetProfile(context.Background(), client.UserID)
 				if err != nil {
 					log.Printf("Failed to get user profile for participant update: %v", err)
+				} else {
+					leftUser := userFromProfile(userProfile, client.IsCreator)
+					leftUser.IsOnline = false
+					payload := ParticipantsUpdatePayload{
+						Action: constants.ActionLeft,
+						User:   leftUser,
+						Count:  len(clients),
+					}
+					for c := range clients {
+						c.SendMessage(MessageTypeParticipantsUpdate, payload)
+					}
 				}
-
-				leftUser := userFromProfile(userProfile, client.IsCreator)
-				leftUser.IsOnline = false
-				payload := ParticipantsUpdatePayload{
-					Action: constants.ActionLeft,
-					User:   leftUser,
-					Count:  len(clients),
-				}
-				for c := range clients {
-					c.SendMessage(MessageTypeParticipantsUpdate, payload)
-				}
-				go h.sendParticipantsList(client.InstanceID)
+				safego.Go("hub.sendParticipantsList(unregister)", func() { h.sendParticipantsList(client.InstanceID) })
 			}
 
 			log.Printf("Client unregistered: user=%s, instance=%s", client.UserID, client.InstanceID)
@@ -279,10 +280,10 @@ func (h *Hub) handleJoin(client *Client) {
 
 	if h.isInstanceDeleted(ctx, client.InstanceID) {
 		client.SendError("game has been deleted")
-		go func() {
+		safego.Go("hub.deferredUnregister", func() {
 			time.Sleep(500 * time.Millisecond)
 			h.Unregister <- client
-		}()
+		})
 		return
 	}
 
@@ -298,10 +299,10 @@ func (h *Hub) handleJoin(client *Client) {
 		log.Printf("Quiz %s is finished, rejecting connection for user %s", client.InstanceID, client.UserID)
 		client.SendError("Quiz has already finished")
 
-		go func() {
+		safego.Go("hub.deferredUnregister", func() {
 			time.Sleep(500 * time.Millisecond)
 			h.Unregister <- client
-		}()
+		})
 		return
 	}
 
@@ -314,10 +315,10 @@ func (h *Hub) handleJoin(client *Client) {
 		log.Printf("Rejecting creator %s from async quiz %s", client.UserID, client.InstanceID)
 		client.SendError("Creator cannot join async quizzes")
 
-		go func() {
+		safego.Go("hub.deferredUnregister", func() {
 			time.Sleep(500 * time.Millisecond)
 			h.Unregister <- client
-		}()
+		})
 		return
 	}
 
@@ -343,10 +344,10 @@ func (h *Hub) handleJoin(client *Client) {
 			log.Printf("Failed to clean up rejected session: %v", delErr)
 		}
 		client.SendError("Quiz has already started")
-		go func() {
+		safego.Go("hub.deferredUnregister", func() {
 			time.Sleep(500 * time.Millisecond)
 			h.Unregister <- client
-		}()
+		})
 		return
 	}
 
@@ -365,15 +366,15 @@ func (h *Hub) handleJoin(client *Client) {
 	userProfile, err := h.userClient.GetProfile(ctx, client.UserID)
 	if err != nil {
 		log.Printf("Failed to get user profile for participant update: %v", err)
+	} else {
+		h.broadcastToInstance(client.InstanceID, MessageTypeParticipantsUpdate, ParticipantsUpdatePayload{
+			Action: constants.ActionJoined,
+			User:   userFromProfile(userProfile, client.IsCreator),
+			Count:  participantCount,
+		})
 	}
 
-	h.broadcastToInstance(client.InstanceID, MessageTypeParticipantsUpdate, ParticipantsUpdatePayload{
-		Action: constants.ActionJoined,
-		User:   userFromProfile(userProfile, client.IsCreator),
-		Count:  participantCount,
-	})
-
-	go h.sendParticipantsList(client.InstanceID)
+	safego.Go("hub.sendParticipantsList(join)", func() { h.sendParticipantsList(client.InstanceID) })
 
 	if quizResp.Instance.Status == constants.InstanceStatusActive {
 		if !client.IsCreator {
@@ -382,10 +383,10 @@ func (h *Hub) handleJoin(client *Client) {
 			}
 		}
 
-		go func() {
+		safego.Go("hub.handleResumeQuiz", func() {
 			time.Sleep(100 * time.Millisecond)
 			h.handleResumeQuiz(client, quizData)
-		}()
+		})
 	}
 }
 
@@ -566,7 +567,7 @@ func (h *Hub) handleKick(client *Client, payload any) {
 		Count:  clientCount,
 	})
 
-	go h.sendParticipantsList(client.InstanceID)
+	safego.Go("hub.sendParticipantsList(kick)", func() { h.sendParticipantsList(client.InstanceID) })
 }
 
 func (h *Hub) broadcastToInstance(instanceID string, msgType MessageType, payload any) {

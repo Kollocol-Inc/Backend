@@ -9,6 +9,7 @@ import (
 	"game-service/config"
 	"game-service/internal/client"
 	ws "game-service/internal/websocket"
+	"game-service/pkg/safego"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -112,6 +113,6 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 
 	h.hub.Register <- client
 
-	go client.WritePump()
-	go client.ReadPump()
+	safego.Go("client.WritePump", client.WritePump)
+	safego.Go("client.ReadPump", client.ReadPump)
 }

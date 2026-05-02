@@ -14,6 +14,7 @@ import (
 	"notification-service/pkg/database"
 	"notification-service/pkg/email"
 	"notification-service/pkg/messaging"
+	"notification-service/pkg/safego"
 	pb "notification-service/proto"
 
 	"github.com/gin-gonic/gin"
@@ -34,7 +35,7 @@ func main() {
 	defer pgClient.Close()
 
 	if err := pgClient.RunMigrations(); err != nil {
-		log.Printf("Warning: Failed to run migrations: %v", err)
+		log.Fatalf("Failed to run migrations: %v", err)
 	} else {
 		log.Println("Database migrations applied")
 	}
@@ -79,11 +80,11 @@ func main() {
 
 	httpAddr := ":" + cfg.Server.HTTPPort
 	log.Printf("Notification Service HTTP server starting on port %s...", cfg.Server.HTTPPort)
-	go func() {
+	safego.Go("notification-service.httpServer", func() {
 		if err := router.Run(httpAddr); err != nil {
 			log.Fatalf("Failed to start HTTP server: %v", err)
 		}
-	}()
+	})
 
 	notificationService := service.NewNotificationService(pgClient.GetDB(), smtpClient)
 
@@ -92,7 +93,7 @@ func main() {
 	reflection.Register(grpcServer)
 	log.Printf("Notification Service gRPC server starting on port %s...", cfg.Server.GRPCPort)
 
-	go func() {
+	safego.Go("notification-service.grpcServer", func() {
 		lis, err := net.Listen("tcp", ":"+cfg.Server.GRPCPort)
 		if err != nil {
 			log.Fatalf("Failed to listen on gRPC port: %v", err)
@@ -101,7 +102,7 @@ func main() {
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("Failed to serve gRPC: %v", err)
 		}
-	}()
+	})
 
 	log.Println("Starting RabbitMQ consumers...")
 	startConsumers(rabbitClient, notificationService)
@@ -118,14 +119,19 @@ func main() {
 func startConsumers(rabbitClient *messaging.RabbitMQClient, notificationService *service.NotificationService) {
 	ctx := context.Background()
 
-	go consumeQueue(ctx, rabbitClient, "auth.send_code", notificationService.HandleSendAuthCode)
-	go consumeQueue(ctx, rabbitClient, "user.group_invites", notificationService.HandleGroupInvite)
-	go consumeQueue(ctx, rabbitClient, "quiz.created", notificationService.HandleQuizCreated)
-	go consumeQueue(ctx, rabbitClient, "quiz.results_ready", notificationService.HandleQuizResultsReady)
-	go consumeQueue(ctx, rabbitClient, "quiz.grade_changed", notificationService.HandleGradeChanged)
-	go consumeQueue(ctx, rabbitClient, "quiz.deadline_reminder", notificationService.HandleQuizDeadlineReminder)
-	go consumeQueue(ctx, rabbitClient, "notifications.email", notificationService.HandleSendEmail)
-	go consumeQueue(ctx, rabbitClient, "notifications.create", notificationService.HandleCreateNotification)
+	startConsumer := func(queue string, handler func(context.Context, []byte) error) {
+		safego.Go("notification-service.consume."+queue, func() {
+			consumeQueue(ctx, rabbitClient, queue, handler)
+		})
+	}
+	startConsumer("auth.send_code", notificationService.HandleSendAuthCode)
+	startConsumer("user.group_invites", notificationService.HandleGroupInvite)
+	startConsumer("quiz.created", notificationService.HandleQuizCreated)
+	startConsumer("quiz.results_ready", notificationService.HandleQuizResultsReady)
+	startConsumer("quiz.grade_changed", notificationService.HandleGradeChanged)
+	startConsumer("quiz.deadline_reminder", notificationService.HandleQuizDeadlineReminder)
+	startConsumer("notifications.email", notificationService.HandleSendEmail)
+	startConsumer("notifications.create", notificationService.HandleCreateNotification)
 
 	log.Println("All RabbitMQ consumers started")
 }
