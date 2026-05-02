@@ -20,6 +20,7 @@ type NotificationRepo interface {
 	CreateNotification(ctx context.Context, notification *repository.Notification) error
 	GetNotifications(ctx context.Context, userID string, limit, offset int) ([]*repository.Notification, int, error)
 	MarkAsRead(ctx context.Context, notificationIDs []string, userID string) error
+	MarkAsReadByType(ctx context.Context, userID, notifType, relatedEntityID string) error
 	DeleteNotification(ctx context.Context, notificationIDs []string, userID string) error
 	DeleteAllForUser(ctx context.Context, userID string) error
 }
@@ -70,13 +71,14 @@ func (s *NotificationService) GetNotifications(ctx context.Context, req *pb.GetN
 	pbNotifications := make([]*pb.Notification, 0, len(notifications))
 	for _, n := range notifications {
 		pbNotifications = append(pbNotifications, &pb.Notification{
-			Id:        n.ID,
-			UserId:    n.UserID,
-			Type:      n.Type,
-			Title:     n.Title,
-			Content:   n.Content,
-			IsRead:    n.IsRead,
-			CreatedAt: n.CreatedAt.Format(time.RFC3339),
+			Id:              n.ID,
+			UserId:          n.UserID,
+			Type:            n.Type,
+			Title:           n.Title,
+			Content:         n.Content,
+			IsRead:          n.IsRead,
+			CreatedAt:       n.CreatedAt.Format(time.RFC3339),
+			RelatedEntityId: n.RelatedEntityID,
 		})
 	}
 
@@ -93,6 +95,19 @@ func (s *NotificationService) MarkAsRead(ctx context.Context, req *pb.MarkAsRead
 	}
 
 	return &pb.MarkAsReadResponse{}, nil
+}
+
+func (s *NotificationService) MarkAsReadByType(ctx context.Context, req *pb.MarkAsReadByTypeRequest) (*pb.MarkAsReadByTypeResponse, error) {
+	if req.UserId == "" || req.Type == "" || req.RelatedEntityId == "" {
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonUserIDRequired, "user_id, type and related_entity_id are required", nil)
+	}
+
+	if err := s.repo.MarkAsReadByType(ctx, req.UserId, req.Type, req.RelatedEntityId); err != nil {
+		log.Printf("Failed to mark notifications as read by type: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonNotificationMarkFailed, "Failed to mark notifications as read", nil)
+	}
+
+	return &pb.MarkAsReadByTypeResponse{}, nil
 }
 
 func (s *NotificationService) DeleteNotification(ctx context.Context, req *pb.DeleteNotificationRequest) (*pb.DeleteNotificationResponse, error) {
@@ -152,11 +167,12 @@ func (s *NotificationService) HandleGroupInvite(ctx context.Context, data []byte
 
 	if event.InviteeUserID != "" {
 		notification := &repository.Notification{
-			UserID:  event.InviteeUserID,
-			Type:    email.TmplGroupInvite,
-			Title:   email.InAppTitle(l, email.TmplGroupInvite),
-			Content: email.InAppContent(l, email.TmplGroupInvite, event.InviterName, event.GroupName),
-			IsRead:  false,
+			UserID:          event.InviteeUserID,
+			Type:            email.TmplGroupInvite,
+			Title:           email.InAppTitle(l, email.TmplGroupInvite),
+			Content:         email.InAppContent(l, email.TmplGroupInvite, event.InviterName, event.GroupName),
+			IsRead:          false,
+			RelatedEntityID: event.GroupID,
 		}
 		if err := s.repo.CreateNotification(ctx, notification); err != nil {
 			log.Printf("HandleGroupInvite: failed to create in-app notification for user %s: %v", event.InviteeUserID, err)

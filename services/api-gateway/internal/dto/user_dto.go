@@ -22,12 +22,27 @@ type UpdateNotificationSettingsRequest struct {
 
 type CreateGroupRequest struct {
 	Name         string   `json:"name" binding:"required,min=3,max=100" example:"Study Group"`
-	MemberEmails []string `json:"member_emails,omitempty" example:"user1@example.com,user2@example.com"`
+	Description  string   `json:"description,omitempty" binding:"omitempty,max=500" example:"Group for studying together"`
+	AvatarURL    string   `json:"avatar_url,omitempty" example:"https://storage.example.com/group-avatars/abc.jpg"`
+	MemberEmails []string `json:"member_emails,omitempty" binding:"omitempty,max=100,dive,email" example:"user1@example.com,user2@example.com"`
 }
 
 type UpdateGroupRequest struct {
-	Name         string   `json:"name,omitempty" binding:"omitempty,min=3,max=100" example:"Study Group"`
-	MemberEmails []string `json:"member_emails,omitempty" example:"user3@example.com"`
+	Name        *string `json:"name,omitempty" binding:"omitempty,min=3,max=100" example:"Study Group"`
+	Description *string `json:"description,omitempty" binding:"omitempty,max=500" example:"Group for studying together"`
+	AvatarURL   *string `json:"avatar_url,omitempty" example:"https://storage.example.com/group-avatars/abc.jpg"`
+}
+
+type InviteGroupMembersRequest struct {
+	Emails []string `json:"emails" binding:"required,min=1,max=100,dive,email" example:"user1@example.com,user2@example.com"`
+}
+
+type KickGroupMembersRequest struct {
+	Emails []string `json:"emails" binding:"required,min=1,max=100,dive,email" example:"user3@example.com"`
+}
+
+type GroupAvatarUploadResponse struct {
+	AvatarURL string `json:"avatar_url" example:"https://storage.example.com/group-avatars/abc.jpg"`
 }
 
 
@@ -52,12 +67,15 @@ type NotificationSettingsDTO struct {
 
 
 type GroupDTO struct {
-	ID          string `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Name        string `json:"name" example:"Study Group"`
-	OwnerID     string `json:"owner_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	MemberCount int32  `json:"member_count" example:"5"`
-	CreatedAt   string `json:"created_at" example:"2024-01-15T10:30:00Z"`
-	UpdatedAt   string `json:"updated_at" example:"2024-01-15T10:30:00Z"`
+	ID           string `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Name         string `json:"name" example:"Study Group"`
+	Description  string `json:"description" example:"Group for studying together"`
+	AvatarURL    string `json:"avatar_url,omitempty" example:"https://storage.example.com/group-avatars/abc.jpg"`
+	OwnerID      string `json:"owner_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	MemberCount  int32  `json:"member_count" example:"5"`
+	PendingCount int32  `json:"pending_count" example:"2"`
+	CreatedAt    string `json:"created_at" example:"2024-01-15T10:30:00Z"`
+	UpdatedAt    string `json:"updated_at" example:"2024-01-15T10:30:00Z"`
 }
 
 type GroupMemberDTO struct {
@@ -70,12 +88,17 @@ type GroupMemberDTO struct {
 }
 
 type GroupWithMembersDTO struct {
-	ID        string           `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Name      string           `json:"name" example:"Study Group"`
-	OwnerID   string           `json:"owner_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Members   []GroupMemberDTO `json:"members"`
-	CreatedAt string           `json:"created_at" example:"2024-01-15T10:30:00Z"`
-	UpdatedAt string           `json:"updated_at" example:"2024-01-15T10:30:00Z"`
+	ID           string           `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Name         string           `json:"name" example:"Study Group"`
+	Description  string           `json:"description" example:"Group for studying together"`
+	AvatarURL    string           `json:"avatar_url,omitempty" example:"https://storage.example.com/group-avatars/abc.jpg"`
+	OwnerID      string           `json:"owner_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	MemberCount  int32            `json:"member_count" example:"5"`
+	PendingCount int32            `json:"pending_count" example:"2"`
+	Members      []GroupMemberDTO `json:"members"`
+	InvitedUsers []GroupMemberDTO `json:"invited_users"`
+	CreatedAt    string           `json:"created_at" example:"2024-01-15T10:30:00Z"`
+	UpdatedAt    string           `json:"updated_at" example:"2024-01-15T10:30:00Z"`
 }
 
 type GetGroupsResponse struct {

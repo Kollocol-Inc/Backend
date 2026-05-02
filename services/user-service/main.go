@@ -76,6 +76,9 @@ func main() {
 	if err := s3Client.CreateBucket(s3Ctx, "user-files"); err != nil {
 		log.Printf("Warning: Failed to create user-files bucket: %v", err)
 	}
+	if err := s3Client.CreateBucket(s3Ctx, "group-avatars"); err != nil {
+		log.Printf("Warning: Failed to create group-avatars bucket: %v", err)
+	}
 	s3Cancel()
 	log.Println("S3 buckets ready")
 

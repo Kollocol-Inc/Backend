@@ -326,7 +326,7 @@ func (h *UserHandler) UpdateNotificationSettings(c *gin.Context) {
 
 // CreateGroup godoc
 // @Summary Create new group
-// @Description Create a new group and invite members
+// @Description Create a new group and invite members. avatar_url must come from /groups/avatar/upload.
 // @Tags groups
 // @Accept json
 // @Produce json
@@ -353,13 +353,11 @@ func (h *UserHandler) CreateGroup(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := h.userClient.CreateGroup(ctx, userID.(string), req.Name, req.MemberEmails)
+	resp, err := h.userClient.CreateGroup(ctx, userID.(string), req.Name, req.Description, req.AvatarURL, req.MemberEmails)
 	if err != nil {
 		dto.JsonError(c, err)
 		return
 	}
-
-
 
 	c.JSON(http.StatusCreated, convertGroupToDTO(resp.Group))
 }
@@ -444,7 +442,7 @@ func (h *UserHandler) GetGroup(c *gin.Context) {
 
 // UpdateGroup godoc
 // @Summary Update group
-// @Description Update group information (owner only)
+// @Description Update group base info: name, description, avatar_url. Owner only. Setting avatar_url to empty string removes the avatar (server-side S3 cleanup).
 // @Tags groups
 // @Accept json
 // @Produce json
@@ -480,13 +478,11 @@ func (h *UserHandler) UpdateGroup(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := h.userClient.UpdateGroup(ctx, groupID, userID.(string), req.Name, req.MemberEmails)
+	resp, err := h.userClient.UpdateGroup(ctx, groupID, userID.(string), req.Name, req.Description, req.AvatarURL)
 	if err != nil {
 		dto.JsonError(c, err)
 		return
 	}
-
-
 
 	c.JSON(http.StatusOK, convertGroupToDTO(resp.Group))
 }
@@ -530,6 +526,286 @@ func (h *UserHandler) DeleteGroup(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// AcceptGroupInvite godoc
+// @Summary Accept group invitation
+// @Description Accept a pending invitation. Marks the related group_invite notification as read.
+// @Tags groups
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Group ID"
+// @Success 200 {object} dto.GroupDTO
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 409 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /groups/{id}/accept [post]
+func (h *UserHandler) AcceptGroupInvite(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		dto.JsonError(c, errors.ErrUserIDNotFound)
+		return
+	}
+
+	groupID := c.Param("id")
+	if groupID == "" {
+		dto.JsonError(c, errors.ErrGroupIDRequired)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.userClient.AcceptGroupInvite(ctx, groupID, userID.(string))
+	if err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, convertGroupToDTO(resp.Group))
+}
+
+// DeclineGroupInvite godoc
+// @Summary Decline group invitation
+// @Description Decline a pending invitation. Marks the related group_invite notification as read.
+// @Tags groups
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Group ID"
+// @Success 204
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /groups/{id}/decline [post]
+func (h *UserHandler) DeclineGroupInvite(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		dto.JsonError(c, errors.ErrUserIDNotFound)
+		return
+	}
+
+	groupID := c.Param("id")
+	if groupID == "" {
+		dto.JsonError(c, errors.ErrGroupIDRequired)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if _, err := h.userClient.DeclineGroupInvite(ctx, groupID, userID.(string)); err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// InviteGroupMembers godoc
+// @Summary Invite members to a group
+// @Description Owner-only. Sends invitations to a list of users by email. Non-existent / already-invited / already-member emails are silently skipped.
+// @Tags groups
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Group ID"
+// @Param request body dto.InviteGroupMembersRequest true "Emails to invite"
+// @Success 204
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /groups/{id}/invite [post]
+func (h *UserHandler) InviteGroupMembers(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		dto.JsonError(c, errors.ErrUserIDNotFound)
+		return
+	}
+
+	groupID := c.Param("id")
+	if groupID == "" {
+		dto.JsonError(c, errors.ErrGroupIDRequired)
+		return
+	}
+
+	var req dto.InviteGroupMembersRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if _, err := h.userClient.InviteGroupMembers(ctx, groupID, userID.(string), req.Emails); err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// KickGroupMembers godoc
+// @Summary Kick members from a group
+// @Description Owner-only. Removes a list of users by email from members and pending invitations. The owner cannot be kicked. Non-existent emails are silently skipped.
+// @Tags groups
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Group ID"
+// @Param request body dto.KickGroupMembersRequest true "Emails to kick"
+// @Success 204
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /groups/{id}/kick [post]
+func (h *UserHandler) KickGroupMembers(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		dto.JsonError(c, errors.ErrUserIDNotFound)
+		return
+	}
+
+	groupID := c.Param("id")
+	if groupID == "" {
+		dto.JsonError(c, errors.ErrGroupIDRequired)
+		return
+	}
+
+	var req dto.KickGroupMembersRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if _, err := h.userClient.KickGroupMembers(ctx, groupID, userID.(string), req.Emails); err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// LeaveGroup godoc
+// @Summary Leave a group
+// @Description Removes the current user from a group. Owners cannot leave their own group (must delete it instead).
+// @Tags groups
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Group ID"
+// @Success 204
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /groups/{id}/leave [post]
+func (h *UserHandler) LeaveGroup(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		dto.JsonError(c, errors.ErrUserIDNotFound)
+		return
+	}
+
+	groupID := c.Param("id")
+	if groupID == "" {
+		dto.JsonError(c, errors.ErrGroupIDRequired)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if _, err := h.userClient.LeaveGroup(ctx, groupID, userID.(string)); err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// UploadGroupAvatar godoc
+// @Summary Upload a group avatar
+// @Description Multipart upload for a group avatar. Returns the avatar_url to be passed into POST /groups or PUT /groups/{id}.
+// @Tags groups
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param avatar formData file true "Avatar image"
+// @Success 200 {object} dto.GroupAvatarUploadResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /groups/avatar/upload [post]
+func (h *UserHandler) UploadGroupAvatar(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		dto.JsonError(c, errors.ErrUserIDNotFound)
+		return
+	}
+
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	if file.Size > 5*1024*1024 {
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+	defer src.Close()
+
+	avatarData, err := io.ReadAll(src)
+	if err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	if !isAllowedImageBytes(avatarData) {
+		dto.JsonError(c, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	resp, err := h.userClient.UploadGroupAvatar(ctx, userID.(string), avatarData, file.Filename)
+	if err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.GroupAvatarUploadResponse{AvatarURL: resp.AvatarUrl})
+}
+
+func isAllowedImageBytes(data []byte) bool {
+	if len(data) == 0 {
+		return false
+	}
+	sniff := data
+	if len(sniff) > 512 {
+		sniff = sniff[:512]
+	}
+	switch http.DetectContentType(sniff) {
+	case "image/jpeg", "image/png", "image/webp":
+		return true
+	default:
+		return false
+	}
+}
+
 func convertUserToDTO(u *pb.User) dto.UserDTO {
 	return dto.UserDTO{
 		ID:        u.Id,
@@ -555,34 +831,50 @@ func convertNotificationSettingsToDTO(s *pb.NotificationSettings) dto.Notificati
 
 func convertGroupToDTO(g *pb.Group) dto.GroupDTO {
 	return dto.GroupDTO{
-		ID:          g.Id,
-		Name:        g.Name,
-		OwnerID:     g.OwnerId,
-		MemberCount: g.MemberCount,
-		CreatedAt:   time.Unix(g.CreatedAt, 0).Format(time.RFC3339),
-		UpdatedAt:   time.Unix(g.CreatedAt, 0).Format(time.RFC3339),
+		ID:           g.Id,
+		Name:         g.Name,
+		Description:  g.Description,
+		AvatarURL:    g.AvatarUrl,
+		OwnerID:      g.OwnerId,
+		MemberCount:  g.MemberCount,
+		PendingCount: g.PendingCount,
+		CreatedAt:    time.Unix(g.CreatedAt, 0).Format(time.RFC3339),
+		UpdatedAt:    time.Unix(g.CreatedAt, 0).Format(time.RFC3339),
+	}
+}
+
+func convertUserToGroupMemberDTO(u *pb.User) dto.GroupMemberDTO {
+	return dto.GroupMemberDTO{
+		UserID:    u.Id,
+		Email:     u.Email,
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+		AvatarURL: u.AvatarUrl,
+		JoinedAt:  time.Unix(u.CreatedAt, 0).Format(time.RFC3339),
 	}
 }
 
 func convertGroupWithMembersToDTO(gwm *pb.GroupWithMembers) dto.GroupWithMembersDTO {
 	members := make([]dto.GroupMemberDTO, len(gwm.Members))
 	for i, m := range gwm.Members {
-		members[i] = dto.GroupMemberDTO{
-			UserID:    m.Id,
-			Email:     m.Email,
-			FirstName: m.FirstName,
-			LastName:  m.LastName,
-			AvatarURL: m.AvatarUrl,
-			JoinedAt:  time.Unix(m.CreatedAt, 0).Format(time.RFC3339),
-		}
+		members[i] = convertUserToGroupMemberDTO(m)
+	}
+	invited := make([]dto.GroupMemberDTO, len(gwm.InvitedUsers))
+	for i, u := range gwm.InvitedUsers {
+		invited[i] = convertUserToGroupMemberDTO(u)
 	}
 
 	return dto.GroupWithMembersDTO{
-		ID:        gwm.Group.Id,
-		Name:      gwm.Group.Name,
-		OwnerID:   gwm.Group.OwnerId,
-		Members:   members,
-		CreatedAt: time.Unix(gwm.Group.CreatedAt, 0).Format(time.RFC3339),
-		UpdatedAt: time.Unix(gwm.Group.CreatedAt, 0).Format(time.RFC3339),
+		ID:           gwm.Group.Id,
+		Name:         gwm.Group.Name,
+		Description:  gwm.Group.Description,
+		AvatarURL:    gwm.Group.AvatarUrl,
+		OwnerID:      gwm.Group.OwnerId,
+		MemberCount:  gwm.Group.MemberCount,
+		PendingCount: gwm.Group.PendingCount,
+		Members:      members,
+		InvitedUsers: invited,
+		CreatedAt:    time.Unix(gwm.Group.CreatedAt, 0).Format(time.RFC3339),
+		UpdatedAt:    time.Unix(gwm.Group.CreatedAt, 0).Format(time.RFC3339),
 	}
 }

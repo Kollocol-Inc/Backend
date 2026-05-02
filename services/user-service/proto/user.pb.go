@@ -212,6 +212,9 @@ type Group struct {
 	OwnerId       string                 `protobuf:"bytes,3,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
 	CreatedAt     int64                  `protobuf:"varint,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"` // Unix timestamp
 	MemberCount   int32                  `protobuf:"varint,5,opt,name=member_count,json=memberCount,proto3" json:"member_count,omitempty"`
+	Description   string                 `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
+	AvatarUrl     string                 `protobuf:"bytes,7,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	PendingCount  int32                  `protobuf:"varint,8,opt,name=pending_count,json=pendingCount,proto3" json:"pending_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -281,10 +284,32 @@ func (x *Group) GetMemberCount() int32 {
 	return 0
 }
 
+func (x *Group) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *Group) GetAvatarUrl() string {
+	if x != nil {
+		return x.AvatarUrl
+	}
+	return ""
+}
+
+func (x *Group) GetPendingCount() int32 {
+	if x != nil {
+		return x.PendingCount
+	}
+	return 0
+}
+
 type GroupWithMembers struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Group         *Group                 `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
 	Members       []*User                `protobuf:"bytes,2,rep,name=members,proto3" json:"members,omitempty"`
+	InvitedUsers  []*User                `protobuf:"bytes,3,rep,name=invited_users,json=invitedUsers,proto3" json:"invited_users,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -329,6 +354,13 @@ func (x *GroupWithMembers) GetGroup() *Group {
 func (x *GroupWithMembers) GetMembers() []*User {
 	if x != nil {
 		return x.Members
+	}
+	return nil
+}
+
+func (x *GroupWithMembers) GetInvitedUsers() []*User {
+	if x != nil {
+		return x.InvitedUsers
 	}
 	return nil
 }
@@ -1130,6 +1162,8 @@ type CreateGroupRequest struct {
 	OwnerId       string                 `protobuf:"bytes,1,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	MemberEmails  []string               `protobuf:"bytes,3,rep,name=member_emails,json=memberEmails,proto3" json:"member_emails,omitempty"`
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	AvatarUrl     string                 `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1185,6 +1219,20 @@ func (x *CreateGroupRequest) GetMemberEmails() []string {
 	return nil
 }
 
+func (x *CreateGroupRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *CreateGroupRequest) GetAvatarUrl() string {
+	if x != nil {
+		return x.AvatarUrl
+	}
+	return ""
+}
+
 type CreateGroupResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Group         *Group                 `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
@@ -1232,7 +1280,7 @@ func (x *CreateGroupResponse) GetGroup() *Group {
 type GetGroupsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Filter        string                 `protobuf:"bytes,2,opt,name=filter,proto3" json:"filter,omitempty"` // "my", "created"
+	Filter        string                 `protobuf:"bytes,2,opt,name=filter,proto3" json:"filter,omitempty"` // "my", "created", "invitee"
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1425,8 +1473,9 @@ type UpdateGroupRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
 	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`                                     // Optional
-	MemberEmails  []string               `protobuf:"bytes,4,rep,name=member_emails,json=memberEmails,proto3" json:"member_emails,omitempty"` // Optional
+	Name          *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	AvatarUrl     *string                `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1476,17 +1525,24 @@ func (x *UpdateGroupRequest) GetUserId() string {
 }
 
 func (x *UpdateGroupRequest) GetName() string {
-	if x != nil {
-		return x.Name
+	if x != nil && x.Name != nil {
+		return *x.Name
 	}
 	return ""
 }
 
-func (x *UpdateGroupRequest) GetMemberEmails() []string {
-	if x != nil {
-		return x.MemberEmails
+func (x *UpdateGroupRequest) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
 	}
-	return nil
+	return ""
+}
+
+func (x *UpdateGroupRequest) GetAvatarUrl() string {
+	if x != nil && x.AvatarUrl != nil {
+		return *x.AvatarUrl
+	}
+	return ""
 }
 
 type UpdateGroupResponse struct {
@@ -1997,6 +2053,574 @@ func (x *GetNotificationSettingsBatchResponse) GetLanguages() map[string]string 
 	return nil
 }
 
+type UploadGroupAvatarRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AvatarData     []byte                 `protobuf:"bytes,2,opt,name=avatar_data,json=avatarData,proto3" json:"avatar_data,omitempty"`
+	AvatarFilename string                 `protobuf:"bytes,3,opt,name=avatar_filename,json=avatarFilename,proto3" json:"avatar_filename,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *UploadGroupAvatarRequest) Reset() {
+	*x = UploadGroupAvatarRequest{}
+	mi := &file_user_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadGroupAvatarRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadGroupAvatarRequest) ProtoMessage() {}
+
+func (x *UploadGroupAvatarRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadGroupAvatarRequest.ProtoReflect.Descriptor instead.
+func (*UploadGroupAvatarRequest) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *UploadGroupAvatarRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UploadGroupAvatarRequest) GetAvatarData() []byte {
+	if x != nil {
+		return x.AvatarData
+	}
+	return nil
+}
+
+func (x *UploadGroupAvatarRequest) GetAvatarFilename() string {
+	if x != nil {
+		return x.AvatarFilename
+	}
+	return ""
+}
+
+type UploadGroupAvatarResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AvatarUrl     string                 `protobuf:"bytes,1,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadGroupAvatarResponse) Reset() {
+	*x = UploadGroupAvatarResponse{}
+	mi := &file_user_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadGroupAvatarResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadGroupAvatarResponse) ProtoMessage() {}
+
+func (x *UploadGroupAvatarResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadGroupAvatarResponse.ProtoReflect.Descriptor instead.
+func (*UploadGroupAvatarResponse) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *UploadGroupAvatarResponse) GetAvatarUrl() string {
+	if x != nil {
+		return x.AvatarUrl
+	}
+	return ""
+}
+
+type AcceptGroupInviteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcceptGroupInviteRequest) Reset() {
+	*x = AcceptGroupInviteRequest{}
+	mi := &file_user_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcceptGroupInviteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcceptGroupInviteRequest) ProtoMessage() {}
+
+func (x *AcceptGroupInviteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcceptGroupInviteRequest.ProtoReflect.Descriptor instead.
+func (*AcceptGroupInviteRequest) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *AcceptGroupInviteRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *AcceptGroupInviteRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type AcceptGroupInviteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Group         *Group                 `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcceptGroupInviteResponse) Reset() {
+	*x = AcceptGroupInviteResponse{}
+	mi := &file_user_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcceptGroupInviteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcceptGroupInviteResponse) ProtoMessage() {}
+
+func (x *AcceptGroupInviteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcceptGroupInviteResponse.ProtoReflect.Descriptor instead.
+func (*AcceptGroupInviteResponse) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *AcceptGroupInviteResponse) GetGroup() *Group {
+	if x != nil {
+		return x.Group
+	}
+	return nil
+}
+
+type DeclineGroupInviteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeclineGroupInviteRequest) Reset() {
+	*x = DeclineGroupInviteRequest{}
+	mi := &file_user_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeclineGroupInviteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeclineGroupInviteRequest) ProtoMessage() {}
+
+func (x *DeclineGroupInviteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeclineGroupInviteRequest.ProtoReflect.Descriptor instead.
+func (*DeclineGroupInviteRequest) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *DeclineGroupInviteRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *DeclineGroupInviteRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type DeclineGroupInviteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeclineGroupInviteResponse) Reset() {
+	*x = DeclineGroupInviteResponse{}
+	mi := &file_user_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeclineGroupInviteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeclineGroupInviteResponse) ProtoMessage() {}
+
+func (x *DeclineGroupInviteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeclineGroupInviteResponse.ProtoReflect.Descriptor instead.
+func (*DeclineGroupInviteResponse) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{43}
+}
+
+type InviteGroupMembersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Emails        []string               `protobuf:"bytes,3,rep,name=emails,proto3" json:"emails,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InviteGroupMembersRequest) Reset() {
+	*x = InviteGroupMembersRequest{}
+	mi := &file_user_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InviteGroupMembersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InviteGroupMembersRequest) ProtoMessage() {}
+
+func (x *InviteGroupMembersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InviteGroupMembersRequest.ProtoReflect.Descriptor instead.
+func (*InviteGroupMembersRequest) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *InviteGroupMembersRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *InviteGroupMembersRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *InviteGroupMembersRequest) GetEmails() []string {
+	if x != nil {
+		return x.Emails
+	}
+	return nil
+}
+
+type InviteGroupMembersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InviteGroupMembersResponse) Reset() {
+	*x = InviteGroupMembersResponse{}
+	mi := &file_user_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InviteGroupMembersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InviteGroupMembersResponse) ProtoMessage() {}
+
+func (x *InviteGroupMembersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InviteGroupMembersResponse.ProtoReflect.Descriptor instead.
+func (*InviteGroupMembersResponse) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{45}
+}
+
+type KickGroupMembersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Emails        []string               `protobuf:"bytes,3,rep,name=emails,proto3" json:"emails,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KickGroupMembersRequest) Reset() {
+	*x = KickGroupMembersRequest{}
+	mi := &file_user_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KickGroupMembersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KickGroupMembersRequest) ProtoMessage() {}
+
+func (x *KickGroupMembersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KickGroupMembersRequest.ProtoReflect.Descriptor instead.
+func (*KickGroupMembersRequest) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *KickGroupMembersRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *KickGroupMembersRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *KickGroupMembersRequest) GetEmails() []string {
+	if x != nil {
+		return x.Emails
+	}
+	return nil
+}
+
+type KickGroupMembersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KickGroupMembersResponse) Reset() {
+	*x = KickGroupMembersResponse{}
+	mi := &file_user_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KickGroupMembersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KickGroupMembersResponse) ProtoMessage() {}
+
+func (x *KickGroupMembersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KickGroupMembersResponse.ProtoReflect.Descriptor instead.
+func (*KickGroupMembersResponse) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{47}
+}
+
+type LeaveGroupRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaveGroupRequest) Reset() {
+	*x = LeaveGroupRequest{}
+	mi := &file_user_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaveGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaveGroupRequest) ProtoMessage() {}
+
+func (x *LeaveGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaveGroupRequest.ProtoReflect.Descriptor instead.
+func (*LeaveGroupRequest) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *LeaveGroupRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *LeaveGroupRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type LeaveGroupResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaveGroupResponse) Reset() {
+	*x = LeaveGroupResponse{}
+	mi := &file_user_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaveGroupResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaveGroupResponse) ProtoMessage() {}
+
+func (x *LeaveGroupResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaveGroupResponse.ProtoReflect.Descriptor instead.
+func (*LeaveGroupResponse) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{49}
+}
+
 var File_user_proto protoreflect.FileDescriptor
 
 const file_user_proto_rawDesc = "" +
@@ -2023,18 +2647,24 @@ const file_user_proto_rawDesc = "" +
 	"\rgroup_invites\x18\x04 \x01(\bR\fgroupInvites\x12+\n" +
 	"\x11deadline_reminder\x18\x05 \x01(\tR\x10deadlineReminder\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\x06 \x01(\x03R\tupdatedAt\"\x88\x01\n" +
+	"updated_at\x18\x06 \x01(\x03R\tupdatedAt\"\xee\x01\n" +
 	"\x05Group\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x19\n" +
 	"\bowner_id\x18\x03 \x01(\tR\aownerId\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x04 \x01(\x03R\tcreatedAt\x12!\n" +
-	"\fmember_count\x18\x05 \x01(\x05R\vmemberCount\"[\n" +
+	"\fmember_count\x18\x05 \x01(\x05R\vmemberCount\x12 \n" +
+	"\vdescription\x18\x06 \x01(\tR\vdescription\x12\x1d\n" +
+	"\n" +
+	"avatar_url\x18\a \x01(\tR\tavatarUrl\x12#\n" +
+	"\rpending_count\x18\b \x01(\x05R\fpendingCount\"\x8c\x01\n" +
 	"\x10GroupWithMembers\x12!\n" +
 	"\x05group\x18\x01 \x01(\v2\v.user.GroupR\x05group\x12$\n" +
 	"\amembers\x18\x02 \x03(\v2\n" +
-	".user.UserR\amembers\"\xb0\x01\n" +
+	".user.UserR\amembers\x12/\n" +
+	"\rinvited_users\x18\x03 \x03(\v2\n" +
+	".user.UserR\finvitedUsers\"\xb0\x01\n" +
 	"\x0fRegisterRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
 	"\n" +
@@ -2091,11 +2721,14 @@ const file_user_proto_rawDesc = "" +
 	"\x0e_group_invitesB\x14\n" +
 	"\x12_deadline_reminder\"\\\n" +
 	"\"UpdateNotificationSettingsResponse\x126\n" +
-	"\bsettings\x18\x01 \x01(\v2\x1a.user.NotificationSettingsR\bsettings\"h\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1a.user.NotificationSettingsR\bsettings\"\xa9\x01\n" +
 	"\x12CreateGroupRequest\x12\x19\n" +
 	"\bowner_id\x18\x01 \x01(\tR\aownerId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
-	"\rmember_emails\x18\x03 \x03(\tR\fmemberEmails\"8\n" +
+	"\rmember_emails\x18\x03 \x03(\tR\fmemberEmails\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1d\n" +
+	"\n" +
+	"avatar_url\x18\x05 \x01(\tR\tavatarUrl\"8\n" +
 	"\x13CreateGroupResponse\x12!\n" +
 	"\x05group\x18\x01 \x01(\v2\v.user.GroupR\x05group\"C\n" +
 	"\x10GetGroupsRequest\x12\x17\n" +
@@ -2107,12 +2740,17 @@ const file_user_proto_rawDesc = "" +
 	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\"@\n" +
 	"\x10GetGroupResponse\x12,\n" +
-	"\x05group\x18\x01 \x01(\v2\x16.user.GroupWithMembersR\x05group\"\x81\x01\n" +
+	"\x05group\x18\x01 \x01(\v2\x16.user.GroupWithMembersR\x05group\"\xd4\x01\n" +
 	"\x12UpdateGroupRequest\x12\x19\n" +
 	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\x12#\n" +
-	"\rmember_emails\x18\x04 \x03(\tR\fmemberEmails\"8\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x17\n" +
+	"\x04name\x18\x03 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x04 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"avatar_url\x18\x05 \x01(\tH\x02R\tavatarUrl\x88\x01\x01B\a\n" +
+	"\x05_nameB\x0e\n" +
+	"\f_descriptionB\r\n" +
+	"\v_avatar_url\"8\n" +
 	"\x13UpdateGroupResponse\x12!\n" +
 	"\x05group\x18\x01 \x01(\v2\v.user.GroupR\x05group\"H\n" +
 	"\x12DeleteGroupRequest\x12\x19\n" +
@@ -2144,8 +2782,38 @@ const file_user_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x1a.user.NotificationSettingsR\x05value:\x028\x01\x1a<\n" +
 	"\x0eLanguagesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\xc5\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"}\n" +
+	"\x18UploadGroupAvatarRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1f\n" +
+	"\vavatar_data\x18\x02 \x01(\fR\n" +
+	"avatarData\x12'\n" +
+	"\x0favatar_filename\x18\x03 \x01(\tR\x0eavatarFilename\":\n" +
+	"\x19UploadGroupAvatarResponse\x12\x1d\n" +
 	"\n" +
+	"avatar_url\x18\x01 \x01(\tR\tavatarUrl\"N\n" +
+	"\x18AcceptGroupInviteRequest\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\">\n" +
+	"\x19AcceptGroupInviteResponse\x12!\n" +
+	"\x05group\x18\x01 \x01(\v2\v.user.GroupR\x05group\"O\n" +
+	"\x19DeclineGroupInviteRequest\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x1c\n" +
+	"\x1aDeclineGroupInviteResponse\"g\n" +
+	"\x19InviteGroupMembersRequest\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
+	"\x06emails\x18\x03 \x03(\tR\x06emails\"\x1c\n" +
+	"\x1aInviteGroupMembersResponse\"e\n" +
+	"\x17KickGroupMembersRequest\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
+	"\x06emails\x18\x03 \x03(\tR\x06emails\"\x1a\n" +
+	"\x18KickGroupMembersResponse\"G\n" +
+	"\x11LeaveGroupRequest\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x14\n" +
+	"\x12LeaveGroupResponse2\xb7\x0e\n" +
 	"\vUserService\x129\n" +
 	"\bRegister\x12\x15.user.RegisterRequest\x1a\x16.user.RegisterResponse\x12?\n" +
 	"\n" +
@@ -2165,7 +2833,14 @@ const file_user_proto_rawDesc = "" +
 	"\x14CheckGroupMembership\x12!.user.CheckGroupMembershipRequest\x1a\".user.CheckGroupMembershipResponse\x12H\n" +
 	"\rGetUsersByIDs\x12\x1a.user.GetUsersByIDsRequest\x1a\x1b.user.GetUsersByIDsResponse\x12T\n" +
 	"\x11GetGroupMemberIDs\x12\x1e.user.GetGroupMemberIDsRequest\x1a\x1f.user.GetGroupMemberIDsResponse\x12u\n" +
-	"\x1cGetNotificationSettingsBatch\x12).user.GetNotificationSettingsBatchRequest\x1a*.user.GetNotificationSettingsBatchResponseB\x14Z\x12user-service/protob\x06proto3"
+	"\x1cGetNotificationSettingsBatch\x12).user.GetNotificationSettingsBatchRequest\x1a*.user.GetNotificationSettingsBatchResponse\x12T\n" +
+	"\x11UploadGroupAvatar\x12\x1e.user.UploadGroupAvatarRequest\x1a\x1f.user.UploadGroupAvatarResponse\x12T\n" +
+	"\x11AcceptGroupInvite\x12\x1e.user.AcceptGroupInviteRequest\x1a\x1f.user.AcceptGroupInviteResponse\x12W\n" +
+	"\x12DeclineGroupInvite\x12\x1f.user.DeclineGroupInviteRequest\x1a .user.DeclineGroupInviteResponse\x12W\n" +
+	"\x12InviteGroupMembers\x12\x1f.user.InviteGroupMembersRequest\x1a .user.InviteGroupMembersResponse\x12Q\n" +
+	"\x10KickGroupMembers\x12\x1d.user.KickGroupMembersRequest\x1a\x1e.user.KickGroupMembersResponse\x12?\n" +
+	"\n" +
+	"LeaveGroup\x12\x17.user.LeaveGroupRequest\x1a\x18.user.LeaveGroupResponseB\x14Z\x12user-service/protob\x06proto3"
 
 var (
 	file_user_proto_rawDescOnce sync.Once
@@ -2179,7 +2854,7 @@ func file_user_proto_rawDescGZIP() []byte {
 	return file_user_proto_rawDescData
 }
 
-var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
+var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 52)
 var file_user_proto_goTypes = []any{
 	(*User)(nil),                                 // 0: user.User
 	(*NotificationSettings)(nil),                 // 1: user.NotificationSettings
@@ -2219,65 +2894,91 @@ var file_user_proto_goTypes = []any{
 	(*GetGroupMemberIDsResponse)(nil),            // 35: user.GetGroupMemberIDsResponse
 	(*GetNotificationSettingsBatchRequest)(nil),  // 36: user.GetNotificationSettingsBatchRequest
 	(*GetNotificationSettingsBatchResponse)(nil), // 37: user.GetNotificationSettingsBatchResponse
-	nil, // 38: user.GetNotificationSettingsBatchResponse.SettingsEntry
-	nil, // 39: user.GetNotificationSettingsBatchResponse.LanguagesEntry
+	(*UploadGroupAvatarRequest)(nil),             // 38: user.UploadGroupAvatarRequest
+	(*UploadGroupAvatarResponse)(nil),            // 39: user.UploadGroupAvatarResponse
+	(*AcceptGroupInviteRequest)(nil),             // 40: user.AcceptGroupInviteRequest
+	(*AcceptGroupInviteResponse)(nil),            // 41: user.AcceptGroupInviteResponse
+	(*DeclineGroupInviteRequest)(nil),            // 42: user.DeclineGroupInviteRequest
+	(*DeclineGroupInviteResponse)(nil),           // 43: user.DeclineGroupInviteResponse
+	(*InviteGroupMembersRequest)(nil),            // 44: user.InviteGroupMembersRequest
+	(*InviteGroupMembersResponse)(nil),           // 45: user.InviteGroupMembersResponse
+	(*KickGroupMembersRequest)(nil),              // 46: user.KickGroupMembersRequest
+	(*KickGroupMembersResponse)(nil),             // 47: user.KickGroupMembersResponse
+	(*LeaveGroupRequest)(nil),                    // 48: user.LeaveGroupRequest
+	(*LeaveGroupResponse)(nil),                   // 49: user.LeaveGroupResponse
+	nil,                                          // 50: user.GetNotificationSettingsBatchResponse.SettingsEntry
+	nil,                                          // 51: user.GetNotificationSettingsBatchResponse.LanguagesEntry
 }
 var file_user_proto_depIdxs = []int32{
 	2,  // 0: user.GroupWithMembers.group:type_name -> user.Group
 	0,  // 1: user.GroupWithMembers.members:type_name -> user.User
-	0,  // 2: user.RegisterResponse.user:type_name -> user.User
-	0,  // 3: user.GetProfileResponse.user:type_name -> user.User
-	0,  // 4: user.GetProfileByEmailResponse.user:type_name -> user.User
-	0,  // 5: user.UpdateProfileResponse.user:type_name -> user.User
-	1,  // 6: user.GetNotificationSettingsResponse.settings:type_name -> user.NotificationSettings
-	1,  // 7: user.UpdateNotificationSettingsResponse.settings:type_name -> user.NotificationSettings
-	2,  // 8: user.CreateGroupResponse.group:type_name -> user.Group
-	2,  // 9: user.GetGroupsResponse.groups:type_name -> user.Group
-	3,  // 10: user.GetGroupResponse.group:type_name -> user.GroupWithMembers
-	2,  // 11: user.UpdateGroupResponse.group:type_name -> user.Group
-	0,  // 12: user.GetUsersByIDsResponse.users:type_name -> user.User
-	38, // 13: user.GetNotificationSettingsBatchResponse.settings:type_name -> user.GetNotificationSettingsBatchResponse.SettingsEntry
-	39, // 14: user.GetNotificationSettingsBatchResponse.languages:type_name -> user.GetNotificationSettingsBatchResponse.LanguagesEntry
-	1,  // 15: user.GetNotificationSettingsBatchResponse.SettingsEntry.value:type_name -> user.NotificationSettings
-	4,  // 16: user.UserService.Register:input_type -> user.RegisterRequest
-	6,  // 17: user.UserService.GetProfile:input_type -> user.GetProfileRequest
-	8,  // 18: user.UserService.GetProfileByEmail:input_type -> user.GetProfileByEmailRequest
-	10, // 19: user.UserService.UpdateProfile:input_type -> user.UpdateProfileRequest
-	12, // 20: user.UserService.DeleteAvatar:input_type -> user.DeleteAvatarRequest
-	14, // 21: user.UserService.DeleteUser:input_type -> user.DeleteUserRequest
-	16, // 22: user.UserService.GetNotificationSettings:input_type -> user.GetNotificationSettingsRequest
-	18, // 23: user.UserService.UpdateNotificationSettings:input_type -> user.UpdateNotificationSettingsRequest
-	20, // 24: user.UserService.CreateGroup:input_type -> user.CreateGroupRequest
-	22, // 25: user.UserService.GetGroups:input_type -> user.GetGroupsRequest
-	24, // 26: user.UserService.GetGroup:input_type -> user.GetGroupRequest
-	26, // 27: user.UserService.UpdateGroup:input_type -> user.UpdateGroupRequest
-	28, // 28: user.UserService.DeleteGroup:input_type -> user.DeleteGroupRequest
-	30, // 29: user.UserService.CheckGroupMembership:input_type -> user.CheckGroupMembershipRequest
-	32, // 30: user.UserService.GetUsersByIDs:input_type -> user.GetUsersByIDsRequest
-	34, // 31: user.UserService.GetGroupMemberIDs:input_type -> user.GetGroupMemberIDsRequest
-	36, // 32: user.UserService.GetNotificationSettingsBatch:input_type -> user.GetNotificationSettingsBatchRequest
-	5,  // 33: user.UserService.Register:output_type -> user.RegisterResponse
-	7,  // 34: user.UserService.GetProfile:output_type -> user.GetProfileResponse
-	9,  // 35: user.UserService.GetProfileByEmail:output_type -> user.GetProfileByEmailResponse
-	11, // 36: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResponse
-	13, // 37: user.UserService.DeleteAvatar:output_type -> user.DeleteAvatarResponse
-	15, // 38: user.UserService.DeleteUser:output_type -> user.DeleteUserResponse
-	17, // 39: user.UserService.GetNotificationSettings:output_type -> user.GetNotificationSettingsResponse
-	19, // 40: user.UserService.UpdateNotificationSettings:output_type -> user.UpdateNotificationSettingsResponse
-	21, // 41: user.UserService.CreateGroup:output_type -> user.CreateGroupResponse
-	23, // 42: user.UserService.GetGroups:output_type -> user.GetGroupsResponse
-	25, // 43: user.UserService.GetGroup:output_type -> user.GetGroupResponse
-	27, // 44: user.UserService.UpdateGroup:output_type -> user.UpdateGroupResponse
-	29, // 45: user.UserService.DeleteGroup:output_type -> user.DeleteGroupResponse
-	31, // 46: user.UserService.CheckGroupMembership:output_type -> user.CheckGroupMembershipResponse
-	33, // 47: user.UserService.GetUsersByIDs:output_type -> user.GetUsersByIDsResponse
-	35, // 48: user.UserService.GetGroupMemberIDs:output_type -> user.GetGroupMemberIDsResponse
-	37, // 49: user.UserService.GetNotificationSettingsBatch:output_type -> user.GetNotificationSettingsBatchResponse
-	33, // [33:50] is the sub-list for method output_type
-	16, // [16:33] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	0,  // 2: user.GroupWithMembers.invited_users:type_name -> user.User
+	0,  // 3: user.RegisterResponse.user:type_name -> user.User
+	0,  // 4: user.GetProfileResponse.user:type_name -> user.User
+	0,  // 5: user.GetProfileByEmailResponse.user:type_name -> user.User
+	0,  // 6: user.UpdateProfileResponse.user:type_name -> user.User
+	1,  // 7: user.GetNotificationSettingsResponse.settings:type_name -> user.NotificationSettings
+	1,  // 8: user.UpdateNotificationSettingsResponse.settings:type_name -> user.NotificationSettings
+	2,  // 9: user.CreateGroupResponse.group:type_name -> user.Group
+	2,  // 10: user.GetGroupsResponse.groups:type_name -> user.Group
+	3,  // 11: user.GetGroupResponse.group:type_name -> user.GroupWithMembers
+	2,  // 12: user.UpdateGroupResponse.group:type_name -> user.Group
+	0,  // 13: user.GetUsersByIDsResponse.users:type_name -> user.User
+	50, // 14: user.GetNotificationSettingsBatchResponse.settings:type_name -> user.GetNotificationSettingsBatchResponse.SettingsEntry
+	51, // 15: user.GetNotificationSettingsBatchResponse.languages:type_name -> user.GetNotificationSettingsBatchResponse.LanguagesEntry
+	2,  // 16: user.AcceptGroupInviteResponse.group:type_name -> user.Group
+	1,  // 17: user.GetNotificationSettingsBatchResponse.SettingsEntry.value:type_name -> user.NotificationSettings
+	4,  // 18: user.UserService.Register:input_type -> user.RegisterRequest
+	6,  // 19: user.UserService.GetProfile:input_type -> user.GetProfileRequest
+	8,  // 20: user.UserService.GetProfileByEmail:input_type -> user.GetProfileByEmailRequest
+	10, // 21: user.UserService.UpdateProfile:input_type -> user.UpdateProfileRequest
+	12, // 22: user.UserService.DeleteAvatar:input_type -> user.DeleteAvatarRequest
+	14, // 23: user.UserService.DeleteUser:input_type -> user.DeleteUserRequest
+	16, // 24: user.UserService.GetNotificationSettings:input_type -> user.GetNotificationSettingsRequest
+	18, // 25: user.UserService.UpdateNotificationSettings:input_type -> user.UpdateNotificationSettingsRequest
+	20, // 26: user.UserService.CreateGroup:input_type -> user.CreateGroupRequest
+	22, // 27: user.UserService.GetGroups:input_type -> user.GetGroupsRequest
+	24, // 28: user.UserService.GetGroup:input_type -> user.GetGroupRequest
+	26, // 29: user.UserService.UpdateGroup:input_type -> user.UpdateGroupRequest
+	28, // 30: user.UserService.DeleteGroup:input_type -> user.DeleteGroupRequest
+	30, // 31: user.UserService.CheckGroupMembership:input_type -> user.CheckGroupMembershipRequest
+	32, // 32: user.UserService.GetUsersByIDs:input_type -> user.GetUsersByIDsRequest
+	34, // 33: user.UserService.GetGroupMemberIDs:input_type -> user.GetGroupMemberIDsRequest
+	36, // 34: user.UserService.GetNotificationSettingsBatch:input_type -> user.GetNotificationSettingsBatchRequest
+	38, // 35: user.UserService.UploadGroupAvatar:input_type -> user.UploadGroupAvatarRequest
+	40, // 36: user.UserService.AcceptGroupInvite:input_type -> user.AcceptGroupInviteRequest
+	42, // 37: user.UserService.DeclineGroupInvite:input_type -> user.DeclineGroupInviteRequest
+	44, // 38: user.UserService.InviteGroupMembers:input_type -> user.InviteGroupMembersRequest
+	46, // 39: user.UserService.KickGroupMembers:input_type -> user.KickGroupMembersRequest
+	48, // 40: user.UserService.LeaveGroup:input_type -> user.LeaveGroupRequest
+	5,  // 41: user.UserService.Register:output_type -> user.RegisterResponse
+	7,  // 42: user.UserService.GetProfile:output_type -> user.GetProfileResponse
+	9,  // 43: user.UserService.GetProfileByEmail:output_type -> user.GetProfileByEmailResponse
+	11, // 44: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResponse
+	13, // 45: user.UserService.DeleteAvatar:output_type -> user.DeleteAvatarResponse
+	15, // 46: user.UserService.DeleteUser:output_type -> user.DeleteUserResponse
+	17, // 47: user.UserService.GetNotificationSettings:output_type -> user.GetNotificationSettingsResponse
+	19, // 48: user.UserService.UpdateNotificationSettings:output_type -> user.UpdateNotificationSettingsResponse
+	21, // 49: user.UserService.CreateGroup:output_type -> user.CreateGroupResponse
+	23, // 50: user.UserService.GetGroups:output_type -> user.GetGroupsResponse
+	25, // 51: user.UserService.GetGroup:output_type -> user.GetGroupResponse
+	27, // 52: user.UserService.UpdateGroup:output_type -> user.UpdateGroupResponse
+	29, // 53: user.UserService.DeleteGroup:output_type -> user.DeleteGroupResponse
+	31, // 54: user.UserService.CheckGroupMembership:output_type -> user.CheckGroupMembershipResponse
+	33, // 55: user.UserService.GetUsersByIDs:output_type -> user.GetUsersByIDsResponse
+	35, // 56: user.UserService.GetGroupMemberIDs:output_type -> user.GetGroupMemberIDsResponse
+	37, // 57: user.UserService.GetNotificationSettingsBatch:output_type -> user.GetNotificationSettingsBatchResponse
+	39, // 58: user.UserService.UploadGroupAvatar:output_type -> user.UploadGroupAvatarResponse
+	41, // 59: user.UserService.AcceptGroupInvite:output_type -> user.AcceptGroupInviteResponse
+	43, // 60: user.UserService.DeclineGroupInvite:output_type -> user.DeclineGroupInviteResponse
+	45, // 61: user.UserService.InviteGroupMembers:output_type -> user.InviteGroupMembersResponse
+	47, // 62: user.UserService.KickGroupMembers:output_type -> user.KickGroupMembersResponse
+	49, // 63: user.UserService.LeaveGroup:output_type -> user.LeaveGroupResponse
+	41, // [41:64] is the sub-list for method output_type
+	18, // [18:41] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_user_proto_init() }
@@ -2287,13 +2988,14 @@ func file_user_proto_init() {
 	}
 	file_user_proto_msgTypes[10].OneofWrappers = []any{}
 	file_user_proto_msgTypes[18].OneofWrappers = []any{}
+	file_user_proto_msgTypes[26].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_proto_rawDesc), len(file_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   40,
+			NumMessages:   52,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

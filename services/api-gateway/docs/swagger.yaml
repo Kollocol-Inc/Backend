@@ -33,12 +33,20 @@ definitions:
     type: object
   dto.CreateGroupRequest:
     properties:
+      avatar_url:
+        example: https://storage.example.com/group-avatars/abc.jpg
+        type: string
+      description:
+        example: Group for studying together
+        maxLength: 500
+        type: string
       member_emails:
         example:
         - user1@example.com
         - user2@example.com
         items:
           type: string
+        maxItems: 100
         type: array
       name:
         example: Study Group
@@ -275,10 +283,22 @@ definitions:
     type: object
   dto.GradeAnswerResponse:
     type: object
+  dto.GroupAvatarUploadResponse:
+    properties:
+      avatar_url:
+        example: https://storage.example.com/group-avatars/abc.jpg
+        type: string
+    type: object
   dto.GroupDTO:
     properties:
+      avatar_url:
+        example: https://storage.example.com/group-avatars/abc.jpg
+        type: string
       created_at:
         example: "2024-01-15T10:30:00Z"
+        type: string
+      description:
+        example: Group for studying together
         type: string
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
@@ -292,6 +312,9 @@ definitions:
       owner_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
+      pending_count:
+        example: 2
+        type: integer
       updated_at:
         example: "2024-01-15T10:30:00Z"
         type: string
@@ -319,12 +342,25 @@ definitions:
     type: object
   dto.GroupWithMembersDTO:
     properties:
+      avatar_url:
+        example: https://storage.example.com/group-avatars/abc.jpg
+        type: string
       created_at:
         example: "2024-01-15T10:30:00Z"
+        type: string
+      description:
+        example: Group for studying together
         type: string
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
+      invited_users:
+        items:
+          $ref: '#/definitions/dto.GroupMemberDTO'
+        type: array
+      member_count:
+        example: 5
+        type: integer
       members:
         items:
           $ref: '#/definitions/dto.GroupMemberDTO'
@@ -335,6 +371,9 @@ definitions:
       owner_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
+      pending_count:
+        example: 2
+        type: integer
       updated_at:
         example: "2024-01-15T10:30:00Z"
         type: string
@@ -388,6 +427,33 @@ definitions:
       total_time:
         example: 360
         type: integer
+    type: object
+  dto.InviteGroupMembersRequest:
+    properties:
+      emails:
+        example:
+        - user1@example.com
+        - user2@example.com
+        items:
+          type: string
+        maxItems: 100
+        minItems: 1
+        type: array
+    required:
+    - emails
+    type: object
+  dto.KickGroupMembersRequest:
+    properties:
+      emails:
+        example:
+        - user3@example.com
+        items:
+          type: string
+        maxItems: 100
+        minItems: 1
+        type: array
+    required:
+    - emails
     type: object
   dto.ListAIBansResponse:
     properties:
@@ -695,12 +761,13 @@ definitions:
     type: object
   dto.UpdateGroupRequest:
     properties:
-      member_emails:
-        example:
-        - user3@example.com
-        items:
-          type: string
-        type: array
+      avatar_url:
+        example: https://storage.example.com/group-avatars/abc.jpg
+        type: string
+      description:
+        example: Group for studying together
+        maxLength: 500
+        type: string
       name:
         example: Study Group
         maxLength: 100
@@ -735,6 +802,12 @@ definitions:
         example: John
         maxLength: 50
         minLength: 2
+        type: string
+      language:
+        enum:
+        - ru
+        - en
+        example: ru
         type: string
       last_name:
         example: Doe
@@ -782,6 +855,12 @@ definitions:
         type: string
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      language:
+        enum:
+        - ru
+        - en
+        example: ru
         type: string
       last_name:
         example: Doe
@@ -1063,7 +1142,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a new group and invite members
+      description: Create a new group and invite members. avatar_url must come from
+        /groups/avatar/upload.
       parameters:
       - description: Group creation request
         in: body
@@ -1169,7 +1249,8 @@ paths:
     put:
       consumes:
       - application/json
-      description: Update group information (owner only)
+      description: 'Update group base info: name, description, avatar_url. Owner only.
+        Setting avatar_url to empty string removes the avatar (server-side S3 cleanup).'
       parameters:
       - description: Group ID
         in: path
@@ -1212,6 +1293,245 @@ paths:
       security:
       - BearerAuth: []
       summary: Update group
+      tags:
+      - groups
+  /groups/{id}/accept:
+    post:
+      description: Accept a pending invitation. Marks the related group_invite notification
+        as read.
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GroupDTO'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Accept group invitation
+      tags:
+      - groups
+  /groups/{id}/decline:
+    post:
+      description: Decline a pending invitation. Marks the related group_invite notification
+        as read.
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Decline group invitation
+      tags:
+      - groups
+  /groups/{id}/invite:
+    post:
+      consumes:
+      - application/json
+      description: Owner-only. Sends invitations to a list of users by email. Non-existent
+        / already-invited / already-member emails are silently skipped.
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Emails to invite
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.InviteGroupMembersRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Invite members to a group
+      tags:
+      - groups
+  /groups/{id}/kick:
+    post:
+      consumes:
+      - application/json
+      description: Owner-only. Removes a list of users by email from members and pending
+        invitations. The owner cannot be kicked. Non-existent emails are silently
+        skipped.
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Emails to kick
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.KickGroupMembersRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Kick members from a group
+      tags:
+      - groups
+  /groups/{id}/leave:
+    post:
+      description: Removes the current user from a group. Owners cannot leave their
+        own group (must delete it instead).
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Leave a group
+      tags:
+      - groups
+  /groups/avatar/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Multipart upload for a group avatar. Returns the avatar_url to
+        be passed into POST /groups or PUT /groups/{id}.
+      parameters:
+      - description: Avatar image
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GroupAvatarUploadResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Upload a group avatar
       tags:
       - groups
   /ml/generate/template:
@@ -1718,6 +2038,32 @@ paths:
       tags:
       - Quiz
   /users/me:
+    delete:
+      description: Permanently deletes the authenticated user's account and all associated
+        data (avatar, notification settings, group memberships, owned groups, quiz
+        templates and instances, sessions, notifications). All tokens are revoked.
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete current user account
+      tags:
+      - users
     get:
       description: Get current user's profile
       produces:

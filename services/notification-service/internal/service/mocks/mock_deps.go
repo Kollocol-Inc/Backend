@@ -115,6 +115,20 @@ func (mr *MockNotificationRepoMockRecorder) MarkAsRead(ctx, notificationIDs, use
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkAsRead", reflect.TypeOf((*MockNotificationRepo)(nil).MarkAsRead), ctx, notificationIDs, userID)
 }
 
+// MarkAsReadByType mocks base method.
+func (m *MockNotificationRepo) MarkAsReadByType(ctx context.Context, userID, notifType, relatedEntityID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MarkAsReadByType", ctx, userID, notifType, relatedEntityID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MarkAsReadByType indicates an expected call of MarkAsReadByType.
+func (mr *MockNotificationRepoMockRecorder) MarkAsReadByType(ctx, userID, notifType, relatedEntityID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkAsReadByType", reflect.TypeOf((*MockNotificationRepo)(nil).MarkAsReadByType), ctx, userID, notifType, relatedEntityID)
+}
+
 // MockEmailSender is a mock of EmailSender interface.
 type MockEmailSender struct {
 	ctrl     *gomock.Controller

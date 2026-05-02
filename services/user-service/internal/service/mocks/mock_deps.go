@@ -236,6 +236,34 @@ func (m *MockGroupRepo) EXPECT() *MockGroupRepoMockRecorder {
 	return m.recorder
 }
 
+// AcceptInvitation mocks base method.
+func (m *MockGroupRepo) AcceptInvitation(ctx context.Context, groupID, userID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AcceptInvitation", ctx, groupID, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AcceptInvitation indicates an expected call of AcceptInvitation.
+func (mr *MockGroupRepoMockRecorder) AcceptInvitation(ctx, groupID, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AcceptInvitation", reflect.TypeOf((*MockGroupRepo)(nil).AcceptInvitation), ctx, groupID, userID)
+}
+
+// AddInvitation mocks base method.
+func (m *MockGroupRepo) AddInvitation(ctx context.Context, groupID, userID, inviterID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddInvitation", ctx, groupID, userID, inviterID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddInvitation indicates an expected call of AddInvitation.
+func (mr *MockGroupRepoMockRecorder) AddInvitation(ctx, groupID, userID, inviterID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddInvitation", reflect.TypeOf((*MockGroupRepo)(nil).AddInvitation), ctx, groupID, userID, inviterID)
+}
+
 // AddMembers mocks base method.
 func (m *MockGroupRepo) AddMembers(ctx context.Context, groupID string, userIDs []string) error {
 	m.ctrl.T.Helper()
@@ -251,18 +279,18 @@ func (mr *MockGroupRepoMockRecorder) AddMembers(ctx, groupID, userIDs any) *gomo
 }
 
 // CreateGroup mocks base method.
-func (m *MockGroupRepo) CreateGroup(ctx context.Context, name, ownerID string) (*repository.Group, error) {
+func (m *MockGroupRepo) CreateGroup(ctx context.Context, name, description, avatarURL, ownerID string) (*repository.Group, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateGroup", ctx, name, ownerID)
+	ret := m.ctrl.Call(m, "CreateGroup", ctx, name, description, avatarURL, ownerID)
 	ret0, _ := ret[0].(*repository.Group)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateGroup indicates an expected call of CreateGroup.
-func (mr *MockGroupRepoMockRecorder) CreateGroup(ctx, name, ownerID any) *gomock.Call {
+func (mr *MockGroupRepoMockRecorder) CreateGroup(ctx, name, description, avatarURL, ownerID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateGroup", reflect.TypeOf((*MockGroupRepo)(nil).CreateGroup), ctx, name, ownerID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateGroup", reflect.TypeOf((*MockGroupRepo)(nil).CreateGroup), ctx, name, description, avatarURL, ownerID)
 }
 
 // DeleteGroup mocks base method.
@@ -291,6 +319,20 @@ func (m *MockGroupRepo) DeleteOwnedGroups(ctx context.Context, ownerID string) e
 func (mr *MockGroupRepoMockRecorder) DeleteOwnedGroups(ctx, ownerID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOwnedGroups", reflect.TypeOf((*MockGroupRepo)(nil).DeleteOwnedGroups), ctx, ownerID)
+}
+
+// DeleteUserInvitations mocks base method.
+func (m *MockGroupRepo) DeleteUserInvitations(ctx context.Context, userID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteUserInvitations", ctx, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteUserInvitations indicates an expected call of DeleteUserInvitations.
+func (mr *MockGroupRepoMockRecorder) DeleteUserInvitations(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteUserInvitations", reflect.TypeOf((*MockGroupRepo)(nil).DeleteUserInvitations), ctx, userID)
 }
 
 // DeleteUserMemberships mocks base method.
@@ -337,6 +379,21 @@ func (mr *MockGroupRepoMockRecorder) GetGroupByID(ctx, groupID any) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGroupByID", reflect.TypeOf((*MockGroupRepo)(nil).GetGroupByID), ctx, groupID)
 }
 
+// GetGroupInvitedUsers mocks base method.
+func (m *MockGroupRepo) GetGroupInvitedUsers(ctx context.Context, groupID string) ([]*repository.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetGroupInvitedUsers", ctx, groupID)
+	ret0, _ := ret[0].([]*repository.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetGroupInvitedUsers indicates an expected call of GetGroupInvitedUsers.
+func (mr *MockGroupRepoMockRecorder) GetGroupInvitedUsers(ctx, groupID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGroupInvitedUsers", reflect.TypeOf((*MockGroupRepo)(nil).GetGroupInvitedUsers), ctx, groupID)
+}
+
 // GetGroupUsers mocks base method.
 func (m *MockGroupRepo) GetGroupUsers(ctx context.Context, groupID string) ([]*repository.User, error) {
 	m.ctrl.T.Helper()
@@ -350,6 +407,36 @@ func (m *MockGroupRepo) GetGroupUsers(ctx context.Context, groupID string) ([]*r
 func (mr *MockGroupRepoMockRecorder) GetGroupUsers(ctx, groupID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGroupUsers", reflect.TypeOf((*MockGroupRepo)(nil).GetGroupUsers), ctx, groupID)
+}
+
+// GetInvitedGroups mocks base method.
+func (m *MockGroupRepo) GetInvitedGroups(ctx context.Context, userID string) ([]*repository.Group, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetInvitedGroups", ctx, userID)
+	ret0, _ := ret[0].([]*repository.Group)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetInvitedGroups indicates an expected call of GetInvitedGroups.
+func (mr *MockGroupRepoMockRecorder) GetInvitedGroups(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInvitedGroups", reflect.TypeOf((*MockGroupRepo)(nil).GetInvitedGroups), ctx, userID)
+}
+
+// GetInvitedUserIDs mocks base method.
+func (m *MockGroupRepo) GetInvitedUserIDs(ctx context.Context, groupID string) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetInvitedUserIDs", ctx, groupID)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetInvitedUserIDs indicates an expected call of GetInvitedUserIDs.
+func (mr *MockGroupRepoMockRecorder) GetInvitedUserIDs(ctx, groupID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInvitedUserIDs", reflect.TypeOf((*MockGroupRepo)(nil).GetInvitedUserIDs), ctx, groupID)
 }
 
 // GetMemberCount mocks base method.
@@ -397,6 +484,21 @@ func (mr *MockGroupRepoMockRecorder) GetUserGroups(ctx, userID any) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserGroups", reflect.TypeOf((*MockGroupRepo)(nil).GetUserGroups), ctx, userID)
 }
 
+// IsInvited mocks base method.
+func (m *MockGroupRepo) IsInvited(ctx context.Context, groupID, userID string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsInvited", ctx, groupID, userID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsInvited indicates an expected call of IsInvited.
+func (mr *MockGroupRepoMockRecorder) IsInvited(ctx, groupID, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsInvited", reflect.TypeOf((*MockGroupRepo)(nil).IsInvited), ctx, groupID, userID)
+}
+
 // IsMember mocks base method.
 func (m *MockGroupRepo) IsMember(ctx context.Context, groupID, userID string) (bool, error) {
 	m.ctrl.T.Helper()
@@ -410,6 +512,48 @@ func (m *MockGroupRepo) IsMember(ctx context.Context, groupID, userID string) (b
 func (mr *MockGroupRepoMockRecorder) IsMember(ctx, groupID, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsMember", reflect.TypeOf((*MockGroupRepo)(nil).IsMember), ctx, groupID, userID)
+}
+
+// RemoveInvitation mocks base method.
+func (m *MockGroupRepo) RemoveInvitation(ctx context.Context, groupID, userID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveInvitation", ctx, groupID, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveInvitation indicates an expected call of RemoveInvitation.
+func (mr *MockGroupRepoMockRecorder) RemoveInvitation(ctx, groupID, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveInvitation", reflect.TypeOf((*MockGroupRepo)(nil).RemoveInvitation), ctx, groupID, userID)
+}
+
+// RemoveMember mocks base method.
+func (m *MockGroupRepo) RemoveMember(ctx context.Context, groupID, userID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveMember", ctx, groupID, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveMember indicates an expected call of RemoveMember.
+func (mr *MockGroupRepoMockRecorder) RemoveMember(ctx, groupID, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveMember", reflect.TypeOf((*MockGroupRepo)(nil).RemoveMember), ctx, groupID, userID)
+}
+
+// RemoveMemberIfExists mocks base method.
+func (m *MockGroupRepo) RemoveMemberIfExists(ctx context.Context, groupID, userID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveMemberIfExists", ctx, groupID, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveMemberIfExists indicates an expected call of RemoveMemberIfExists.
+func (mr *MockGroupRepoMockRecorder) RemoveMemberIfExists(ctx, groupID, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveMemberIfExists", reflect.TypeOf((*MockGroupRepo)(nil).RemoveMemberIfExists), ctx, groupID, userID)
 }
 
 // UpdateGroup mocks base method.
@@ -642,4 +786,18 @@ func (m *MockNotificationServiceClient) DeleteAllForUser(ctx context.Context, us
 func (mr *MockNotificationServiceClientMockRecorder) DeleteAllForUser(ctx, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAllForUser", reflect.TypeOf((*MockNotificationServiceClient)(nil).DeleteAllForUser), ctx, userID)
+}
+
+// MarkAsReadByType mocks base method.
+func (m *MockNotificationServiceClient) MarkAsReadByType(ctx context.Context, userID, notifType, relatedEntityID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MarkAsReadByType", ctx, userID, notifType, relatedEntityID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MarkAsReadByType indicates an expected call of MarkAsReadByType.
+func (mr *MockNotificationServiceClientMockRecorder) MarkAsReadByType(ctx, userID, notifType, relatedEntityID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkAsReadByType", reflect.TypeOf((*MockNotificationServiceClient)(nil).MarkAsReadByType), ctx, userID, notifType, relatedEntityID)
 }

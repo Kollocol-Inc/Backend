@@ -36,6 +36,12 @@ const (
 	UserService_GetUsersByIDs_FullMethodName                = "/user.UserService/GetUsersByIDs"
 	UserService_GetGroupMemberIDs_FullMethodName            = "/user.UserService/GetGroupMemberIDs"
 	UserService_GetNotificationSettingsBatch_FullMethodName = "/user.UserService/GetNotificationSettingsBatch"
+	UserService_UploadGroupAvatar_FullMethodName            = "/user.UserService/UploadGroupAvatar"
+	UserService_AcceptGroupInvite_FullMethodName            = "/user.UserService/AcceptGroupInvite"
+	UserService_DeclineGroupInvite_FullMethodName           = "/user.UserService/DeclineGroupInvite"
+	UserService_InviteGroupMembers_FullMethodName           = "/user.UserService/InviteGroupMembers"
+	UserService_KickGroupMembers_FullMethodName             = "/user.UserService/KickGroupMembers"
+	UserService_LeaveGroup_FullMethodName                   = "/user.UserService/LeaveGroup"
 )
 
 // UserServiceClient is the client API for UserService service.
@@ -59,6 +65,12 @@ type UserServiceClient interface {
 	GetUsersByIDs(ctx context.Context, in *GetUsersByIDsRequest, opts ...grpc.CallOption) (*GetUsersByIDsResponse, error)
 	GetGroupMemberIDs(ctx context.Context, in *GetGroupMemberIDsRequest, opts ...grpc.CallOption) (*GetGroupMemberIDsResponse, error)
 	GetNotificationSettingsBatch(ctx context.Context, in *GetNotificationSettingsBatchRequest, opts ...grpc.CallOption) (*GetNotificationSettingsBatchResponse, error)
+	UploadGroupAvatar(ctx context.Context, in *UploadGroupAvatarRequest, opts ...grpc.CallOption) (*UploadGroupAvatarResponse, error)
+	AcceptGroupInvite(ctx context.Context, in *AcceptGroupInviteRequest, opts ...grpc.CallOption) (*AcceptGroupInviteResponse, error)
+	DeclineGroupInvite(ctx context.Context, in *DeclineGroupInviteRequest, opts ...grpc.CallOption) (*DeclineGroupInviteResponse, error)
+	InviteGroupMembers(ctx context.Context, in *InviteGroupMembersRequest, opts ...grpc.CallOption) (*InviteGroupMembersResponse, error)
+	KickGroupMembers(ctx context.Context, in *KickGroupMembersRequest, opts ...grpc.CallOption) (*KickGroupMembersResponse, error)
+	LeaveGroup(ctx context.Context, in *LeaveGroupRequest, opts ...grpc.CallOption) (*LeaveGroupResponse, error)
 }
 
 type userServiceClient struct {
@@ -239,6 +251,66 @@ func (c *userServiceClient) GetNotificationSettingsBatch(ctx context.Context, in
 	return out, nil
 }
 
+func (c *userServiceClient) UploadGroupAvatar(ctx context.Context, in *UploadGroupAvatarRequest, opts ...grpc.CallOption) (*UploadGroupAvatarResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UploadGroupAvatarResponse)
+	err := c.cc.Invoke(ctx, UserService_UploadGroupAvatar_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) AcceptGroupInvite(ctx context.Context, in *AcceptGroupInviteRequest, opts ...grpc.CallOption) (*AcceptGroupInviteResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AcceptGroupInviteResponse)
+	err := c.cc.Invoke(ctx, UserService_AcceptGroupInvite_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) DeclineGroupInvite(ctx context.Context, in *DeclineGroupInviteRequest, opts ...grpc.CallOption) (*DeclineGroupInviteResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeclineGroupInviteResponse)
+	err := c.cc.Invoke(ctx, UserService_DeclineGroupInvite_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) InviteGroupMembers(ctx context.Context, in *InviteGroupMembersRequest, opts ...grpc.CallOption) (*InviteGroupMembersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InviteGroupMembersResponse)
+	err := c.cc.Invoke(ctx, UserService_InviteGroupMembers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) KickGroupMembers(ctx context.Context, in *KickGroupMembersRequest, opts ...grpc.CallOption) (*KickGroupMembersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(KickGroupMembersResponse)
+	err := c.cc.Invoke(ctx, UserService_KickGroupMembers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) LeaveGroup(ctx context.Context, in *LeaveGroupRequest, opts ...grpc.CallOption) (*LeaveGroupResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LeaveGroupResponse)
+	err := c.cc.Invoke(ctx, UserService_LeaveGroup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserServiceServer is the server API for UserService service.
 // All implementations must embed UnimplementedUserServiceServer
 // for forward compatibility.
@@ -260,6 +332,12 @@ type UserServiceServer interface {
 	GetUsersByIDs(context.Context, *GetUsersByIDsRequest) (*GetUsersByIDsResponse, error)
 	GetGroupMemberIDs(context.Context, *GetGroupMemberIDsRequest) (*GetGroupMemberIDsResponse, error)
 	GetNotificationSettingsBatch(context.Context, *GetNotificationSettingsBatchRequest) (*GetNotificationSettingsBatchResponse, error)
+	UploadGroupAvatar(context.Context, *UploadGroupAvatarRequest) (*UploadGroupAvatarResponse, error)
+	AcceptGroupInvite(context.Context, *AcceptGroupInviteRequest) (*AcceptGroupInviteResponse, error)
+	DeclineGroupInvite(context.Context, *DeclineGroupInviteRequest) (*DeclineGroupInviteResponse, error)
+	InviteGroupMembers(context.Context, *InviteGroupMembersRequest) (*InviteGroupMembersResponse, error)
+	KickGroupMembers(context.Context, *KickGroupMembersRequest) (*KickGroupMembersResponse, error)
+	LeaveGroup(context.Context, *LeaveGroupRequest) (*LeaveGroupResponse, error)
 	mustEmbedUnimplementedUserServiceServer()
 }
 
@@ -320,6 +398,24 @@ func (UnimplementedUserServiceServer) GetGroupMemberIDs(context.Context, *GetGro
 }
 func (UnimplementedUserServiceServer) GetNotificationSettingsBatch(context.Context, *GetNotificationSettingsBatchRequest) (*GetNotificationSettingsBatchResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetNotificationSettingsBatch not implemented")
+}
+func (UnimplementedUserServiceServer) UploadGroupAvatar(context.Context, *UploadGroupAvatarRequest) (*UploadGroupAvatarResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UploadGroupAvatar not implemented")
+}
+func (UnimplementedUserServiceServer) AcceptGroupInvite(context.Context, *AcceptGroupInviteRequest) (*AcceptGroupInviteResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AcceptGroupInvite not implemented")
+}
+func (UnimplementedUserServiceServer) DeclineGroupInvite(context.Context, *DeclineGroupInviteRequest) (*DeclineGroupInviteResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeclineGroupInvite not implemented")
+}
+func (UnimplementedUserServiceServer) InviteGroupMembers(context.Context, *InviteGroupMembersRequest) (*InviteGroupMembersResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method InviteGroupMembers not implemented")
+}
+func (UnimplementedUserServiceServer) KickGroupMembers(context.Context, *KickGroupMembersRequest) (*KickGroupMembersResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method KickGroupMembers not implemented")
+}
+func (UnimplementedUserServiceServer) LeaveGroup(context.Context, *LeaveGroupRequest) (*LeaveGroupResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LeaveGroup not implemented")
 }
 func (UnimplementedUserServiceServer) mustEmbedUnimplementedUserServiceServer() {}
 func (UnimplementedUserServiceServer) testEmbeddedByValue()                     {}
@@ -648,6 +744,114 @@ func _UserService_GetNotificationSettingsBatch_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserService_UploadGroupAvatar_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UploadGroupAvatarRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).UploadGroupAvatar(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_UploadGroupAvatar_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).UploadGroupAvatar(ctx, req.(*UploadGroupAvatarRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_AcceptGroupInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AcceptGroupInviteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).AcceptGroupInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_AcceptGroupInvite_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).AcceptGroupInvite(ctx, req.(*AcceptGroupInviteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_DeclineGroupInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeclineGroupInviteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).DeclineGroupInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_DeclineGroupInvite_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).DeclineGroupInvite(ctx, req.(*DeclineGroupInviteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_InviteGroupMembers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InviteGroupMembersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).InviteGroupMembers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_InviteGroupMembers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).InviteGroupMembers(ctx, req.(*InviteGroupMembersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_KickGroupMembers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(KickGroupMembersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).KickGroupMembers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_KickGroupMembers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).KickGroupMembers(ctx, req.(*KickGroupMembersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_LeaveGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LeaveGroupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).LeaveGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_LeaveGroup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).LeaveGroup(ctx, req.(*LeaveGroupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // UserService_ServiceDesc is the grpc.ServiceDesc for UserService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -722,6 +926,30 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetNotificationSettingsBatch",
 			Handler:    _UserService_GetNotificationSettingsBatch_Handler,
+		},
+		{
+			MethodName: "UploadGroupAvatar",
+			Handler:    _UserService_UploadGroupAvatar_Handler,
+		},
+		{
+			MethodName: "AcceptGroupInvite",
+			Handler:    _UserService_AcceptGroupInvite_Handler,
+		},
+		{
+			MethodName: "DeclineGroupInvite",
+			Handler:    _UserService_DeclineGroupInvite_Handler,
+		},
+		{
+			MethodName: "InviteGroupMembers",
+			Handler:    _UserService_InviteGroupMembers_Handler,
+		},
+		{
+			MethodName: "KickGroupMembers",
+			Handler:    _UserService_KickGroupMembers_Handler,
+		},
+		{
+			MethodName: "LeaveGroup",
+			Handler:    _UserService_LeaveGroup_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

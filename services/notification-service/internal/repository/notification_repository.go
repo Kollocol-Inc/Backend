@@ -11,13 +11,14 @@ import (
 )
 
 type Notification struct {
-	ID        string
-	UserID    string
-	Type      string
-	Title     string
-	Content   string
-	IsRead    bool
-	CreatedAt time.Time
+	ID              string
+	UserID          string
+	Type            string
+	Title           string
+	Content         string
+	IsRead          bool
+	CreatedAt       time.Time
+	RelatedEntityID string
 }
 
 type NotificationRepository struct {
@@ -39,9 +40,14 @@ func (r *NotificationRepository) CreateNotification(ctx context.Context, notific
 	}
 
 	query := `
-		INSERT INTO notifications (id, user_id, type, title, content, is_read, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO notifications (id, user_id, type, title, content, is_read, created_at, related_entity_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
+
+	var relatedEntityID sql.NullString
+	if notification.RelatedEntityID != "" {
+		relatedEntityID = sql.NullString{String: notification.RelatedEntityID, Valid: true}
+	}
 
 	_, err := r.db.ExecContext(ctx, query,
 		notification.ID,
@@ -51,6 +57,7 @@ func (r *NotificationRepository) CreateNotification(ctx context.Context, notific
 		notification.Content,
 		notification.IsRead,
 		notification.CreatedAt,
+		relatedEntityID,
 	)
 
 	if err != nil {
@@ -68,7 +75,7 @@ func (r *NotificationRepository) GetNotifications(ctx context.Context, userID st
 	}
 
 	query := `
-		SELECT id, user_id, type, title, content, is_read, created_at
+		SELECT id, user_id, type, title, content, is_read, created_at, related_entity_id
 		FROM notifications
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -84,8 +91,12 @@ func (r *NotificationRepository) GetNotifications(ctx context.Context, userID st
 	var notifications []*Notification
 	for rows.Next() {
 		n := &Notification{}
-		if err := rows.Scan(&n.ID, &n.UserID, &n.Type, &n.Title, &n.Content, &n.IsRead, &n.CreatedAt); err != nil {
+		var relatedEntityID sql.NullString
+		if err := rows.Scan(&n.ID, &n.UserID, &n.Type, &n.Title, &n.Content, &n.IsRead, &n.CreatedAt, &relatedEntityID); err != nil {
 			return nil, 0, fmt.Errorf("failed to scan notification: %w", err)
+		}
+		if relatedEntityID.Valid {
+			n.RelatedEntityID = relatedEntityID.String
 		}
 		notifications = append(notifications, n)
 	}
@@ -110,6 +121,23 @@ func (r *NotificationRepository) MarkAsRead(ctx context.Context, notificationIDs
 
 	if _, err := r.db.ExecContext(ctx, query, pq.Array(notificationIDs), userID); err != nil {
 		return fmt.Errorf("failed to mark notifications as read: %w", err)
+	}
+
+	return nil
+}
+
+func (r *NotificationRepository) MarkAsReadByType(ctx context.Context, userID, notifType, relatedEntityID string) error {
+	query := `
+		UPDATE notifications
+		SET is_read = true
+		WHERE user_id = $1
+		  AND type = $2
+		  AND related_entity_id = $3
+		  AND is_read = false
+	`
+
+	if _, err := r.db.ExecContext(ctx, query, userID, notifType, relatedEntityID); err != nil {
+		return fmt.Errorf("failed to mark notifications as read by type: %w", err)
 	}
 
 	return nil

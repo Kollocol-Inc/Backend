@@ -126,9 +126,15 @@ func main() {
 	{
 		groupsGroup.POST("", userHandler.CreateGroup)
 		groupsGroup.GET("", userHandler.GetGroups)
+		groupsGroup.POST("/avatar/upload", userHandler.UploadGroupAvatar)
 		groupsGroup.GET("/:id", userHandler.GetGroup)
 		groupsGroup.PUT("/:id", userHandler.UpdateGroup)
 		groupsGroup.DELETE("/:id", userHandler.DeleteGroup)
+		groupsGroup.POST("/:id/accept", userHandler.AcceptGroupInvite)
+		groupsGroup.POST("/:id/decline", userHandler.DeclineGroupInvite)
+		groupsGroup.POST("/:id/invite", userHandler.InviteGroupMembers)
+		groupsGroup.POST("/:id/kick", userHandler.KickGroupMembers)
+		groupsGroup.POST("/:id/leave", userHandler.LeaveGroup)
 	}
 
 	quizzesGroup := router.Group("/quizzes")

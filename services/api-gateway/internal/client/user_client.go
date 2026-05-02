@@ -85,10 +85,12 @@ func (c *UserClient) UpdateNotificationSettings(ctx context.Context, req *pb.Upd
 	return c.client.UpdateNotificationSettings(ctx, req)
 }
 
-func (c *UserClient) CreateGroup(ctx context.Context, ownerID, name string, memberEmails []string) (*pb.CreateGroupResponse, error) {
+func (c *UserClient) CreateGroup(ctx context.Context, ownerID, name, description, avatarURL string, memberEmails []string) (*pb.CreateGroupResponse, error) {
 	return c.client.CreateGroup(ctx, &pb.CreateGroupRequest{
 		OwnerId:      ownerID,
 		Name:         name,
+		Description:  description,
+		AvatarUrl:    avatarURL,
 		MemberEmails: memberEmails,
 	})
 }
@@ -107,12 +109,58 @@ func (c *UserClient) GetGroup(ctx context.Context, groupID, userID string) (*pb.
 	})
 }
 
-func (c *UserClient) UpdateGroup(ctx context.Context, groupID, userID, name string, memberEmails []string) (*pb.UpdateGroupResponse, error) {
+func (c *UserClient) UpdateGroup(ctx context.Context, groupID, userID string, name, description, avatarURL *string) (*pb.UpdateGroupResponse, error) {
 	return c.client.UpdateGroup(ctx, &pb.UpdateGroupRequest{
-		GroupId:      groupID,
-		UserId:       userID,
-		Name:         name,
-		MemberEmails: memberEmails,
+		GroupId:     groupID,
+		UserId:      userID,
+		Name:        name,
+		Description: description,
+		AvatarUrl:   avatarURL,
+	})
+}
+
+func (c *UserClient) AcceptGroupInvite(ctx context.Context, groupID, userID string) (*pb.AcceptGroupInviteResponse, error) {
+	return c.client.AcceptGroupInvite(ctx, &pb.AcceptGroupInviteRequest{
+		GroupId: groupID,
+		UserId:  userID,
+	})
+}
+
+func (c *UserClient) DeclineGroupInvite(ctx context.Context, groupID, userID string) (*pb.DeclineGroupInviteResponse, error) {
+	return c.client.DeclineGroupInvite(ctx, &pb.DeclineGroupInviteRequest{
+		GroupId: groupID,
+		UserId:  userID,
+	})
+}
+
+func (c *UserClient) InviteGroupMembers(ctx context.Context, groupID, userID string, emails []string) (*pb.InviteGroupMembersResponse, error) {
+	return c.client.InviteGroupMembers(ctx, &pb.InviteGroupMembersRequest{
+		GroupId: groupID,
+		UserId:  userID,
+		Emails:  emails,
+	})
+}
+
+func (c *UserClient) KickGroupMembers(ctx context.Context, groupID, userID string, emails []string) (*pb.KickGroupMembersResponse, error) {
+	return c.client.KickGroupMembers(ctx, &pb.KickGroupMembersRequest{
+		GroupId: groupID,
+		UserId:  userID,
+		Emails:  emails,
+	})
+}
+
+func (c *UserClient) LeaveGroup(ctx context.Context, groupID, userID string) (*pb.LeaveGroupResponse, error) {
+	return c.client.LeaveGroup(ctx, &pb.LeaveGroupRequest{
+		GroupId: groupID,
+		UserId:  userID,
+	})
+}
+
+func (c *UserClient) UploadGroupAvatar(ctx context.Context, userID string, avatarData []byte, filename string) (*pb.UploadGroupAvatarResponse, error) {
+	return c.client.UploadGroupAvatar(ctx, &pb.UploadGroupAvatarRequest{
+		UserId:         userID,
+		AvatarData:     avatarData,
+		AvatarFilename: filename,
 	})
 }
 
