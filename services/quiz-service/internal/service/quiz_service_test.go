@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -216,6 +218,7 @@ func TestCreateInstance_WithGroupAndDeadline(t *testing.T) {
 	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1", QuizType: "async", Settings: "{}"}
 	templateRepo.EXPECT().GetTemplateByID(ctx, "tmpl-1").Return(template, nil)
 	templateRepo.EXPECT().GetQuestionsByTemplateID(ctx, "tmpl-1").Return([]*repository.Question{}, nil)
+	userClient.EXPECT().CheckGroupMembership(ctx, "group-1", "user-1").Return(true, "owner", nil)
 	instanceRepo.EXPECT().CreateInstance(ctx, gomock.Any()).DoAndReturn(func(_ context.Context, inst *repository.Instance) error {
 		assert.True(t, inst.GroupID.Valid)
 		assert.Equal(t, "group-1", inst.GroupID.String)
@@ -242,6 +245,44 @@ func TestCreateInstance_WithGroupAndDeadline(t *testing.T) {
 		Deadline:   deadline,
 	})
 	require.NoError(t, err)
+}
+
+func TestCreateInstance_GroupNonOwner_Forbidden(t *testing.T) {
+	svc, templateRepo, _, _, userClient, _ := setupTest(t)
+	ctx := context.Background()
+
+	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1", QuizType: "async", Settings: "{}"}
+	templateRepo.EXPECT().GetTemplateByID(ctx, "tmpl-1").Return(template, nil)
+	templateRepo.EXPECT().GetQuestionsByTemplateID(ctx, "tmpl-1").Return([]*repository.Question{}, nil)
+	userClient.EXPECT().CheckGroupMembership(ctx, "group-1", "user-1").Return(true, "member", nil)
+
+	_, err := svc.CreateInstance(ctx, &pb.CreateInstanceRequest{
+		TemplateId: "tmpl-1",
+		UserId:     "user-1",
+		Title:      "Group Quiz",
+		GroupId:    "group-1",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "group owner")
+}
+
+func TestCreateInstance_NotInGroup_Forbidden(t *testing.T) {
+	svc, templateRepo, _, _, userClient, _ := setupTest(t)
+	ctx := context.Background()
+
+	template := &repository.Template{ID: "tmpl-1", OwnerID: "user-1", QuizType: "async", Settings: "{}"}
+	templateRepo.EXPECT().GetTemplateByID(ctx, "tmpl-1").Return(template, nil)
+	templateRepo.EXPECT().GetQuestionsByTemplateID(ctx, "tmpl-1").Return([]*repository.Question{}, nil)
+	userClient.EXPECT().CheckGroupMembership(ctx, "group-1", "user-1").Return(false, "", nil)
+
+	_, err := svc.CreateInstance(ctx, &pb.CreateInstanceRequest{
+		TemplateId: "tmpl-1",
+		UserId:     "user-1",
+		Title:      "Group Quiz",
+		GroupId:    "group-1",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "group owner")
 }
 
 func TestCreateInstance_DeadlineRejectedForSync(t *testing.T) {
@@ -377,12 +418,12 @@ func TestGetInstanceByAccessCode_GroupNonMember(t *testing.T) {
 	instanceRepo.EXPECT().GetInstanceByAccessCode(ctx, "123456").Return(instance, nil)
 	userClient.EXPECT().CheckGroupMembership(ctx, "group-1", "user-3").Return(false, "", nil)
 
-	resp, err := svc.GetInstanceByAccessCode(ctx, &pb.GetInstanceByAccessCodeRequest{
+	_, err := svc.GetInstanceByAccessCode(ctx, &pb.GetInstanceByAccessCodeRequest{
 		AccessCode: "123456",
 		UserId:     "user-3",
 	})
-	require.NoError(t, err)
-	assert.False(t, resp.HasAccess)
+	require.Error(t, err)
+	assert.Equal(t, codes.PermissionDenied, status.Code(err))
 }
 
 func TestGetInstanceByAccessCode_NotFound(t *testing.T) {
@@ -391,13 +432,12 @@ func TestGetInstanceByAccessCode_NotFound(t *testing.T) {
 
 	instanceRepo.EXPECT().GetInstanceByAccessCode(ctx, "999999").Return(nil, fmt.Errorf("not found"))
 
-	resp, err := svc.GetInstanceByAccessCode(ctx, &pb.GetInstanceByAccessCodeRequest{
+	_, err := svc.GetInstanceByAccessCode(ctx, &pb.GetInstanceByAccessCodeRequest{
 		AccessCode: "999999",
 		UserId:     "user-1",
 	})
-	require.NoError(t, err)
-	assert.False(t, resp.HasAccess)
-	assert.Nil(t, resp.Instance)
+	require.Error(t, err)
+	assert.Equal(t, codes.NotFound, status.Code(err))
 }
 
 func TestGetInstance_Success(t *testing.T) {
@@ -415,10 +455,88 @@ func TestGetInstance_Success(t *testing.T) {
 	}
 	instanceRepo.EXPECT().GetInstanceWithQuestions(ctx, "inst-1").Return(instWithQ, nil)
 
-	resp, err := svc.GetInstance(ctx, &pb.GetInstanceRequest{InstanceId: "inst-1"})
+	resp, err := svc.GetInstance(ctx, &pb.GetInstanceRequest{InstanceId: "inst-1", UserId: "user-1"})
 	require.NoError(t, err)
 	assert.Equal(t, "Test", resp.Instance.Title)
 	assert.Len(t, resp.Questions, 1)
+}
+
+func TestGetInstance_PublicQuiz_AnyoneAllowed(t *testing.T) {
+	svc, _, instanceRepo, _, _, _ := setupTest(t)
+	ctx := context.Background()
+
+	instWithQ := &repository.InstanceWithQuestions{
+		Instance: &repository.Instance{
+			ID: "inst-1", Title: "Public", CreatedBy: "user-1",
+			QuizType: "sync", Settings: "{}", Status: "waiting",
+			GroupID: sql.NullString{Valid: false},
+		},
+		Questions: []*repository.Question{},
+	}
+	instanceRepo.EXPECT().GetInstanceWithQuestions(ctx, "inst-1").Return(instWithQ, nil)
+
+	resp, err := svc.GetInstance(ctx, &pb.GetInstanceRequest{InstanceId: "inst-1", UserId: "stranger"})
+	require.NoError(t, err)
+	assert.Equal(t, "Public", resp.Instance.Title)
+}
+
+func TestGetInstance_CreatorOfGroupQuiz_SkipsMembershipCheck(t *testing.T) {
+	svc, _, instanceRepo, _, _, _ := setupTest(t)
+	ctx := context.Background()
+
+	instWithQ := &repository.InstanceWithQuestions{
+		Instance: &repository.Instance{
+			ID: "inst-1", Title: "Group Quiz", CreatedBy: "creator",
+			QuizType: "async", Settings: "{}", Status: "waiting",
+			GroupID: sql.NullString{String: "group-1", Valid: true},
+		},
+		Questions: []*repository.Question{},
+	}
+	instanceRepo.EXPECT().GetInstanceWithQuestions(ctx, "inst-1").Return(instWithQ, nil)
+
+	resp, err := svc.GetInstance(ctx, &pb.GetInstanceRequest{InstanceId: "inst-1", UserId: "creator"})
+	require.NoError(t, err)
+	assert.Equal(t, "Group Quiz", resp.Instance.Title)
+}
+
+func TestGetInstance_GroupMember_Allowed(t *testing.T) {
+	svc, _, instanceRepo, _, userClient, _ := setupTest(t)
+	ctx := context.Background()
+
+	instWithQ := &repository.InstanceWithQuestions{
+		Instance: &repository.Instance{
+			ID: "inst-1", Title: "Group Quiz", CreatedBy: "user-1",
+			QuizType: "async", Settings: "{}", Status: "waiting",
+			GroupID: sql.NullString{String: "group-1", Valid: true},
+		},
+		Questions: []*repository.Question{},
+	}
+	instanceRepo.EXPECT().GetInstanceWithQuestions(ctx, "inst-1").Return(instWithQ, nil)
+	userClient.EXPECT().CheckGroupMembership(ctx, "group-1", "user-2").Return(true, "member", nil)
+
+	resp, err := svc.GetInstance(ctx, &pb.GetInstanceRequest{InstanceId: "inst-1", UserId: "user-2"})
+	require.NoError(t, err)
+	assert.Equal(t, "Group Quiz", resp.Instance.Title)
+}
+
+func TestGetInstance_NonMember_Forbidden(t *testing.T) {
+	svc, _, instanceRepo, _, userClient, _ := setupTest(t)
+	ctx := context.Background()
+
+	instWithQ := &repository.InstanceWithQuestions{
+		Instance: &repository.Instance{
+			ID: "inst-1", Title: "Group Quiz", CreatedBy: "user-1",
+			QuizType: "async", Settings: "{}", Status: "waiting",
+			GroupID: sql.NullString{String: "group-1", Valid: true},
+		},
+		Questions: []*repository.Question{},
+	}
+	instanceRepo.EXPECT().GetInstanceWithQuestions(ctx, "inst-1").Return(instWithQ, nil)
+	userClient.EXPECT().CheckGroupMembership(ctx, "group-1", "stranger").Return(false, "", nil)
+
+	_, err := svc.GetInstance(ctx, &pb.GetInstanceRequest{InstanceId: "inst-1", UserId: "stranger"})
+	require.Error(t, err)
+	assert.Equal(t, codes.PermissionDenied, status.Code(err))
 }
 
 func TestQuestionInputToDB_SingleChoice(t *testing.T) {

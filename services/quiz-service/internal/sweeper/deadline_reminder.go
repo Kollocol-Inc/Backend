@@ -60,15 +60,16 @@ func (s *DeadlineReminderSweeper) Run(ctx context.Context) {
 }
 
 type upcomingInstance struct {
-	ID       string
-	Title    string
-	GroupID  sql.NullString
-	Deadline time.Time
+	ID        string
+	Title     string
+	GroupID   sql.NullString
+	Deadline  time.Time
+	CreatedBy string
 }
 
 func (s *DeadlineReminderSweeper) sweep(ctx context.Context) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, title, group_id, deadline
+		SELECT id, title, group_id, deadline, created_by
 		FROM quiz_instances
 		WHERE quiz_type = 'async'
 		  AND deadline IS NOT NULL
@@ -84,7 +85,7 @@ func (s *DeadlineReminderSweeper) sweep(ctx context.Context) {
 	var instances []upcomingInstance
 	for rows.Next() {
 		var inst upcomingInstance
-		if err := rows.Scan(&inst.ID, &inst.Title, &inst.GroupID, &inst.Deadline); err != nil {
+		if err := rows.Scan(&inst.ID, &inst.Title, &inst.GroupID, &inst.Deadline, &inst.CreatedBy); err != nil {
 			log.Printf("deadline_reminder sweeper: scan error: %v", err)
 			continue
 		}
@@ -141,6 +142,15 @@ func (s *DeadlineReminderSweeper) processInstance(ctx context.Context, inst upco
 		log.Printf("deadline_reminder sweeper: GetGroupMemberIDs failed for instance %s: %v", inst.ID, err)
 		return
 	}
+
+	filtered := make([]string, 0, len(memberIDs))
+	for _, id := range memberIDs {
+		if id != inst.CreatedBy {
+			filtered = append(filtered, id)
+		}
+	}
+	memberIDs = filtered
+
 	if len(memberIDs) == 0 {
 		return
 	}

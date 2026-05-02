@@ -13,6 +13,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var upgrader = websocket.Upgrader{
@@ -48,6 +50,21 @@ func (h *WebSocketHandler) TerminateInstance(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+func writeQuizAccessError(c *gin.Context, err error, notFoundMsg, deniedMsg, defaultMsg string) {
+	if st, ok := status.FromError(err); ok {
+		switch st.Code() {
+		case codes.NotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": notFoundMsg})
+			return
+		case codes.PermissionDenied:
+			c.JSON(http.StatusForbidden, gin.H{"error": deniedMsg})
+			return
+		}
+	}
+	log.Printf("%s: %v", defaultMsg, err)
+	c.JSON(http.StatusInternalServerError, gin.H{"error": defaultMsg})
+}
+
 func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	userID := c.GetHeader("X-User-ID")
 	if userID == "" {
@@ -70,18 +87,7 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	if instanceID == "" && accessCode != "" {
 		resp, err := h.quizClient.GetInstanceByAccessCode(ctx, accessCode, userID)
 		if err != nil {
-			log.Printf("Failed to resolve access code: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to resolve access code"})
-			return
-		}
-
-		if resp.Instance == nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": resp.ErrorMessage})
-			return
-		}
-
-		if !resp.HasAccess {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to this quiz"})
+			writeQuizAccessError(c, err, "Quiz not found", "Access denied to this quiz", "Failed to resolve access code")
 			return
 		}
 
@@ -90,13 +96,7 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	} else {
 		resp, err := h.quizClient.GetInstance(ctx, instanceID, userID)
 		if err != nil {
-			log.Printf("Failed to get instance: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get quiz instance"})
-			return
-		}
-
-		if resp.Instance == nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Quiz instance not found"})
+			writeQuizAccessError(c, err, "Quiz instance not found", "Access denied to this quiz", "Failed to get quiz instance")
 			return
 		}
 
