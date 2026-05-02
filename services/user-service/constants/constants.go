@@ -1,5 +1,6 @@
 package constants
 
 const (
-	AvatarBucketName = "user-avatars"
+	AvatarBucketName      = "user-avatars"
+	GroupAvatarBucketName = "group-avatars"
 )

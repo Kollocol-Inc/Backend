@@ -4,11 +4,9 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"path/filepath"
 	"strings"
 
 	"user-service/constants"
@@ -40,19 +38,29 @@ type SettingsRepo interface {
 }
 
 type GroupRepo interface {
-	CreateGroup(ctx context.Context, name, ownerID string) (*repository.Group, error)
+	CreateGroup(ctx context.Context, name, description, avatarURL, ownerID string) (*repository.Group, error)
 	GetGroupByID(ctx context.Context, groupID string) (*repository.Group, error)
 	UpdateGroup(ctx context.Context, group *repository.Group) error
 	DeleteGroup(ctx context.Context, groupID string) error
 	DeleteOwnedGroups(ctx context.Context, ownerID string) error
 	DeleteUserMemberships(ctx context.Context, userID string) error
+	DeleteUserInvitations(ctx context.Context, userID string) error
 	AddMembers(ctx context.Context, groupID string, userIDs []string) error
+	RemoveMember(ctx context.Context, groupID, userID string) error
+	RemoveMemberIfExists(ctx context.Context, groupID, userID string) error
 	GetMemberIDs(ctx context.Context, groupID string) ([]string, error)
 	GetMemberCount(ctx context.Context, groupID string) (int32, error)
 	GetUserGroups(ctx context.Context, userID string) ([]*repository.Group, error)
 	GetCreatedGroups(ctx context.Context, ownerID string) ([]*repository.Group, error)
+	GetInvitedGroups(ctx context.Context, userID string) ([]*repository.Group, error)
 	IsMember(ctx context.Context, groupID, userID string) (bool, error)
 	GetGroupUsers(ctx context.Context, groupID string) ([]*repository.User, error)
+	GetGroupInvitedUsers(ctx context.Context, groupID string) ([]*repository.User, error)
+	AddInvitation(ctx context.Context, groupID, userID, inviterID string) error
+	RemoveInvitation(ctx context.Context, groupID, userID string) error
+	IsInvited(ctx context.Context, groupID, userID string) (bool, error)
+	AcceptInvitation(ctx context.Context, groupID, userID string) error
+	GetInvitedUserIDs(ctx context.Context, groupID string) ([]string, error)
 }
 
 type FileStorage interface {
@@ -75,6 +83,7 @@ type QuizServiceClient interface {
 
 type NotificationServiceClient interface {
 	DeleteAllForUser(ctx context.Context, userID string) error
+	MarkAsReadByType(ctx context.Context, userID, notifType, relatedEntityID string) error
 }
 
 type UserService struct {
@@ -299,244 +308,6 @@ func (s *UserService) UpdateNotificationSettings(ctx context.Context, req *pb.Up
 	}, nil
 }
 
-func (s *UserService) CreateGroup(ctx context.Context, req *pb.CreateGroupRequest) (*pb.CreateGroupResponse, error) {
-	usersMap, err := s.userRepo.GetUsersByEmailsMap(ctx, req.MemberEmails)
-	if err != nil {
-		log.Printf("Failed to get users by emails: %v", err)
-	}
-
-	var (
-		group       *repository.Group
-		addedEmails []string
-	)
-	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
-		var err error
-		group, err = s.groupRepo.CreateGroup(ctx, req.Name, req.OwnerId)
-		if err != nil {
-			return fmt.Errorf("create group: %w", err)
-		}
-
-		userIDs := []string{req.OwnerId}
-		for _, email := range req.MemberEmails {
-			user, exists := usersMap[email]
-			if !exists {
-				log.Printf("User not found for email %s", email)
-				continue
-			}
-			userIDs = append(userIDs, user.ID)
-			addedEmails = append(addedEmails, email)
-		}
-
-		if err := s.groupRepo.AddMembers(ctx, group.ID, userIDs); err != nil {
-			return fmt.Errorf("add members: %w", err)
-		}
-		return nil
-	})
-	if err != nil {
-		log.Printf("CreateGroup tx failed: %v", err)
-		return nil, errors.New(codes.Internal, errors.ReasonGroupCreateFailed, "Failed to create group", map[string]string{"owner_id": req.OwnerId})
-	}
-
-	for _, email := range addedEmails {
-		s.publishGroupInvite(ctx, group.ID, group.Name, req.OwnerId, email)
-	}
-
-	memberCount, _ := s.groupRepo.GetMemberCount(ctx, group.ID)
-	group.MemberCount = memberCount
-
-	return &pb.CreateGroupResponse{
-		Group: s.groupToProto(group),
-	}, nil
-}
-
-func (s *UserService) GetGroups(ctx context.Context, req *pb.GetGroupsRequest) (*pb.GetGroupsResponse, error) {
-	var groups []*repository.Group
-	var err error
-
-	switch req.Filter {
-	case "created":
-		groups, err = s.groupRepo.GetCreatedGroups(ctx, req.UserId)
-	case "my":
-		groups, err = s.groupRepo.GetUserGroups(ctx, req.UserId)
-	default:
-		return nil, errors.New(codes.InvalidArgument, errors.ReasonInvalidFilter, "Invalid filter", map[string]string{"filter": req.Filter})
-	}
-
-	if err != nil {
-		log.Printf("Failed to get groups: %v", err)
-		return nil, errors.New(codes.Internal, errors.ReasonGroupNotFound, "Failed to retrieve groups", map[string]string{"user_id": req.UserId})
-	}
-
-	protoGroups := make([]*pb.Group, len(groups))
-	for i, group := range groups {
-		protoGroups[i] = s.groupToProto(group)
-	}
-
-	return &pb.GetGroupsResponse{
-		Groups: protoGroups,
-	}, nil
-}
-
-func (s *UserService) GetGroup(ctx context.Context, req *pb.GetGroupRequest) (*pb.GetGroupResponse, error) {
-	group, err := s.groupRepo.GetGroupByID(ctx, req.GroupId)
-	if err != nil {
-		return nil, errors.New(codes.NotFound, errors.ReasonGroupNotFound, "Group not found", map[string]string{"group_id": req.GroupId})
-	}
-
-	isMember, err := s.groupRepo.IsMember(ctx, req.GroupId, req.UserId)
-	if err != nil || (!isMember && group.OwnerID != req.UserId) {
-		return nil, errors.New(codes.PermissionDenied, errors.ReasonAccessDenied, "Access denied", map[string]string{"group_id": req.GroupId, "user_id": req.UserId})
-	}
-
-	users, err := s.groupRepo.GetGroupUsers(ctx, req.GroupId)
-	if err != nil {
-		log.Printf("Failed to get group users: %v", err)
-		return nil, errors.New(codes.Internal, errors.ReasonMembersRetrieveFailed, "Failed to retrieve members", map[string]string{"group_id": req.GroupId})
-	}
-
-	members := make([]*pb.User, 0, len(users))
-	for _, user := range users {
-		members = append(members, s.userToProto(user))
-	}
-
-	return &pb.GetGroupResponse{
-		Group: &pb.GroupWithMembers{
-			Group:   s.groupToProto(group),
-			Members: members,
-		},
-	}, nil
-}
-
-func (s *UserService) UpdateGroup(ctx context.Context, req *pb.UpdateGroupRequest) (*pb.UpdateGroupResponse, error) {
-	group, err := s.groupRepo.GetGroupByID(ctx, req.GroupId)
-	if err != nil {
-		return nil, errors.New(codes.NotFound, errors.ReasonGroupNotFound, "Group not found", map[string]string{"group_id": req.GroupId})
-	}
-
-	if group.OwnerID != req.UserId {
-		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only group owner can update group", map[string]string{"group_id": req.GroupId, "user_id": req.UserId})
-	}
-
-	usersMap, err := s.userRepo.GetUsersByEmailsMap(ctx, req.MemberEmails)
-	if err != nil {
-		log.Printf("Failed to get users by emails: %v", err)
-	}
-
-	var addedEmails []string
-	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
-		if req.Name != "" {
-			group.Name = req.Name
-			if err := s.groupRepo.UpdateGroup(ctx, group); err != nil {
-				return fmt.Errorf("update group: %w", err)
-			}
-		}
-
-		if len(req.MemberEmails) == 0 {
-			return nil
-		}
-
-		existingMemberIDs, err := s.groupRepo.GetMemberIDs(ctx, req.GroupId)
-		if err != nil {
-			return fmt.Errorf("get member ids: %w", err)
-		}
-		existingMembersSet := make(map[string]bool, len(existingMemberIDs))
-		for _, id := range existingMemberIDs {
-			existingMembersSet[id] = true
-		}
-
-		newUserIDs := []string{}
-		for _, email := range req.MemberEmails {
-			user, exists := usersMap[email]
-			if !exists {
-				log.Printf("User not found for email %s", email)
-				continue
-			}
-			if existingMembersSet[user.ID] {
-				continue
-			}
-			newUserIDs = append(newUserIDs, user.ID)
-			addedEmails = append(addedEmails, email)
-		}
-
-		if len(newUserIDs) > 0 {
-			if err := s.groupRepo.AddMembers(ctx, req.GroupId, newUserIDs); err != nil {
-				return fmt.Errorf("add members: %w", err)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		log.Printf("UpdateGroup tx failed: %v", err)
-		return nil, errors.New(codes.Internal, errors.ReasonGroupUpdateFailed, "Failed to update group", map[string]string{"group_id": req.GroupId})
-	}
-
-	for _, email := range addedEmails {
-		s.publishGroupInvite(ctx, group.ID, group.Name, req.UserId, email)
-	}
-
-	memberCount, _ := s.groupRepo.GetMemberCount(ctx, req.GroupId)
-	group.MemberCount = memberCount
-
-	return &pb.UpdateGroupResponse{
-		Group: s.groupToProto(group),
-	}, nil
-}
-
-func (s *UserService) DeleteGroup(ctx context.Context, req *pb.DeleteGroupRequest) (*pb.DeleteGroupResponse, error) {
-	group, err := s.groupRepo.GetGroupByID(ctx, req.GroupId)
-	if err != nil {
-		return nil, errors.New(codes.NotFound, errors.ReasonGroupNotFound, "Group not found", map[string]string{"group_id": req.GroupId})
-	}
-
-	if group.OwnerID != req.UserId {
-		return nil, errors.New(codes.PermissionDenied, errors.ReasonUnauthorized, "Only group owner can delete group", map[string]string{"group_id": req.GroupId, "user_id": req.UserId})
-	}
-
-	if err := s.groupRepo.DeleteGroup(ctx, req.GroupId); err != nil {
-		log.Printf("Failed to delete group: %v", err)
-		return nil, errors.New(codes.Internal, errors.ReasonGroupDeleteFailed, "Failed to delete group", map[string]string{"group_id": req.GroupId})
-	}
-
-	return &pb.DeleteGroupResponse{}, nil
-}
-
-func (s *UserService) CheckGroupMembership(ctx context.Context, req *pb.CheckGroupMembershipRequest) (*pb.CheckGroupMembershipResponse, error) {
-	isMember, err := s.groupRepo.IsMember(ctx, req.GroupId, req.UserId)
-	if err != nil {
-		log.Printf("Failed to check group membership: %v", err)
-		return &pb.CheckGroupMembershipResponse{
-			IsMember: false,
-			Role:     "",
-		}, nil
-	}
-
-	if !isMember {
-		return &pb.CheckGroupMembershipResponse{
-			IsMember: false,
-			Role:     "",
-		}, nil
-	}
-
-	group, err := s.groupRepo.GetGroupByID(ctx, req.GroupId)
-	if err != nil {
-		log.Printf("Failed to get group: %v", err)
-		return &pb.CheckGroupMembershipResponse{
-			IsMember: true,
-			Role:     "member",
-		}, nil
-	}
-
-	role := "member"
-	if group.OwnerID == req.UserId {
-		role = "owner"
-	}
-
-	return &pb.CheckGroupMembershipResponse{
-		IsMember: true,
-		Role:     role,
-	}, nil
-}
-
 func (s *UserService) userToProto(user *repository.User) *pb.User {
 	return &pb.User{
 		Id:           user.ID,
@@ -558,59 +329,6 @@ func (s *UserService) settingsToProto(settings *repository.NotificationSettings)
 		GroupInvites:     settings.GroupInvites,
 		DeadlineReminder: settings.DeadlineReminder,
 		UpdatedAt:        settings.UpdatedAt.Unix(),
-	}
-}
-
-func (s *UserService) groupToProto(group *repository.Group) *pb.Group {
-	return &pb.Group{
-		Id:          group.ID,
-		Name:        group.Name,
-		OwnerId:     group.OwnerID,
-		CreatedAt:   group.CreatedAt.Unix(),
-		MemberCount: group.MemberCount,
-	}
-}
-
-func (s *UserService) publishGroupInvite(ctx context.Context, groupID, groupName, inviterID, inviteeEmail string) {
-	inviter, err := s.userRepo.GetUserByID(ctx, inviterID)
-	if err != nil {
-		log.Printf("Failed to get inviter: %v", err)
-		return
-	}
-
-	inviterName := inviter.FirstName + " " + inviter.LastName
-	if inviterName == " " {
-		inviterName = inviter.Email
-	}
-
-	inviteeUserID := ""
-	inviteeLanguage := string(lang.Default)
-	if invitee, err := s.userRepo.GetUserByEmail(ctx, inviteeEmail); err == nil && invitee != nil {
-		if invitee.IsRegistered {
-			settings, settingsErr := s.settingsRepo.GetOrCreateSettings(ctx, invitee.ID)
-			if settingsErr == nil && !settings.GroupInvites {
-				log.Printf("publishGroupInvite: user %s opted out of group_invites, skipping", invitee.ID)
-				return
-			}
-		}
-		inviteeUserID = invitee.ID
-		if invitee.Language != "" {
-			inviteeLanguage = invitee.Language
-		}
-	}
-
-	event := map[string]string{
-		"group_id":        groupID,
-		"group_name":      groupName,
-		"inviter_name":    inviterName,
-		"invitee_email":   inviteeEmail,
-		"invitee_user_id": inviteeUserID,
-		"language":        inviteeLanguage,
-	}
-	eventData, _ := json.Marshal(event)
-
-	if err := s.rabbitMQ.Publish(ctx, "user.group_invites", eventData); err != nil {
-		log.Printf("Failed to publish group_invite event: %v", err)
 	}
 }
 
@@ -646,15 +364,7 @@ func (s *UserService) uploadAvatar(ctx context.Context, userID, filename string,
 	}
 
 	objectName := userID + "/" + filename
-
-	contentType := "application/octet-stream"
-	ext := filepath.Ext(filename)
-	switch ext {
-	case ".jpg", ".jpeg":
-		contentType = "image/jpeg"
-	case ".png":
-		contentType = "image/png"
-	}
+	contentType := contentTypeForFilename(filename)
 
 	reader := bytes.NewReader(data)
 	err := s.s3Client.UploadFile(ctx, constants.AvatarBucketName, objectName, reader, int64(len(data)), contentType)
@@ -680,15 +390,6 @@ func (s *UserService) GetUsersByIDs(ctx context.Context, req *pb.GetUsersByIDsRe
 	return &pb.GetUsersByIDsResponse{
 		Users: protoUsers,
 	}, nil
-}
-
-func (s *UserService) GetGroupMemberIDs(ctx context.Context, req *pb.GetGroupMemberIDsRequest) (*pb.GetGroupMemberIDsResponse, error) {
-	ids, err := s.groupRepo.GetMemberIDs(ctx, req.GroupId)
-	if err != nil {
-		log.Printf("GetGroupMemberIDs: failed for group %s: %v", req.GroupId, err)
-		return nil, errors.New(codes.Internal, errors.ReasonMembersRetrieveFailed, "Failed to get member IDs", map[string]string{"group_id": req.GroupId})
-	}
-	return &pb.GetGroupMemberIDsResponse{UserIds: ids}, nil
 }
 
 func (s *UserService) GetNotificationSettingsBatch(ctx context.Context, req *pb.GetNotificationSettingsBatchRequest) (*pb.GetNotificationSettingsBatchResponse, error) {
@@ -773,6 +474,11 @@ func (s *UserService) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest)
 	if err := s.groupRepo.DeleteUserMemberships(ctx, req.UserId); err != nil {
 		log.Printf("DeleteUser: memberships cleanup failed for %s: %v", req.UserId, err)
 		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete group memberships", map[string]string{"user_id": req.UserId})
+	}
+
+	if err := s.groupRepo.DeleteUserInvitations(ctx, req.UserId); err != nil {
+		log.Printf("DeleteUser: invitations cleanup failed for %s: %v", req.UserId, err)
+		return nil, errors.New(codes.Internal, errors.ReasonDeleteUserFailed, "Failed to delete group invitations", map[string]string{"user_id": req.UserId})
 	}
 
 	if err := s.settingsRepo.DeleteSettings(ctx, req.UserId); err != nil {

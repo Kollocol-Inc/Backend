@@ -11,6 +11,7 @@ import (
 	"api-gateway/internal/client"
 	"api-gateway/internal/handlers"
 	"api-gateway/internal/middleware"
+	"api-gateway/pkg/safego"
 
 	_ "api-gateway/docs"
 
@@ -125,9 +126,15 @@ func main() {
 	{
 		groupsGroup.POST("", userHandler.CreateGroup)
 		groupsGroup.GET("", userHandler.GetGroups)
+		groupsGroup.POST("/avatar/upload", userHandler.UploadGroupAvatar)
 		groupsGroup.GET("/:id", userHandler.GetGroup)
 		groupsGroup.PUT("/:id", userHandler.UpdateGroup)
 		groupsGroup.DELETE("/:id", userHandler.DeleteGroup)
+		groupsGroup.POST("/:id/accept", userHandler.AcceptGroupInvite)
+		groupsGroup.POST("/:id/decline", userHandler.DeclineGroupInvite)
+		groupsGroup.POST("/:id/invite", userHandler.InviteGroupMembers)
+		groupsGroup.POST("/:id/kick", userHandler.KickGroupMembers)
+		groupsGroup.POST("/:id/leave", userHandler.LeaveGroup)
 	}
 
 	quizzesGroup := router.Group("/quizzes")
@@ -184,11 +191,11 @@ func main() {
 	log.Printf("API Gateway starting on %s", addr)
 	log.Printf("Swagger doc available at http://%s/swagger/index.html", addr)
 
-	go func() {
+	safego.Go("api-gateway.httpServer", func() {
 		if err := router.Run(addr); err != nil {
 			log.Fatalf("Failed to start server: %v", err)
 		}
-	}()
+	})
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

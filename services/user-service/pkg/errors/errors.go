@@ -38,4 +38,11 @@ const (
 	ReasonDeleteUserFailed      = "DELETE_USER_FAILED"
 	ReasonUserIDRequired        = "USER_ID_REQUIRED"
 	ReasonInvalidLanguage       = "INVALID_LANGUAGE"
+	ReasonInvitationNotFound    = "INVITATION_NOT_FOUND"
+	ReasonAlreadyMember         = "ALREADY_MEMBER"
+	ReasonOwnerCannotLeave      = "OWNER_CANNOT_LEAVE"
+	ReasonCannotKickOwner       = "CANNOT_KICK_OWNER"
+	ReasonNotAMember            = "NOT_A_MEMBER"
+	ReasonInvalidAvatarURL      = "INVALID_AVATAR_URL"
+	ReasonGroupIDRequired       = "GROUP_ID_REQUIRED"
 )

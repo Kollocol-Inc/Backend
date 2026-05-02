@@ -17,6 +17,7 @@ import (
 	"quiz-service/pkg/cache"
 	"quiz-service/pkg/database"
 	"quiz-service/pkg/messaging"
+	"quiz-service/pkg/safego"
 	pb "quiz-service/proto"
 
 	"github.com/gin-gonic/gin"
@@ -37,7 +38,7 @@ func main() {
 	defer pgClient.Close()
 
 	if err := pgClient.RunMigrations(); err != nil {
-		log.Printf("Warning: Failed to run migrations: %v", err)
+		log.Fatalf("Failed to run migrations: %v", err)
 	} else {
 		log.Println("Database migrations applied")
 	}
@@ -96,23 +97,25 @@ func main() {
 
 	httpAddr := ":" + cfg.Server.HTTPPort
 	log.Printf("Quiz Service HTTP server starting on port %s...", cfg.Server.HTTPPort)
-	go func() {
+	safego.Go("quiz-service.httpServer", func() {
 		if err := router.Run(httpAddr); err != nil {
 			log.Fatalf("Failed to start HTTP server: %v", err)
 		}
-	}()
+	})
 
 	quizService := service.NewQuizService(pgClient.GetDB(), rabbitClient, userClient)
 
 	sweeperCtx, cancelSweeper := context.WithCancel(context.Background())
 	defer cancelSweeper()
 	if rabbitClient != nil {
-		go sweeper.NewDeadlineReminderSweeper(
-			pgClient.GetDB(),
-			rabbitClient,
-			userClient,
-			5*time.Minute,
-		).Run(sweeperCtx)
+		safego.Go("quiz-service.deadlineReminderSweeper", func() {
+			sweeper.NewDeadlineReminderSweeper(
+				pgClient.GetDB(),
+				rabbitClient,
+				userClient,
+				5*time.Minute,
+			).Run(sweeperCtx)
+		})
 		log.Println("Deadline reminder sweeper started")
 	}
 
@@ -121,7 +124,7 @@ func main() {
 	reflection.Register(grpcServer)
 	log.Printf("Quiz Service gRPC server starting on port %s...", cfg.Server.GRPCPort)
 
-	go func() {
+	safego.Go("quiz-service.grpcServer", func() {
 		lis, err := net.Listen("tcp", ":"+cfg.Server.GRPCPort)
 		if err != nil {
 			log.Fatalf("Failed to listen on gRPC port: %v", err)
@@ -130,7 +133,7 @@ func main() {
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("Failed to serve gRPC: %v", err)
 		}
-	}()
+	})
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

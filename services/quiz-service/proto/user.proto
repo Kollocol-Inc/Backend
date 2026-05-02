@@ -24,6 +24,13 @@ service UserService {
   rpc GetUsersByIDs(GetUsersByIDsRequest) returns (GetUsersByIDsResponse);
   rpc GetGroupMemberIDs(GetGroupMemberIDsRequest) returns (GetGroupMemberIDsResponse);
   rpc GetNotificationSettingsBatch(GetNotificationSettingsBatchRequest) returns (GetNotificationSettingsBatchResponse);
+
+  rpc UploadGroupAvatar(UploadGroupAvatarRequest) returns (UploadGroupAvatarResponse);
+  rpc AcceptGroupInvite(AcceptGroupInviteRequest) returns (AcceptGroupInviteResponse);
+  rpc DeclineGroupInvite(DeclineGroupInviteRequest) returns (DeclineGroupInviteResponse);
+  rpc InviteGroupMembers(InviteGroupMembersRequest) returns (InviteGroupMembersResponse);
+  rpc KickGroupMembers(KickGroupMembersRequest) returns (KickGroupMembersResponse);
+  rpc LeaveGroup(LeaveGroupRequest) returns (LeaveGroupResponse);
 }
 
 message User {
@@ -52,11 +59,15 @@ message Group {
   string owner_id = 3;
   int64 created_at = 4; // Unix timestamp
   int32 member_count = 5;
+  string description = 6;
+  string avatar_url = 7;
+  int32 pending_count = 8;
 }
 
 message GroupWithMembers {
   Group group = 1;
   repeated User members = 2;
+  repeated User invited_users = 3;
 }
 
 message RegisterRequest {
@@ -138,6 +149,8 @@ message CreateGroupRequest {
   string owner_id = 1;
   string name = 2;
   repeated string member_emails = 3;
+  string description = 4;
+  string avatar_url = 5;
 }
 
 message CreateGroupResponse {
@@ -146,7 +159,7 @@ message CreateGroupResponse {
 
 message GetGroupsRequest {
   string user_id = 1;
-  string filter = 2; // "my", "created"
+  string filter = 2; // "my", "created", "invitee"
 }
 
 message GetGroupsResponse {
@@ -165,8 +178,9 @@ message GetGroupResponse {
 message UpdateGroupRequest {
   string group_id = 1;
   string user_id = 2;
-  string name = 3; // Optional
-  repeated string member_emails = 4; // Optional
+  optional string name = 3;
+  optional string description = 4;
+  optional string avatar_url = 5;
 }
 
 message UpdateGroupResponse {
@@ -214,4 +228,57 @@ message GetNotificationSettingsBatchRequest {
 message GetNotificationSettingsBatchResponse {
   map<string, NotificationSettings> settings = 1;
   map<string, string> languages = 2;
+}
+
+message UploadGroupAvatarRequest {
+  string user_id = 1;
+  bytes avatar_data = 2;
+  string avatar_filename = 3;
+}
+
+message UploadGroupAvatarResponse {
+  string avatar_url = 1;
+}
+
+message AcceptGroupInviteRequest {
+  string group_id = 1;
+  string user_id = 2;
+}
+
+message AcceptGroupInviteResponse {
+  Group group = 1;
+}
+
+message DeclineGroupInviteRequest {
+  string group_id = 1;
+  string user_id = 2;
+}
+
+message DeclineGroupInviteResponse {
+}
+
+message InviteGroupMembersRequest {
+  string group_id = 1;
+  string user_id = 2;
+  repeated string emails = 3;
+}
+
+message InviteGroupMembersResponse {
+}
+
+message KickGroupMembersRequest {
+  string group_id = 1;
+  string user_id = 2;
+  repeated string emails = 3;
+}
+
+message KickGroupMembersResponse {
+}
+
+message LeaveGroupRequest {
+  string group_id = 1;
+  string user_id = 2;
+}
+
+message LeaveGroupResponse {
 }

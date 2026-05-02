@@ -48,3 +48,14 @@ func (c *NotificationClient) DeleteAllForUser(ctx context.Context, userID string
 	}
 	return nil
 }
+
+func (c *NotificationClient) MarkAsReadByType(ctx context.Context, userID, notifType, relatedEntityID string) error {
+	if _, err := c.client.MarkAsReadByType(ctx, &pb.MarkAsReadByTypeRequest{
+		UserId:          userID,
+		Type:            notifType,
+		RelatedEntityId: relatedEntityID,
+	}); err != nil {
+		return fmt.Errorf("failed to mark notifications as read by type: %w", err)
+	}
+	return nil
+}

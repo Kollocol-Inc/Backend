@@ -59,7 +59,9 @@ func (c *PostgresClient) RunMigrations() error {
 		return fmt.Errorf("failed to create migration source: %w", err)
 	}
 
-	dbDriver, err := postgres.WithInstance(c.db, &postgres.Config{})
+	dbDriver, err := postgres.WithInstance(c.db, &postgres.Config{
+		MigrationsTable: "schema_migrations_auth_service",
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create migration db driver: %w", err)
 	}
