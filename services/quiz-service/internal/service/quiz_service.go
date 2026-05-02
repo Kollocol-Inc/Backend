@@ -328,6 +328,13 @@ func (s *QuizService) CreateInstance(ctx context.Context, req *pb.CreateInstance
 	}
 
 	if req.GroupId != "" {
+		isMember, role, err := s.userClient.CheckGroupMembership(ctx, req.GroupId, req.UserId)
+		if err != nil {
+			return nil, errors.New(codes.Internal, errors.ReasonMembershipCheckFailed, "Failed to verify group membership", map[string]string{"group_id": req.GroupId, "user_id": req.UserId})
+		}
+		if !isMember || role != "owner" {
+			return nil, errors.New(codes.PermissionDenied, errors.ReasonAccessDenied, "Only the group owner can create a quiz in this group", map[string]string{"group_id": req.GroupId, "user_id": req.UserId})
+		}
 		instance.GroupID = sql.NullString{String: req.GroupId, Valid: true}
 	}
 
@@ -368,10 +375,35 @@ func (s *QuizService) DeleteInstance(ctx context.Context, req *pb.DeleteInstance
 	return &pb.DeleteInstanceResponse{}, nil
 }
 
+func (s *QuizService) userHasAccessToInstance(ctx context.Context, instance *repository.Instance, userID string) (bool, error) {
+	if userID == "" {
+		return false, nil
+	}
+	if instance.CreatedBy == userID {
+		return true, nil
+	}
+	if !instance.GroupID.Valid {
+		return true, nil
+	}
+	isMember, _, err := s.userClient.CheckGroupMembership(ctx, instance.GroupID.String, userID)
+	if err != nil {
+		return false, err
+	}
+	return isMember, nil
+}
+
 func (s *QuizService) GetInstance(ctx context.Context, req *pb.GetInstanceRequest) (*pb.GetInstanceResponse, error) {
 	instanceWithQuestions, err := s.instanceRepo.GetInstanceWithQuestions(ctx, req.InstanceId)
 	if err != nil {
 		return nil, errors.New(codes.NotFound, errors.ReasonInstanceNotFound, "Instance not found", map[string]string{"instance_id": req.InstanceId})
+	}
+
+	hasAccess, err := s.userHasAccessToInstance(ctx, instanceWithQuestions.Instance, req.UserId)
+	if err != nil {
+		return nil, errors.New(codes.Internal, errors.ReasonMembershipCheckFailed, "Failed to verify instance access", map[string]string{"instance_id": req.InstanceId, "user_id": req.UserId})
+	}
+	if !hasAccess {
+		return nil, errors.New(codes.PermissionDenied, errors.ReasonAccessDenied, "Access denied to this quiz instance", map[string]string{"instance_id": req.InstanceId, "user_id": req.UserId})
 	}
 
 	resp := &pb.GetInstanceResponse{
@@ -385,27 +417,20 @@ func (s *QuizService) GetInstance(ctx context.Context, req *pb.GetInstanceReques
 func (s *QuizService) GetInstanceByAccessCode(ctx context.Context, req *pb.GetInstanceByAccessCodeRequest) (*pb.GetInstanceByAccessCodeResponse, error) {
 	instance, err := s.instanceRepo.GetInstanceByAccessCode(ctx, req.AccessCode)
 	if err != nil {
-		return &pb.GetInstanceByAccessCodeResponse{
-			Instance:  nil,
-			HasAccess: false,
-		}, nil
+		return nil, errors.New(codes.NotFound, errors.ReasonInstanceNotFound, "Instance not found", map[string]string{"access_code": req.AccessCode})
 	}
 
-	hasAccess := instance.CreatedBy == req.UserId
-	if !hasAccess && instance.GroupID.Valid {
-		isMember, _, err := s.userClient.CheckGroupMembership(ctx, instance.GroupID.String, req.UserId)
-		if err == nil && isMember {
-			hasAccess = true
-		}
+	hasAccess, err := s.userHasAccessToInstance(ctx, instance, req.UserId)
+	if err != nil {
+		return nil, errors.New(codes.Internal, errors.ReasonMembershipCheckFailed, "Failed to verify instance access", map[string]string{"access_code": req.AccessCode, "user_id": req.UserId})
 	}
-
-	if !instance.GroupID.Valid {
-		hasAccess = true
+	if !hasAccess {
+		return nil, errors.New(codes.PermissionDenied, errors.ReasonAccessDenied, "Access denied to this quiz instance", map[string]string{"access_code": req.AccessCode, "user_id": req.UserId})
 	}
 
 	return &pb.GetInstanceByAccessCodeResponse{
 		Instance:  s.instanceToProto(instance),
-		HasAccess: hasAccess,
+		HasAccess: true,
 	}, nil
 }
 

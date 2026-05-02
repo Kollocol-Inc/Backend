@@ -44,4 +44,5 @@ const (
 	ReasonInvalidArgument       = "INVALID_ARGUMENT"
 	ReasonSessionNotFinished    = "SESSION_NOT_FINISHED"
 	ReasonDeleteAllByOwnerFailed = "DELETE_ALL_BY_OWNER_FAILED"
+	ReasonMembershipCheckFailed = "MEMBERSHIP_CHECK_FAILED"
 )
