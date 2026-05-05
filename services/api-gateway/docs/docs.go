@@ -2895,8 +2895,11 @@ const docTemplate = `{
                 "type": {
                     "type": "string",
                     "enum": [
+                        "group_invite",
                         "quiz_created",
-                        "quiz_results"
+                        "quiz_results",
+                        "grade_changed",
+                        "deadline_reminder"
                     ],
                     "example": "quiz_created"
                 },

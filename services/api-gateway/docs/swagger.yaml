@@ -493,8 +493,11 @@ definitions:
         type: string
       type:
         enum:
+        - group_invite
         - quiz_created
         - quiz_results
+        - grade_changed
+        - deadline_reminder
         example: quiz_created
         type: string
       user_id:
