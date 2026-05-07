@@ -1267,6 +1267,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/notifications/read/all": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mark all of the current user's notifications as read (notifications requiring action are skipped)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Mark all notifications as read",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/quizzes/instances": {
             "post": {
                 "security": [
@@ -2885,6 +2919,10 @@ const docTemplate = `{
                     "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "is_read": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "requires_action": {
                     "type": "boolean",
                     "example": false
                 },

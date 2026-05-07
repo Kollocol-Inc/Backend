@@ -20,6 +20,7 @@ type NotificationRepo interface {
 	CreateNotification(ctx context.Context, notification *repository.Notification) error
 	GetNotifications(ctx context.Context, userID string, limit, offset int) ([]*repository.Notification, int, error)
 	MarkAsRead(ctx context.Context, notificationIDs []string, userID string) error
+	MarkAllAsRead(ctx context.Context, userID string) error
 	MarkAsReadByType(ctx context.Context, userID, notifType, relatedEntityID string) error
 	DeleteNotification(ctx context.Context, notificationIDs []string, userID string) error
 	DeleteAllForUser(ctx context.Context, userID string) error
@@ -96,6 +97,19 @@ func (s *NotificationService) MarkAsRead(ctx context.Context, req *pb.MarkAsRead
 	}
 
 	return &pb.MarkAsReadResponse{}, nil
+}
+
+func (s *NotificationService) MarkAllAsRead(ctx context.Context, req *pb.MarkAllAsReadRequest) (*pb.MarkAllAsReadResponse, error) {
+	if req.UserId == "" {
+		return nil, errors.New(codes.InvalidArgument, errors.ReasonUserIDRequired, "User ID is required", nil)
+	}
+
+	if err := s.repo.MarkAllAsRead(ctx, req.UserId); err != nil {
+		log.Printf("Failed to mark all notifications as read: %v", err)
+		return nil, errors.New(codes.Internal, errors.ReasonNotificationMarkFailed, "Failed to mark all notifications as read", nil)
+	}
+
+	return &pb.MarkAllAsReadResponse{}, nil
 }
 
 func (s *NotificationService) MarkAsReadByType(ctx context.Context, req *pb.MarkAsReadByTypeRequest) (*pb.MarkAsReadByTypeResponse, error) {

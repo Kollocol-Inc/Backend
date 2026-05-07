@@ -128,6 +128,20 @@ func (r *NotificationRepository) MarkAsRead(ctx context.Context, notificationIDs
 	return nil
 }
 
+func (r *NotificationRepository) MarkAllAsRead(ctx context.Context, userID string) error {
+	query := `
+		UPDATE notifications
+		SET is_read = true
+		WHERE user_id = $1 AND is_read = false AND requires_action = false
+	`
+
+	if _, err := r.db.ExecContext(ctx, query, userID); err != nil {
+		return fmt.Errorf("failed to mark all notifications as read: %w", err)
+	}
+
+	return nil
+}
+
 func (r *NotificationRepository) MarkAsReadByType(ctx context.Context, userID, notifType, relatedEntityID string) error {
 	query := `
 		UPDATE notifications

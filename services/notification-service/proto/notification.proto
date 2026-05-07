@@ -7,6 +7,7 @@ option go_package = "notification-service/proto";
 service NotificationService {
   rpc GetNotifications(GetNotificationsRequest) returns (GetNotificationsResponse);
   rpc MarkAsRead(MarkAsReadRequest) returns (MarkAsReadResponse);
+  rpc MarkAllAsRead(MarkAllAsReadRequest) returns (MarkAllAsReadResponse);
   rpc MarkAsReadByType(MarkAsReadByTypeRequest) returns (MarkAsReadByTypeResponse);
   rpc DeleteNotification(DeleteNotificationRequest) returns (DeleteNotificationResponse);
   rpc DeleteAllForUser(DeleteAllForUserRequest) returns (DeleteAllForUserResponse);
@@ -41,6 +42,13 @@ message MarkAsReadRequest {
 }
 
 message MarkAsReadResponse {
+}
+
+message MarkAllAsReadRequest {
+  string user_id = 1;
+}
+
+message MarkAllAsReadResponse {
 }
 
 message MarkAsReadByTypeRequest {

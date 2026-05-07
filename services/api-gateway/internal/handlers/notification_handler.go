@@ -103,6 +103,34 @@ func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// MarkAllAsRead godoc
+// @Summary Mark all notifications as read
+// @Description Mark all of the current user's notifications as read (notifications requiring action are skipped)
+// @Tags notifications
+// @Produce json
+// @Security BearerAuth
+// @Success 204
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /notifications/read/all [put]
+func (h *NotificationHandler) MarkAllAsRead(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		dto.JsonError(c, errors.ErrUserIDNotFound)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if _, err := h.notificationClient.MarkAllAsRead(ctx, userID.(string)); err != nil {
+		dto.JsonError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 // DeleteNotification godoc
 // @Summary Delete notifications
 // @Description Delete multiple notifications

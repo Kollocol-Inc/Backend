@@ -488,6 +488,9 @@ definitions:
       is_read:
         example: false
         type: boolean
+      requires_action:
+        example: false
+        type: boolean
       title:
         example: New Quiz Available
         type: string
@@ -1706,6 +1709,28 @@ paths:
       security:
       - BearerAuth: []
       summary: Mark notifications as read
+      tags:
+      - notifications
+  /notifications/read/all:
+    put:
+      description: Mark all of the current user's notifications as read (notifications
+        requiring action are skipped)
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark all notifications as read
       tags:
       - notifications
   /quizzes/instances:

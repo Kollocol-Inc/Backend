@@ -87,6 +87,34 @@ func TestMarkAsRead_RepoError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestMarkAllAsRead_Success(t *testing.T) {
+	svc, repo, _ := setupTest(t)
+	ctx := context.Background()
+
+	repo.EXPECT().MarkAllAsRead(ctx, "user-1").Return(nil)
+
+	_, err := svc.MarkAllAsRead(ctx, &pb.MarkAllAsReadRequest{UserId: "user-1"})
+	require.NoError(t, err)
+}
+
+func TestMarkAllAsRead_EmptyUserID(t *testing.T) {
+	svc, _, _ := setupTest(t)
+	ctx := context.Background()
+
+	_, err := svc.MarkAllAsRead(ctx, &pb.MarkAllAsReadRequest{UserId: ""})
+	assert.Error(t, err)
+}
+
+func TestMarkAllAsRead_RepoError(t *testing.T) {
+	svc, repo, _ := setupTest(t)
+	ctx := context.Background()
+
+	repo.EXPECT().MarkAllAsRead(ctx, "user-1").Return(fmt.Errorf("db error"))
+
+	_, err := svc.MarkAllAsRead(ctx, &pb.MarkAllAsReadRequest{UserId: "user-1"})
+	assert.Error(t, err)
+}
+
 func TestDeleteNotification_Success(t *testing.T) {
 	svc, repo, _ := setupTest(t)
 	ctx := context.Background()

@@ -329,6 +329,86 @@ func (*MarkAsReadResponse) Descriptor() ([]byte, []int) {
 	return file_notification_proto_rawDescGZIP(), []int{4}
 }
 
+type MarkAllAsReadRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MarkAllAsReadRequest) Reset() {
+	*x = MarkAllAsReadRequest{}
+	mi := &file_notification_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkAllAsReadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkAllAsReadRequest) ProtoMessage() {}
+
+func (x *MarkAllAsReadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_notification_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkAllAsReadRequest.ProtoReflect.Descriptor instead.
+func (*MarkAllAsReadRequest) Descriptor() ([]byte, []int) {
+	return file_notification_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *MarkAllAsReadRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type MarkAllAsReadResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MarkAllAsReadResponse) Reset() {
+	*x = MarkAllAsReadResponse{}
+	mi := &file_notification_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkAllAsReadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkAllAsReadResponse) ProtoMessage() {}
+
+func (x *MarkAllAsReadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_notification_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkAllAsReadResponse.ProtoReflect.Descriptor instead.
+func (*MarkAllAsReadResponse) Descriptor() ([]byte, []int) {
+	return file_notification_proto_rawDescGZIP(), []int{6}
+}
+
 type MarkAsReadByTypeRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	UserId          string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -340,7 +420,7 @@ type MarkAsReadByTypeRequest struct {
 
 func (x *MarkAsReadByTypeRequest) Reset() {
 	*x = MarkAsReadByTypeRequest{}
-	mi := &file_notification_proto_msgTypes[5]
+	mi := &file_notification_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -352,7 +432,7 @@ func (x *MarkAsReadByTypeRequest) String() string {
 func (*MarkAsReadByTypeRequest) ProtoMessage() {}
 
 func (x *MarkAsReadByTypeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_proto_msgTypes[5]
+	mi := &file_notification_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -365,7 +445,7 @@ func (x *MarkAsReadByTypeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkAsReadByTypeRequest.ProtoReflect.Descriptor instead.
 func (*MarkAsReadByTypeRequest) Descriptor() ([]byte, []int) {
-	return file_notification_proto_rawDescGZIP(), []int{5}
+	return file_notification_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *MarkAsReadByTypeRequest) GetUserId() string {
@@ -397,7 +477,7 @@ type MarkAsReadByTypeResponse struct {
 
 func (x *MarkAsReadByTypeResponse) Reset() {
 	*x = MarkAsReadByTypeResponse{}
-	mi := &file_notification_proto_msgTypes[6]
+	mi := &file_notification_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -409,7 +489,7 @@ func (x *MarkAsReadByTypeResponse) String() string {
 func (*MarkAsReadByTypeResponse) ProtoMessage() {}
 
 func (x *MarkAsReadByTypeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_proto_msgTypes[6]
+	mi := &file_notification_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -422,7 +502,7 @@ func (x *MarkAsReadByTypeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkAsReadByTypeResponse.ProtoReflect.Descriptor instead.
 func (*MarkAsReadByTypeResponse) Descriptor() ([]byte, []int) {
-	return file_notification_proto_rawDescGZIP(), []int{6}
+	return file_notification_proto_rawDescGZIP(), []int{8}
 }
 
 type DeleteNotificationRequest struct {
@@ -435,7 +515,7 @@ type DeleteNotificationRequest struct {
 
 func (x *DeleteNotificationRequest) Reset() {
 	*x = DeleteNotificationRequest{}
-	mi := &file_notification_proto_msgTypes[7]
+	mi := &file_notification_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -447,7 +527,7 @@ func (x *DeleteNotificationRequest) String() string {
 func (*DeleteNotificationRequest) ProtoMessage() {}
 
 func (x *DeleteNotificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_proto_msgTypes[7]
+	mi := &file_notification_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -460,7 +540,7 @@ func (x *DeleteNotificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteNotificationRequest.ProtoReflect.Descriptor instead.
 func (*DeleteNotificationRequest) Descriptor() ([]byte, []int) {
-	return file_notification_proto_rawDescGZIP(), []int{7}
+	return file_notification_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DeleteNotificationRequest) GetNotificationIds() []string {
@@ -485,7 +565,7 @@ type DeleteNotificationResponse struct {
 
 func (x *DeleteNotificationResponse) Reset() {
 	*x = DeleteNotificationResponse{}
-	mi := &file_notification_proto_msgTypes[8]
+	mi := &file_notification_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -497,7 +577,7 @@ func (x *DeleteNotificationResponse) String() string {
 func (*DeleteNotificationResponse) ProtoMessage() {}
 
 func (x *DeleteNotificationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_proto_msgTypes[8]
+	mi := &file_notification_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -510,7 +590,7 @@ func (x *DeleteNotificationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteNotificationResponse.ProtoReflect.Descriptor instead.
 func (*DeleteNotificationResponse) Descriptor() ([]byte, []int) {
-	return file_notification_proto_rawDescGZIP(), []int{8}
+	return file_notification_proto_rawDescGZIP(), []int{10}
 }
 
 type DeleteAllForUserRequest struct {
@@ -522,7 +602,7 @@ type DeleteAllForUserRequest struct {
 
 func (x *DeleteAllForUserRequest) Reset() {
 	*x = DeleteAllForUserRequest{}
-	mi := &file_notification_proto_msgTypes[9]
+	mi := &file_notification_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +614,7 @@ func (x *DeleteAllForUserRequest) String() string {
 func (*DeleteAllForUserRequest) ProtoMessage() {}
 
 func (x *DeleteAllForUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_proto_msgTypes[9]
+	mi := &file_notification_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +627,7 @@ func (x *DeleteAllForUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAllForUserRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAllForUserRequest) Descriptor() ([]byte, []int) {
-	return file_notification_proto_rawDescGZIP(), []int{9}
+	return file_notification_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *DeleteAllForUserRequest) GetUserId() string {
@@ -565,7 +645,7 @@ type DeleteAllForUserResponse struct {
 
 func (x *DeleteAllForUserResponse) Reset() {
 	*x = DeleteAllForUserResponse{}
-	mi := &file_notification_proto_msgTypes[10]
+	mi := &file_notification_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -577,7 +657,7 @@ func (x *DeleteAllForUserResponse) String() string {
 func (*DeleteAllForUserResponse) ProtoMessage() {}
 
 func (x *DeleteAllForUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_proto_msgTypes[10]
+	mi := &file_notification_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -590,7 +670,7 @@ func (x *DeleteAllForUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAllForUserResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAllForUserResponse) Descriptor() ([]byte, []int) {
-	return file_notification_proto_rawDescGZIP(), []int{10}
+	return file_notification_proto_rawDescGZIP(), []int{12}
 }
 
 var File_notification_proto protoreflect.FileDescriptor
@@ -619,7 +699,10 @@ const file_notification_proto_rawDesc = "" +
 	"\x11MarkAsReadRequest\x12)\n" +
 	"\x10notification_ids\x18\x01 \x03(\tR\x0fnotificationIds\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x14\n" +
-	"\x12MarkAsReadResponse\"r\n" +
+	"\x12MarkAsReadResponse\"/\n" +
+	"\x14MarkAllAsReadRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x17\n" +
+	"\x15MarkAllAsReadResponse\"r\n" +
 	"\x17MarkAsReadByTypeRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12*\n" +
@@ -631,11 +714,12 @@ const file_notification_proto_rawDesc = "" +
 	"\x1aDeleteNotificationResponse\"2\n" +
 	"\x17DeleteAllForUserRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x1a\n" +
-	"\x18DeleteAllForUserResponse2\xf8\x03\n" +
+	"\x18DeleteAllForUserResponse2\xd2\x04\n" +
 	"\x13NotificationService\x12a\n" +
 	"\x10GetNotifications\x12%.notification.GetNotificationsRequest\x1a&.notification.GetNotificationsResponse\x12O\n" +
 	"\n" +
-	"MarkAsRead\x12\x1f.notification.MarkAsReadRequest\x1a .notification.MarkAsReadResponse\x12a\n" +
+	"MarkAsRead\x12\x1f.notification.MarkAsReadRequest\x1a .notification.MarkAsReadResponse\x12X\n" +
+	"\rMarkAllAsRead\x12\".notification.MarkAllAsReadRequest\x1a#.notification.MarkAllAsReadResponse\x12a\n" +
 	"\x10MarkAsReadByType\x12%.notification.MarkAsReadByTypeRequest\x1a&.notification.MarkAsReadByTypeResponse\x12g\n" +
 	"\x12DeleteNotification\x12'.notification.DeleteNotificationRequest\x1a(.notification.DeleteNotificationResponse\x12a\n" +
 	"\x10DeleteAllForUser\x12%.notification.DeleteAllForUserRequest\x1a&.notification.DeleteAllForUserResponseB\x1cZ\x1anotification-service/protob\x06proto3"
@@ -652,34 +736,38 @@ func file_notification_proto_rawDescGZIP() []byte {
 	return file_notification_proto_rawDescData
 }
 
-var file_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_notification_proto_goTypes = []any{
 	(*Notification)(nil),               // 0: notification.Notification
 	(*GetNotificationsRequest)(nil),    // 1: notification.GetNotificationsRequest
 	(*GetNotificationsResponse)(nil),   // 2: notification.GetNotificationsResponse
 	(*MarkAsReadRequest)(nil),          // 3: notification.MarkAsReadRequest
 	(*MarkAsReadResponse)(nil),         // 4: notification.MarkAsReadResponse
-	(*MarkAsReadByTypeRequest)(nil),    // 5: notification.MarkAsReadByTypeRequest
-	(*MarkAsReadByTypeResponse)(nil),   // 6: notification.MarkAsReadByTypeResponse
-	(*DeleteNotificationRequest)(nil),  // 7: notification.DeleteNotificationRequest
-	(*DeleteNotificationResponse)(nil), // 8: notification.DeleteNotificationResponse
-	(*DeleteAllForUserRequest)(nil),    // 9: notification.DeleteAllForUserRequest
-	(*DeleteAllForUserResponse)(nil),   // 10: notification.DeleteAllForUserResponse
+	(*MarkAllAsReadRequest)(nil),       // 5: notification.MarkAllAsReadRequest
+	(*MarkAllAsReadResponse)(nil),      // 6: notification.MarkAllAsReadResponse
+	(*MarkAsReadByTypeRequest)(nil),    // 7: notification.MarkAsReadByTypeRequest
+	(*MarkAsReadByTypeResponse)(nil),   // 8: notification.MarkAsReadByTypeResponse
+	(*DeleteNotificationRequest)(nil),  // 9: notification.DeleteNotificationRequest
+	(*DeleteNotificationResponse)(nil), // 10: notification.DeleteNotificationResponse
+	(*DeleteAllForUserRequest)(nil),    // 11: notification.DeleteAllForUserRequest
+	(*DeleteAllForUserResponse)(nil),   // 12: notification.DeleteAllForUserResponse
 }
 var file_notification_proto_depIdxs = []int32{
 	0,  // 0: notification.GetNotificationsResponse.notifications:type_name -> notification.Notification
 	1,  // 1: notification.NotificationService.GetNotifications:input_type -> notification.GetNotificationsRequest
 	3,  // 2: notification.NotificationService.MarkAsRead:input_type -> notification.MarkAsReadRequest
-	5,  // 3: notification.NotificationService.MarkAsReadByType:input_type -> notification.MarkAsReadByTypeRequest
-	7,  // 4: notification.NotificationService.DeleteNotification:input_type -> notification.DeleteNotificationRequest
-	9,  // 5: notification.NotificationService.DeleteAllForUser:input_type -> notification.DeleteAllForUserRequest
-	2,  // 6: notification.NotificationService.GetNotifications:output_type -> notification.GetNotificationsResponse
-	4,  // 7: notification.NotificationService.MarkAsRead:output_type -> notification.MarkAsReadResponse
-	6,  // 8: notification.NotificationService.MarkAsReadByType:output_type -> notification.MarkAsReadByTypeResponse
-	8,  // 9: notification.NotificationService.DeleteNotification:output_type -> notification.DeleteNotificationResponse
-	10, // 10: notification.NotificationService.DeleteAllForUser:output_type -> notification.DeleteAllForUserResponse
-	6,  // [6:11] is the sub-list for method output_type
-	1,  // [1:6] is the sub-list for method input_type
+	5,  // 3: notification.NotificationService.MarkAllAsRead:input_type -> notification.MarkAllAsReadRequest
+	7,  // 4: notification.NotificationService.MarkAsReadByType:input_type -> notification.MarkAsReadByTypeRequest
+	9,  // 5: notification.NotificationService.DeleteNotification:input_type -> notification.DeleteNotificationRequest
+	11, // 6: notification.NotificationService.DeleteAllForUser:input_type -> notification.DeleteAllForUserRequest
+	2,  // 7: notification.NotificationService.GetNotifications:output_type -> notification.GetNotificationsResponse
+	4,  // 8: notification.NotificationService.MarkAsRead:output_type -> notification.MarkAsReadResponse
+	6,  // 9: notification.NotificationService.MarkAllAsRead:output_type -> notification.MarkAllAsReadResponse
+	8,  // 10: notification.NotificationService.MarkAsReadByType:output_type -> notification.MarkAsReadByTypeResponse
+	10, // 11: notification.NotificationService.DeleteNotification:output_type -> notification.DeleteNotificationResponse
+	12, // 12: notification.NotificationService.DeleteAllForUser:output_type -> notification.DeleteAllForUserResponse
+	7,  // [7:13] is the sub-list for method output_type
+	1,  // [1:7] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
 	1,  // [1:1] is the sub-list for extension extendee
 	0,  // [0:1] is the sub-list for field type_name
@@ -696,7 +784,7 @@ func file_notification_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_notification_proto_rawDesc), len(file_notification_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

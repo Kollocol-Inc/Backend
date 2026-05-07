@@ -101,6 +101,20 @@ func (mr *MockNotificationRepoMockRecorder) GetNotifications(ctx, userID, limit,
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNotifications", reflect.TypeOf((*MockNotificationRepo)(nil).GetNotifications), ctx, userID, limit, offset)
 }
 
+// MarkAllAsRead mocks base method.
+func (m *MockNotificationRepo) MarkAllAsRead(ctx context.Context, userID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MarkAllAsRead", ctx, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MarkAllAsRead indicates an expected call of MarkAllAsRead.
+func (mr *MockNotificationRepoMockRecorder) MarkAllAsRead(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkAllAsRead", reflect.TypeOf((*MockNotificationRepo)(nil).MarkAllAsRead), ctx, userID)
+}
+
 // MarkAsRead mocks base method.
 func (m *MockNotificationRepo) MarkAsRead(ctx context.Context, notificationIDs []string, userID string) error {
 	m.ctrl.T.Helper()
