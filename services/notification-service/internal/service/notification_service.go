@@ -79,6 +79,7 @@ func (s *NotificationService) GetNotifications(ctx context.Context, req *pb.GetN
 			IsRead:          n.IsRead,
 			CreatedAt:       n.CreatedAt.Format(time.RFC3339),
 			RelatedEntityId: n.RelatedEntityID,
+			RequiresAction:  n.RequiresAction,
 		})
 	}
 
@@ -173,6 +174,7 @@ func (s *NotificationService) HandleGroupInvite(ctx context.Context, data []byte
 			Content:         email.InAppContent(l, email.TmplGroupInvite, event.InviterName, event.GroupName),
 			IsRead:          false,
 			RelatedEntityID: event.GroupID,
+			RequiresAction:  true,
 		}
 		if err := s.repo.CreateNotification(ctx, notification); err != nil {
 			log.Printf("HandleGroupInvite: failed to create in-app notification for user %s: %v", event.InviteeUserID, err)

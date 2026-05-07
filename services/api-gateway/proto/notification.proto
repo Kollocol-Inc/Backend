@@ -18,6 +18,7 @@ message Notification {
   string content = 5;
   bool is_read = 6;
   string created_at = 7;
+  bool requires_action = 9;
 }
 
 message GetNotificationsRequest {

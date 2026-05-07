@@ -31,6 +31,7 @@ type Notification struct {
 	IsRead          bool                   `protobuf:"varint,6,opt,name=is_read,json=isRead,proto3" json:"is_read,omitempty"`
 	CreatedAt       string                 `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	RelatedEntityId string                 `protobuf:"bytes,8,opt,name=related_entity_id,json=relatedEntityId,proto3" json:"related_entity_id,omitempty"`
+	RequiresAction  bool                   `protobuf:"varint,9,opt,name=requires_action,json=requiresAction,proto3" json:"requires_action,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -119,6 +120,13 @@ func (x *Notification) GetRelatedEntityId() string {
 		return x.RelatedEntityId
 	}
 	return ""
+}
+
+func (x *Notification) GetRequiresAction() bool {
+	if x != nil {
+		return x.RequiresAction
+	}
+	return false
 }
 
 type GetNotificationsRequest struct {
@@ -589,7 +597,7 @@ var File_notification_proto protoreflect.FileDescriptor
 
 const file_notification_proto_rawDesc = "" +
 	"\n" +
-	"\x12notification.proto\x12\fnotification\"\xdf\x01\n" +
+	"\x12notification.proto\x12\fnotification\"\x88\x02\n" +
 	"\fNotification\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x12\n" +
@@ -599,7 +607,8 @@ const file_notification_proto_rawDesc = "" +
 	"\ais_read\x18\x06 \x01(\bR\x06isRead\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\a \x01(\tR\tcreatedAt\x12*\n" +
-	"\x11related_entity_id\x18\b \x01(\tR\x0frelatedEntityId\"`\n" +
+	"\x11related_entity_id\x18\b \x01(\tR\x0frelatedEntityId\x12'\n" +
+	"\x0frequires_action\x18\t \x01(\bR\x0erequiresAction\"`\n" +
 	"\x17GetNotificationsRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +

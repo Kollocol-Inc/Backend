@@ -21,6 +21,7 @@ message Notification {
   bool is_read = 6;
   string created_at = 7;
   string related_entity_id = 8;
+  bool requires_action = 9;
 }
 
 message GetNotificationsRequest {
