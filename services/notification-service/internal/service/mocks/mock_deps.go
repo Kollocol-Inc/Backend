@@ -237,6 +237,20 @@ func (mr *MockEmailSenderMockRecorder) SendGroupInvite(emailAddr, groupName, inv
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendGroupInvite", reflect.TypeOf((*MockEmailSender)(nil).SendGroupInvite), emailAddr, groupName, inviterName, l)
 }
 
+// SendGroupKicked mocks base method.
+func (m *MockEmailSender) SendGroupKicked(emailAddr, groupName, kickerName string, l lang.Lang) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendGroupKicked", emailAddr, groupName, kickerName, l)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendGroupKicked indicates an expected call of SendGroupKicked.
+func (mr *MockEmailSenderMockRecorder) SendGroupKicked(emailAddr, groupName, kickerName, l any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendGroupKicked", reflect.TypeOf((*MockEmailSender)(nil).SendGroupKicked), emailAddr, groupName, kickerName, l)
+}
+
 // SendQuizCreated mocks base method.
 func (m *MockEmailSender) SendQuizCreated(emailAddr, quizTitle, creatorName string, l lang.Lang) error {
 	m.ctrl.T.Helper()

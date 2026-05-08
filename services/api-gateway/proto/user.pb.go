@@ -129,6 +129,7 @@ type NotificationSettings struct {
 	GroupInvites     bool                   `protobuf:"varint,4,opt,name=group_invites,json=groupInvites,proto3" json:"group_invites,omitempty"`
 	DeadlineReminder string                 `protobuf:"bytes,5,opt,name=deadline_reminder,json=deadlineReminder,proto3" json:"deadline_reminder,omitempty"` // "1h", "24h", "never"
 	UpdatedAt        int64                  `protobuf:"varint,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`                     // Unix timestamp
+	GroupKicked      bool                   `protobuf:"varint,7,opt,name=group_kicked,json=groupKicked,proto3" json:"group_kicked,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -203,6 +204,13 @@ func (x *NotificationSettings) GetUpdatedAt() int64 {
 		return x.UpdatedAt
 	}
 	return 0
+}
+
+func (x *NotificationSettings) GetGroupKicked() bool {
+	if x != nil {
+		return x.GroupKicked
+	}
+	return false
 }
 
 type Group struct {
@@ -1044,6 +1052,7 @@ type UpdateNotificationSettingsRequest struct {
 	QuizResults      *bool                  `protobuf:"varint,3,opt,name=quiz_results,json=quizResults,proto3,oneof" json:"quiz_results,omitempty"`
 	GroupInvites     *bool                  `protobuf:"varint,4,opt,name=group_invites,json=groupInvites,proto3,oneof" json:"group_invites,omitempty"`
 	DeadlineReminder *string                `protobuf:"bytes,5,opt,name=deadline_reminder,json=deadlineReminder,proto3,oneof" json:"deadline_reminder,omitempty"`
+	GroupKicked      *bool                  `protobuf:"varint,6,opt,name=group_kicked,json=groupKicked,proto3,oneof" json:"group_kicked,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1111,6 +1120,13 @@ func (x *UpdateNotificationSettingsRequest) GetDeadlineReminder() string {
 		return *x.DeadlineReminder
 	}
 	return ""
+}
+
+func (x *UpdateNotificationSettingsRequest) GetGroupKicked() bool {
+	if x != nil && x.GroupKicked != nil {
+		return *x.GroupKicked
+	}
+	return false
 }
 
 type UpdateNotificationSettingsResponse struct {
@@ -2638,7 +2654,7 @@ const file_user_proto_rawDesc = "" +
 	"\ris_registered\x18\x06 \x01(\bR\fisRegistered\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\a \x01(\x03R\tcreatedAt\x12\x1a\n" +
-	"\blanguage\x18\b \x01(\tR\blanguage\"\xe4\x01\n" +
+	"\blanguage\x18\b \x01(\tR\blanguage\"\x87\x02\n" +
 	"\x14NotificationSettings\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1f\n" +
 	"\vnew_quizzes\x18\x02 \x01(\bR\n" +
@@ -2647,7 +2663,8 @@ const file_user_proto_rawDesc = "" +
 	"\rgroup_invites\x18\x04 \x01(\bR\fgroupInvites\x12+\n" +
 	"\x11deadline_reminder\x18\x05 \x01(\tR\x10deadlineReminder\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\x06 \x01(\x03R\tupdatedAt\"\xee\x01\n" +
+	"updated_at\x18\x06 \x01(\x03R\tupdatedAt\x12!\n" +
+	"\fgroup_kicked\x18\a \x01(\bR\vgroupKicked\"\xee\x01\n" +
 	"\x05Group\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x19\n" +
@@ -2708,18 +2725,20 @@ const file_user_proto_rawDesc = "" +
 	"\x1eGetNotificationSettingsRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"Y\n" +
 	"\x1fGetNotificationSettingsResponse\x126\n" +
-	"\bsettings\x18\x01 \x01(\v2\x1a.user.NotificationSettingsR\bsettings\"\xaf\x02\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1a.user.NotificationSettingsR\bsettings\"\xe8\x02\n" +
 	"!UpdateNotificationSettingsRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12$\n" +
 	"\vnew_quizzes\x18\x02 \x01(\bH\x00R\n" +
 	"newQuizzes\x88\x01\x01\x12&\n" +
 	"\fquiz_results\x18\x03 \x01(\bH\x01R\vquizResults\x88\x01\x01\x12(\n" +
 	"\rgroup_invites\x18\x04 \x01(\bH\x02R\fgroupInvites\x88\x01\x01\x120\n" +
-	"\x11deadline_reminder\x18\x05 \x01(\tH\x03R\x10deadlineReminder\x88\x01\x01B\x0e\n" +
+	"\x11deadline_reminder\x18\x05 \x01(\tH\x03R\x10deadlineReminder\x88\x01\x01\x12&\n" +
+	"\fgroup_kicked\x18\x06 \x01(\bH\x04R\vgroupKicked\x88\x01\x01B\x0e\n" +
 	"\f_new_quizzesB\x0f\n" +
 	"\r_quiz_resultsB\x10\n" +
 	"\x0e_group_invitesB\x14\n" +
-	"\x12_deadline_reminder\"\\\n" +
+	"\x12_deadline_reminderB\x0f\n" +
+	"\r_group_kicked\"\\\n" +
 	"\"UpdateNotificationSettingsResponse\x126\n" +
 	"\bsettings\x18\x01 \x01(\v2\x1a.user.NotificationSettingsR\bsettings\"\xa9\x01\n" +
 	"\x12CreateGroupRequest\x12\x19\n" +

@@ -19,7 +19,10 @@ import (
 	pb "user-service/proto"
 )
 
-const groupInviteNotificationType = "group_invite"
+const (
+	groupInviteNotificationType = "group_invite"
+	groupKickedNotificationType = "group_kicked"
+)
 
 func (s *UserService) CreateGroup(ctx context.Context, req *pb.CreateGroupRequest) (*pb.CreateGroupResponse, error) {
 	if err := s.validateGroupAvatarURL(req.AvatarUrl); err != nil {
@@ -463,17 +466,19 @@ func (s *UserService) KickGroupMembers(ctx context.Context, req *pb.KickGroupMem
 		}
 	}
 
+	var kickedMembers []*repository.User
 	err = s.txMgr.InTransaction(ctx, func(ctx context.Context) error {
-		for _, email := range req.Emails {
-			user, exists := usersMap[email]
-			if !exists {
-				continue
-			}
-			if err := s.groupRepo.RemoveMemberIfExists(ctx, req.GroupId, user.ID); err != nil {
+		kickedMembers = kickedMembers[:0]
+		for _, user := range usersMap {
+			removed, err := s.groupRepo.RemoveMemberIfExists(ctx, req.GroupId, user.ID)
+			if err != nil {
 				return fmt.Errorf("remove member: %w", err)
 			}
 			if err := s.groupRepo.RemoveInvitation(ctx, req.GroupId, user.ID); err != nil {
 				return fmt.Errorf("remove invitation: %w", err)
+			}
+			if removed {
+				kickedMembers = append(kickedMembers, user)
 			}
 		}
 		return nil
@@ -481,6 +486,13 @@ func (s *UserService) KickGroupMembers(ctx context.Context, req *pb.KickGroupMem
 	if err != nil {
 		log.Printf("KickGroupMembers: tx failed: %v", err)
 		return nil, errors.New(codes.Internal, errors.ReasonGroupUpdateFailed, "Failed to kick members", map[string]string{"group_id": req.GroupId})
+	}
+
+	for _, user := range kickedMembers {
+		s.publishGroupKicked(ctx, group.ID, group.Name, req.UserId, user)
+		if err := s.notificationClient.MarkAsReadByType(ctx, user.ID, groupInviteNotificationType, group.ID); err != nil {
+			log.Printf("KickGroupMembers: best-effort mark-read for stale invite failed for user %s: %v", user.ID, err)
+		}
 	}
 
 	return &pb.KickGroupMembersResponse{}, nil
@@ -526,16 +538,56 @@ func (s *UserService) groupToProto(group *repository.Group) *pb.Group {
 	}
 }
 
+func (s *UserService) publishGroupKicked(ctx context.Context, groupID, groupName, kickerID string, kicked *repository.User) {
+	if s.rabbitMQ == nil {
+		log.Printf("publishGroupKicked: rabbitMQ is nil, skipping event for user %s", kicked.ID)
+		return
+	}
+
+	kicker, err := s.userRepo.GetUserByID(ctx, kickerID)
+	if err != nil {
+		log.Printf("publishGroupKicked: failed to get kicker: %v", err)
+		return
+	}
+
+	if kicked.IsRegistered {
+		settings, settingsErr := s.settingsRepo.GetOrCreateSettings(ctx, kicked.ID)
+		if settingsErr == nil && !settings.GroupKicked {
+			log.Printf("publishGroupKicked: user %s opted out of group_kicked, skipping", kicked.ID)
+			return
+		}
+	}
+
+	kickedLanguage := string(lang.Default)
+	if kicked.Language != "" {
+		kickedLanguage = kicked.Language
+	}
+
+	event := map[string]string{
+		"group_id":       groupID,
+		"group_name":     groupName,
+		"kicker_name":    displayName(kicker),
+		"kicked_email":   kicked.Email,
+		"kicked_user_id": kicked.ID,
+		"language":       kickedLanguage,
+	}
+	eventData, _ := json.Marshal(event)
+
+	if err := s.rabbitMQ.Publish(ctx, "user.group_kicks", eventData); err != nil {
+		log.Printf("Failed to publish group_kicked event: %v", err)
+	}
+}
+
 func (s *UserService) publishGroupInvite(ctx context.Context, groupID, groupName, inviterID, inviteeEmail string) {
+	if s.rabbitMQ == nil {
+		log.Printf("publishGroupInvite: rabbitMQ is nil, skipping event for invitee %s", inviteeEmail)
+		return
+	}
+
 	inviter, err := s.userRepo.GetUserByID(ctx, inviterID)
 	if err != nil {
 		log.Printf("Failed to get inviter: %v", err)
 		return
-	}
-
-	inviterName := inviter.FirstName + " " + inviter.LastName
-	if inviterName == " " {
-		inviterName = inviter.Email
 	}
 
 	inviteeUserID := ""
@@ -557,7 +609,7 @@ func (s *UserService) publishGroupInvite(ctx context.Context, groupID, groupName
 	event := map[string]string{
 		"group_id":        groupID,
 		"group_name":      groupName,
-		"inviter_name":    inviterName,
+		"inviter_name":    displayName(inviter),
 		"invitee_email":   inviteeEmail,
 		"invitee_user_id": inviteeUserID,
 		"language":        inviteeLanguage,
@@ -567,6 +619,14 @@ func (s *UserService) publishGroupInvite(ctx context.Context, groupID, groupName
 	if err := s.rabbitMQ.Publish(ctx, "user.group_invites", eventData); err != nil {
 		log.Printf("Failed to publish group_invite event: %v", err)
 	}
+}
+
+func displayName(u *repository.User) string {
+	name := u.FirstName + " " + u.LastName
+	if name == " " {
+		return u.Email
+	}
+	return name
 }
 
 func (s *UserService) validateGroupAvatarURL(url string) error {

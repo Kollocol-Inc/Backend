@@ -51,6 +51,7 @@ message NotificationSettings {
   bool group_invites = 4;
   string deadline_reminder = 5; // "1h", "24h", "never"
   int64 updated_at = 6; // Unix timestamp
+  bool group_kicked = 7;
 }
 
 message Group {
@@ -139,6 +140,7 @@ message UpdateNotificationSettingsRequest {
   optional bool quiz_results = 3;
   optional bool group_invites = 4;
   optional string deadline_reminder = 5;
+  optional bool group_kicked = 6;
 }
 
 message UpdateNotificationSettingsResponse {

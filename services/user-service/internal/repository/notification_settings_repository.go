@@ -15,6 +15,7 @@ type NotificationSettings struct {
 	NewQuizzes       bool
 	QuizResults      bool
 	GroupInvites     bool
+	GroupKicked      bool
 	DeadlineReminder string // "never", "1h", "3h", "6h", "12h", "24h"
 	UpdatedAt        time.Time
 }
@@ -33,7 +34,7 @@ func (r *NotificationSettingsRepository) q(ctx context.Context) database.DBTX {
 
 func (r *NotificationSettingsRepository) GetSettings(ctx context.Context, userID string) (*NotificationSettings, error) {
 	query := `
-		SELECT user_id, new_quizzes, quiz_results, group_invites, deadline_reminder, updated_at
+		SELECT user_id, new_quizzes, quiz_results, group_invites, group_kicked, deadline_reminder, updated_at
 		FROM user_notification_settings
 		WHERE user_id = $1
 	`
@@ -44,6 +45,7 @@ func (r *NotificationSettingsRepository) GetSettings(ctx context.Context, userID
 		&settings.NewQuizzes,
 		&settings.QuizResults,
 		&settings.GroupInvites,
+		&settings.GroupKicked,
 		&settings.DeadlineReminder,
 		&settings.UpdatedAt,
 	)
@@ -64,20 +66,22 @@ func (r *NotificationSettingsRepository) CreateDefaultSettings(ctx context.Conte
 		NewQuizzes:       true,
 		QuizResults:      true,
 		GroupInvites:     true,
+		GroupKicked:      true,
 		DeadlineReminder: "24h",
 		UpdatedAt:        time.Now(),
 	}
 
 	query := `
-		INSERT INTO user_notification_settings (user_id, new_quizzes, quiz_results, group_invites, deadline_reminder, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO user_notification_settings (user_id, new_quizzes, quiz_results, group_invites, group_kicked, deadline_reminder, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (user_id) DO UPDATE SET
 			new_quizzes = EXCLUDED.new_quizzes,
 			quiz_results = EXCLUDED.quiz_results,
 			group_invites = EXCLUDED.group_invites,
+			group_kicked = EXCLUDED.group_kicked,
 			deadline_reminder = EXCLUDED.deadline_reminder,
 			updated_at = EXCLUDED.updated_at
-		RETURNING user_id, new_quizzes, quiz_results, group_invites, deadline_reminder, updated_at
+		RETURNING user_id, new_quizzes, quiz_results, group_invites, group_kicked, deadline_reminder, updated_at
 	`
 
 	err := r.q(ctx).QueryRowContext(ctx, query,
@@ -85,6 +89,7 @@ func (r *NotificationSettingsRepository) CreateDefaultSettings(ctx context.Conte
 		settings.NewQuizzes,
 		settings.QuizResults,
 		settings.GroupInvites,
+		settings.GroupKicked,
 		settings.DeadlineReminder,
 		settings.UpdatedAt,
 	).Scan(
@@ -92,6 +97,7 @@ func (r *NotificationSettingsRepository) CreateDefaultSettings(ctx context.Conte
 		&settings.NewQuizzes,
 		&settings.QuizResults,
 		&settings.GroupInvites,
+		&settings.GroupKicked,
 		&settings.DeadlineReminder,
 		&settings.UpdatedAt,
 	)
@@ -107,12 +113,13 @@ func (r *NotificationSettingsRepository) UpdateSettings(ctx context.Context, set
 	settings.UpdatedAt = time.Now()
 
 	query := `
-		INSERT INTO user_notification_settings (user_id, new_quizzes, quiz_results, group_invites, deadline_reminder, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO user_notification_settings (user_id, new_quizzes, quiz_results, group_invites, group_kicked, deadline_reminder, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (user_id) DO UPDATE SET
 			new_quizzes = EXCLUDED.new_quizzes,
 			quiz_results = EXCLUDED.quiz_results,
 			group_invites = EXCLUDED.group_invites,
+			group_kicked = EXCLUDED.group_kicked,
 			deadline_reminder = EXCLUDED.deadline_reminder,
 			updated_at = EXCLUDED.updated_at
 	`
@@ -122,6 +129,7 @@ func (r *NotificationSettingsRepository) UpdateSettings(ctx context.Context, set
 		settings.NewQuizzes,
 		settings.QuizResults,
 		settings.GroupInvites,
+		settings.GroupKicked,
 		settings.DeadlineReminder,
 		settings.UpdatedAt,
 	)
@@ -145,8 +153,8 @@ func (r *NotificationSettingsRepository) GetOrCreateSettings(ctx context.Context
 	log.Printf("GetOrCreateSettings for user %s", userID)
 	settings, err := r.GetSettings(ctx, userID)
 	if err == nil {
-		log.Printf("Found existing settings: NewQuizzes=%v, QuizResults=%v, GroupInvites=%v, DeadlineReminder=%s",
-			settings.NewQuizzes, settings.QuizResults, settings.GroupInvites, settings.DeadlineReminder)
+		log.Printf("Found existing settings: NewQuizzes=%v, QuizResults=%v, GroupInvites=%v, GroupKicked=%v, DeadlineReminder=%s",
+			settings.NewQuizzes, settings.QuizResults, settings.GroupInvites, settings.GroupKicked, settings.DeadlineReminder)
 		return settings, nil
 	}
 

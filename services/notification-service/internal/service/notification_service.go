@@ -30,6 +30,7 @@ type EmailSender interface {
 	SendEmail(data email.EmailData) error
 	SendAuthCode(emailAddr, code string, l lang.Lang) error
 	SendGroupInvite(emailAddr, groupName, inviterName string, l lang.Lang) error
+	SendGroupKicked(emailAddr, groupName, kickerName string, l lang.Lang) error
 	SendQuizCreated(emailAddr, quizTitle, creatorName string, l lang.Lang) error
 	SendQuizResults(emailAddr, quizTitle string, score, maxScore int, l lang.Lang) error
 	SendGradeChanged(emailAddr, quizTitle string, score, maxScore int, l lang.Lang) error
@@ -163,6 +164,24 @@ func (s *NotificationService) HandleSendAuthCode(ctx context.Context, data []byt
 	return s.smtpClient.SendAuthCode(event.Email, event.Code, l)
 }
 
+func (s *NotificationService) createInAppNotification(ctx context.Context, userID, tmpl, content, relatedEntityID string, l lang.Lang, requiresAction bool) {
+	if userID == "" {
+		return
+	}
+	notification := &repository.Notification{
+		UserID:          userID,
+		Type:            tmpl,
+		Title:           email.InAppTitle(l, tmpl),
+		Content:         content,
+		IsRead:          false,
+		RelatedEntityID: relatedEntityID,
+		RequiresAction:  requiresAction,
+	}
+	if err := s.repo.CreateNotification(ctx, notification); err != nil {
+		log.Printf("createInAppNotification: failed to create %s notification for user %s: %v", tmpl, userID, err)
+	}
+}
+
 func (s *NotificationService) HandleGroupInvite(ctx context.Context, data []byte) error {
 	var event struct {
 		GroupID       string `json:"group_id"`
@@ -180,25 +199,41 @@ func (s *NotificationService) HandleGroupInvite(ctx context.Context, data []byte
 	l := lang.Parse(event.Language)
 	log.Printf("Processing group_invite: group=%s, invitee=%s, lang=%s", event.GroupName, event.InviteeEmail, l)
 
-	if event.InviteeUserID != "" {
-		notification := &repository.Notification{
-			UserID:          event.InviteeUserID,
-			Type:            email.TmplGroupInvite,
-			Title:           email.InAppTitle(l, email.TmplGroupInvite),
-			Content:         email.InAppContent(l, email.TmplGroupInvite, event.InviterName, event.GroupName),
-			IsRead:          false,
-			RelatedEntityID: event.GroupID,
-			RequiresAction:  true,
-		}
-		if err := s.repo.CreateNotification(ctx, notification); err != nil {
-			log.Printf("HandleGroupInvite: failed to create in-app notification for user %s: %v", event.InviteeUserID, err)
-		}
-	}
+	s.createInAppNotification(ctx, event.InviteeUserID, email.TmplGroupInvite,
+		email.InAppContent(l, email.TmplGroupInvite, event.InviterName, event.GroupName),
+		event.GroupID, l, true)
 
 	if event.InviteeEmail == "" {
 		return nil
 	}
 	return s.smtpClient.SendGroupInvite(event.InviteeEmail, event.GroupName, event.InviterName, l)
+}
+
+func (s *NotificationService) HandleGroupKicked(ctx context.Context, data []byte) error {
+	var event struct {
+		GroupID      string `json:"group_id"`
+		GroupName    string `json:"group_name"`
+		KickerName   string `json:"kicker_name"`
+		KickedEmail  string `json:"kicked_email"`
+		KickedUserID string `json:"kicked_user_id"`
+		Language     string `json:"language"`
+	}
+
+	if err := json.Unmarshal(data, &event); err != nil {
+		return err
+	}
+
+	l := lang.Parse(event.Language)
+	log.Printf("Processing group_kicked: group=%s, kicked=%s, lang=%s", event.GroupName, event.KickedEmail, l)
+
+	s.createInAppNotification(ctx, event.KickedUserID, email.TmplGroupKicked,
+		email.InAppContent(l, email.TmplGroupKicked, event.KickerName, event.GroupName),
+		event.GroupID, l, false)
+
+	if event.KickedEmail == "" {
+		return nil
+	}
+	return s.smtpClient.SendGroupKicked(event.KickedEmail, event.GroupName, event.KickerName, l)
 }
 
 func (s *NotificationService) HandleQuizCreated(ctx context.Context, data []byte) error {
@@ -224,16 +259,7 @@ func (s *NotificationService) HandleQuizCreated(ctx context.Context, data []byte
 
 	for _, p := range event.Participants {
 		l := lang.Parse(p.Language)
-		notification := &repository.Notification{
-			UserID:  p.UserID,
-			Type:    email.TmplQuizCreated,
-			Title:   email.InAppTitle(l, email.TmplQuizCreated),
-			Content: event.Title,
-			IsRead:  false,
-		}
-		if err := s.repo.CreateNotification(ctx, notification); err != nil {
-			log.Printf("HandleQuizCreated: failed to create in-app notification for user %s: %v", p.UserID, err)
-		}
+		s.createInAppNotification(ctx, p.UserID, email.TmplQuizCreated, event.Title, "", l, false)
 
 		if p.Email == "" {
 			continue
@@ -268,16 +294,9 @@ func (s *NotificationService) HandleQuizDeadlineReminder(ctx context.Context, da
 
 	for _, p := range event.Participants {
 		l := lang.Parse(p.Language)
-		notification := &repository.Notification{
-			UserID:  p.UserID,
-			Type:    email.TmplDeadlineReminder,
-			Title:   email.InAppTitle(l, email.TmplDeadlineReminder),
-			Content: email.InAppContent(l, email.TmplDeadlineReminder, event.Title, event.ReminderOffset),
-			IsRead:  false,
-		}
-		if err := s.repo.CreateNotification(ctx, notification); err != nil {
-			log.Printf("HandleQuizDeadlineReminder: failed to create in-app notification for user %s: %v", p.UserID, err)
-		}
+		s.createInAppNotification(ctx, p.UserID, email.TmplDeadlineReminder,
+			email.InAppContent(l, email.TmplDeadlineReminder, event.Title, event.ReminderOffset),
+			"", l, false)
 
 		if p.Email == "" {
 			continue
@@ -311,17 +330,7 @@ func (s *NotificationService) HandleQuizResultsReady(ctx context.Context, data [
 
 	for _, p := range event.Participants {
 		l := lang.Parse(p.Language)
-		notification := &repository.Notification{
-			UserID:  p.UserID,
-			Type:    email.TmplQuizResults,
-			Title:   email.InAppTitle(l, email.TmplQuizResults),
-			Content: event.Title,
-			IsRead:  false,
-		}
-
-		if err := s.repo.CreateNotification(ctx, notification); err != nil {
-			log.Printf("Failed to create notification for user %s: %v", p.UserID, err)
-		}
+		s.createInAppNotification(ctx, p.UserID, email.TmplQuizResults, event.Title, "", l, false)
 
 		if p.Email == "" {
 			continue
@@ -352,17 +361,7 @@ func (s *NotificationService) HandleGradeChanged(ctx context.Context, data []byt
 	l := lang.Parse(event.Language)
 	log.Printf("Processing quiz.grade_changed event for instance %s, participant %s, lang=%s", event.InstanceID, event.ParticipantID, l)
 
-	notification := &repository.Notification{
-		UserID:  event.ParticipantID,
-		Type:    email.TmplGradeChanged,
-		Title:   email.InAppTitle(l, email.TmplGradeChanged),
-		Content: event.Title,
-		IsRead:  false,
-	}
-
-	if err := s.repo.CreateNotification(ctx, notification); err != nil {
-		log.Printf("Failed to create grade_changed notification for user %s: %v", event.ParticipantID, err)
-	}
+	s.createInAppNotification(ctx, event.ParticipantID, email.TmplGradeChanged, event.Title, "", l, false)
 
 	if event.ParticipantEmail != "" {
 		if err := s.smtpClient.SendGradeChanged(event.ParticipantEmail, event.Title, event.Score, event.MaxScore, l); err != nil {

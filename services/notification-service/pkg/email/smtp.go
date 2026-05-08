@@ -83,6 +83,12 @@ func (c *SMTPClient) SendGroupInvite(emailAddr, groupName, inviterName string, l
 		Subject(l, TmplGroupInvite, groupName))
 }
 
+func (c *SMTPClient) SendGroupKicked(emailAddr, groupName, kickerName string, l lang.Lang) error {
+	return c.renderAndSend(emailAddr, l, TmplGroupKicked,
+		map[string]string{"GroupName": groupName, "KickerName": kickerName},
+		Subject(l, TmplGroupKicked, groupName))
+}
+
 func (c *SMTPClient) SendQuizCreated(emailAddr, quizTitle, creatorName string, l lang.Lang) error {
 	return c.renderAndSend(emailAddr, l, TmplQuizCreated,
 		map[string]string{"QuizTitle": quizTitle, "CreatorName": creatorName},

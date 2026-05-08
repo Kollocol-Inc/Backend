@@ -543,11 +543,12 @@ func (mr *MockGroupRepoMockRecorder) RemoveMember(ctx, groupID, userID any) *gom
 }
 
 // RemoveMemberIfExists mocks base method.
-func (m *MockGroupRepo) RemoveMemberIfExists(ctx context.Context, groupID, userID string) error {
+func (m *MockGroupRepo) RemoveMemberIfExists(ctx context.Context, groupID, userID string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RemoveMemberIfExists", ctx, groupID, userID)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // RemoveMemberIfExists indicates an expected call of RemoveMemberIfExists.
