@@ -1,0 +1,48 @@
+groups:
+  - name: api-gateway-base-rates
+    interval: 30s
+    rules:
+      - record: api_gateway:http_requests:rate5m
+        expr: sum(rate(http_requests_total{job="api-gateway",path!~"/health|/metrics|/swagger/.*"}[5m]))
+
+      - record: api_gateway:http_requests_5xx:rate5m
+        expr: sum(rate(http_requests_total{job="api-gateway",status=~"5..",path!~"/health|/metrics|/swagger/.*"}[5m]))
+
+      - record: api_gateway:http_request_duration_count_fast:rate5m
+        expr: sum(rate(http_request_duration_seconds_count{job="api-gateway",path!~"/health|/metrics|/swagger/.*",path!~"/ml/.*|/quizzes/instances/.*/review"}[5m]))
+
+      - record: api_gateway:http_request_duration_under_200ms_fast:rate5m
+        expr: sum(rate(http_request_duration_seconds_bucket{job="api-gateway",path!~"/health|/metrics|/swagger/.*",path!~"/ml/.*|/quizzes/instances/.*/review",le="0.2"}[5m]))
+
+      - record: api_gateway:http_request_duration_count_slow:rate5m
+        expr: sum(rate(http_request_duration_seconds_count{job="api-gateway",path=~"/ml/.*|/quizzes/instances/.*/review"}[5m]))
+
+      - record: api_gateway:http_request_duration_under_10s_slow:rate5m
+        expr: sum(rate(http_request_duration_seconds_bucket{job="api-gateway",path=~"/ml/.*|/quizzes/instances/.*/review",le="10.0"}[5m]))
+
+      - record: api_gateway:http_request_duration_bucket:rate5m
+        expr: sum by (le, method, path) (rate(http_request_duration_seconds_bucket{job="api-gateway"}[5m]))
+
+  - name: api-gateway-sli-ratios
+    interval: 30s
+    rules:
+      - record: api_gateway:sli_availability:ratio_rate5m
+        expr: 1 - (api_gateway:http_requests_5xx:rate5m / clamp_min(api_gateway:http_requests:rate5m, 0.0001))
+
+      - record: api_gateway:sli_fast_latency:ratio_rate5m
+        expr: api_gateway:http_request_duration_under_200ms_fast:rate5m / clamp_min(api_gateway:http_request_duration_count_fast:rate5m, 0.0001)
+
+      - record: api_gateway:sli_slow_latency:ratio_rate5m
+        expr: api_gateway:http_request_duration_under_10s_slow:rate5m / clamp_min(api_gateway:http_request_duration_count_slow:rate5m, 0.0001)
+
+  - name: api-gateway-sli-windows
+    interval: 5m
+    rules:
+      - record: api_gateway:sli_availability:ratio_rate1h
+        expr: avg_over_time(api_gateway:sli_availability:ratio_rate5m[1h])
+
+      - record: api_gateway:sli_fast_latency:ratio_rate1h
+        expr: avg_over_time(api_gateway:sli_fast_latency:ratio_rate5m[1h])
+
+      - record: api_gateway:sli_slow_latency:ratio_rate1h
+        expr: avg_over_time(api_gateway:sli_slow_latency:ratio_rate5m[1h])
