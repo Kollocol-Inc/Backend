@@ -488,12 +488,21 @@ definitions:
       is_read:
         example: false
         type: boolean
+      related_entity_id:
+        description: 'For group_invite/group_kicked: group_id; for quiz_*: quiz instance
+          id'
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      requires_action:
+        example: false
+        type: boolean
       title:
         example: New Quiz Available
         type: string
       type:
         enum:
         - group_invite
+        - group_kicked
         - quiz_created
         - quiz_results
         - grade_changed
@@ -529,6 +538,9 @@ definitions:
         example: 24h
         type: string
       group_invites:
+        example: true
+        type: boolean
+      group_kicked:
         example: true
         type: boolean
       new_quizzes:
@@ -790,6 +802,9 @@ definitions:
         example: 24h
         type: string
       group_invites:
+        example: true
+        type: boolean
+      group_kicked:
         example: true
         type: boolean
       new_quizzes:
@@ -1706,6 +1721,28 @@ paths:
       security:
       - BearerAuth: []
       summary: Mark notifications as read
+      tags:
+      - notifications
+  /notifications/read/all:
+    put:
+      description: Mark all of the current user's notifications as read (notifications
+        requiring action are skipped)
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark all notifications as read
       tags:
       - notifications
   /quizzes/instances:

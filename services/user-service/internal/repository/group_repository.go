@@ -231,14 +231,20 @@ func (r *GroupRepository) RemoveMember(ctx context.Context, groupID, userID stri
 	return nil
 }
 
-func (r *GroupRepository) RemoveMemberIfExists(ctx context.Context, groupID, userID string) error {
+func (r *GroupRepository) RemoveMemberIfExists(ctx context.Context, groupID, userID string) (bool, error) {
 	query := `DELETE FROM group_members WHERE group_id = $1 AND user_id = $2`
 
-	if _, err := r.q(ctx).ExecContext(ctx, query, groupID, userID); err != nil {
-		return fmt.Errorf("failed to remove member: %w", err)
+	result, err := r.q(ctx).ExecContext(ctx, query, groupID, userID)
+	if err != nil {
+		return false, fmt.Errorf("failed to remove member: %w", err)
 	}
 
-	return nil
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	return rowsAffected > 0, nil
 }
 
 func (r *GroupRepository) GetMemberIDs(ctx context.Context, groupID string) ([]string, error) {

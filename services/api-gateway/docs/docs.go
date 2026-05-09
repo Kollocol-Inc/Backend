@@ -1267,6 +1267,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/notifications/read/all": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mark all of the current user's notifications as read (notifications requiring action are skipped)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Mark all notifications as read",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/quizzes/instances": {
             "post": {
                 "security": [
@@ -2888,6 +2922,15 @@ const docTemplate = `{
                     "type": "boolean",
                     "example": false
                 },
+                "related_entity_id": {
+                    "description": "For group_invite/group_kicked: group_id; for quiz_*: quiz instance id",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "requires_action": {
+                    "type": "boolean",
+                    "example": false
+                },
                 "title": {
                     "type": "string",
                     "example": "New Quiz Available"
@@ -2896,6 +2939,7 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "group_invite",
+                        "group_kicked",
                         "quiz_created",
                         "quiz_results",
                         "grade_changed",
@@ -2943,6 +2987,10 @@ const docTemplate = `{
                     "example": "24h"
                 },
                 "group_invites": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "group_kicked": {
                     "type": "boolean",
                     "example": true
                 },
@@ -3296,6 +3344,10 @@ const docTemplate = `{
                     "example": "24h"
                 },
                 "group_invites": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "group_kicked": {
                     "type": "boolean",
                     "example": true
                 },

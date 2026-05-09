@@ -87,6 +87,34 @@ func TestMarkAsRead_RepoError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestMarkAllAsRead_Success(t *testing.T) {
+	svc, repo, _ := setupTest(t)
+	ctx := context.Background()
+
+	repo.EXPECT().MarkAllAsRead(ctx, "user-1").Return(nil)
+
+	_, err := svc.MarkAllAsRead(ctx, &pb.MarkAllAsReadRequest{UserId: "user-1"})
+	require.NoError(t, err)
+}
+
+func TestMarkAllAsRead_EmptyUserID(t *testing.T) {
+	svc, _, _ := setupTest(t)
+	ctx := context.Background()
+
+	_, err := svc.MarkAllAsRead(ctx, &pb.MarkAllAsReadRequest{UserId: ""})
+	assert.Error(t, err)
+}
+
+func TestMarkAllAsRead_RepoError(t *testing.T) {
+	svc, repo, _ := setupTest(t)
+	ctx := context.Background()
+
+	repo.EXPECT().MarkAllAsRead(ctx, "user-1").Return(fmt.Errorf("db error"))
+
+	_, err := svc.MarkAllAsRead(ctx, &pb.MarkAllAsReadRequest{UserId: "user-1"})
+	assert.Error(t, err)
+}
+
 func TestDeleteNotification_Success(t *testing.T) {
 	svc, repo, _ := setupTest(t)
 	ctx := context.Background()
@@ -149,6 +177,71 @@ func TestHandleGroupInvite_WithUserID_CreatesInAppNotification(t *testing.T) {
 
 	err := svc.HandleGroupInvite(ctx, data)
 	require.NoError(t, err)
+}
+
+func TestHandleGroupKicked_EmailOnly(t *testing.T) {
+	svc, _, smtp := setupTest(t)
+	ctx := context.Background()
+
+	data, _ := json.Marshal(map[string]string{
+		"group_id":     "grp-1",
+		"group_name":   "Test Group",
+		"kicker_name":  "Owner",
+		"kicked_email": "jane@example.com",
+		"language":     "en",
+	})
+	smtp.EXPECT().SendGroupKicked("jane@example.com", "Test Group", "Owner", lang.EN).Return(nil)
+
+	err := svc.HandleGroupKicked(ctx, data)
+	require.NoError(t, err)
+}
+
+func TestHandleGroupKicked_WithUserID_CreatesInAppNotification(t *testing.T) {
+	svc, repo, smtp := setupTest(t)
+	ctx := context.Background()
+
+	data, _ := json.Marshal(map[string]string{
+		"group_id":       "grp-1",
+		"group_name":     "Test Group",
+		"kicker_name":    "Owner",
+		"kicked_email":   "jane@example.com",
+		"kicked_user_id": "user-42",
+		"language":       "ru",
+	})
+	repo.EXPECT().CreateNotification(ctx, gomock.Any()).DoAndReturn(func(_ context.Context, n *repository.Notification) error {
+		assert.Equal(t, "user-42", n.UserID)
+		assert.Equal(t, email.TmplGroupKicked, n.Type)
+		assert.Equal(t, "grp-1", n.RelatedEntityID)
+		assert.False(t, n.RequiresAction)
+		return nil
+	})
+	smtp.EXPECT().SendGroupKicked("jane@example.com", "Test Group", "Owner", lang.RU).Return(nil)
+
+	err := svc.HandleGroupKicked(ctx, data)
+	require.NoError(t, err)
+}
+
+func TestHandleGroupKicked_NoEmailNoUser_Noop(t *testing.T) {
+	svc, _, _ := setupTest(t)
+	ctx := context.Background()
+
+	data, _ := json.Marshal(map[string]string{
+		"group_id":    "grp-1",
+		"group_name":  "Test Group",
+		"kicker_name": "Owner",
+		"language":    "en",
+	})
+
+	err := svc.HandleGroupKicked(ctx, data)
+	require.NoError(t, err)
+}
+
+func TestHandleGroupKicked_InvalidJSON(t *testing.T) {
+	svc, _, _ := setupTest(t)
+	ctx := context.Background()
+
+	err := svc.HandleGroupKicked(ctx, []byte("not json"))
+	assert.Error(t, err)
 }
 
 func TestHandleQuizCreated_Success(t *testing.T) {

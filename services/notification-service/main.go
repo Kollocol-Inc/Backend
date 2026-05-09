@@ -126,6 +126,7 @@ func startConsumers(rabbitClient *messaging.RabbitMQClient, notificationService 
 	}
 	startConsumer("auth.send_code", notificationService.HandleSendAuthCode)
 	startConsumer("user.group_invites", notificationService.HandleGroupInvite)
+	startConsumer("user.group_kicks", notificationService.HandleGroupKicked)
 	startConsumer("quiz.created", notificationService.HandleQuizCreated)
 	startConsumer("quiz.results_ready", notificationService.HandleQuizResultsReady)
 	startConsumer("quiz.grade_changed", notificationService.HandleGradeChanged)

@@ -310,6 +310,7 @@ func (h *UserHandler) UpdateNotificationSettings(c *gin.Context) {
 		NewQuizzes:       req.NewQuizzes,
 		QuizResults:      req.QuizResults,
 		GroupInvites:     req.GroupInvites,
+		GroupKicked:      req.GroupKicked,
 		DeadlineReminder: req.DeadlineReminder,
 	}
 
@@ -825,6 +826,7 @@ func convertNotificationSettingsToDTO(s *pb.NotificationSettings) dto.Notificati
 		NewQuizzes:       s.NewQuizzes,
 		QuizResults:      s.QuizResults,
 		GroupInvites:     s.GroupInvites,
+		GroupKicked:      s.GroupKicked,
 		DeadlineReminder: s.DeadlineReminder,
 	}
 }

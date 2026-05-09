@@ -16,6 +16,7 @@ type UpdateNotificationSettingsRequest struct {
 	NewQuizzes   *bool `json:"new_quizzes,omitempty" example:"true"`
 	QuizResults  *bool `json:"quiz_results,omitempty" example:"true"`
 	GroupInvites *bool `json:"group_invites,omitempty" example:"true"`
+	GroupKicked  *bool `json:"group_kicked,omitempty" example:"true"`
 	DeadlineReminder *string `json:"deadline_reminder,omitempty" enums:"never,1h,3h,6h,12h,24h" example:"24h"`
 }
 
@@ -62,6 +63,7 @@ type NotificationSettingsDTO struct {
 	NewQuizzes   bool   `json:"new_quizzes" example:"true"`
 	QuizResults  bool   `json:"quiz_results" example:"true"`
 	GroupInvites bool   `json:"group_invites" example:"true"`
+	GroupKicked  bool   `json:"group_kicked" example:"true"`
 	DeadlineReminder string `json:"deadline_reminder" enums:"never,1h,3h,6h,12h,24h" example:"24h"`
 }
 

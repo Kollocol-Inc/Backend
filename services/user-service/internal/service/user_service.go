@@ -47,7 +47,7 @@ type GroupRepo interface {
 	DeleteUserInvitations(ctx context.Context, userID string) error
 	AddMembers(ctx context.Context, groupID string, userIDs []string) error
 	RemoveMember(ctx context.Context, groupID, userID string) error
-	RemoveMemberIfExists(ctx context.Context, groupID, userID string) error
+	RemoveMemberIfExists(ctx context.Context, groupID, userID string) (bool, error)
 	GetMemberIDs(ctx context.Context, groupID string) ([]string, error)
 	GetMemberCount(ctx context.Context, groupID string) (int32, error)
 	GetUserGroups(ctx context.Context, userID string) ([]*repository.Group, error)
@@ -264,8 +264,8 @@ func (s *UserService) GetNotificationSettings(ctx context.Context, req *pb.GetNo
 }
 
 func (s *UserService) UpdateNotificationSettings(ctx context.Context, req *pb.UpdateNotificationSettingsRequest) (*pb.UpdateNotificationSettingsResponse, error) {
-	log.Printf("UpdateNotificationSettings for user %s: NewQuizzes=%v, QuizResults=%v, GroupInvites=%v, DeadlineReminder=%v",
-		req.UserId, req.NewQuizzes, req.QuizResults, req.GroupInvites, req.DeadlineReminder)
+	log.Printf("UpdateNotificationSettings for user %s: NewQuizzes=%v, QuizResults=%v, GroupInvites=%v, GroupKicked=%v, DeadlineReminder=%v",
+		req.UserId, req.NewQuizzes, req.QuizResults, req.GroupInvites, req.GroupKicked, req.DeadlineReminder)
 
 	settings, err := s.settingsRepo.GetOrCreateSettings(ctx, req.UserId)
 	if err != nil {
@@ -273,8 +273,8 @@ func (s *UserService) UpdateNotificationSettings(ctx context.Context, req *pb.Up
 		return nil, errors.New(codes.Internal, errors.ReasonSettingsNotFound, "Failed to retrieve settings", map[string]string{"user_id": req.UserId})
 	}
 
-	log.Printf("Current settings: NewQuizzes=%v, QuizResults=%v, GroupInvites=%v, DeadlineReminder=%s",
-		settings.NewQuizzes, settings.QuizResults, settings.GroupInvites, settings.DeadlineReminder)
+	log.Printf("Current settings: NewQuizzes=%v, QuizResults=%v, GroupInvites=%v, GroupKicked=%v, DeadlineReminder=%s",
+		settings.NewQuizzes, settings.QuizResults, settings.GroupInvites, settings.GroupKicked, settings.DeadlineReminder)
 
 	if req.NewQuizzes != nil {
 		log.Printf("Updating NewQuizzes from %v to %v", settings.NewQuizzes, *req.NewQuizzes)
@@ -288,13 +288,17 @@ func (s *UserService) UpdateNotificationSettings(ctx context.Context, req *pb.Up
 		log.Printf("Updating GroupInvites from %v to %v", settings.GroupInvites, *req.GroupInvites)
 		settings.GroupInvites = *req.GroupInvites
 	}
+	if req.GroupKicked != nil {
+		log.Printf("Updating GroupKicked from %v to %v", settings.GroupKicked, *req.GroupKicked)
+		settings.GroupKicked = *req.GroupKicked
+	}
 	if req.DeadlineReminder != nil {
 		log.Printf("Updating DeadlineReminder from %s to %s", settings.DeadlineReminder, *req.DeadlineReminder)
 		settings.DeadlineReminder = *req.DeadlineReminder
 	}
 
-	log.Printf("Updated settings before save: NewQuizzes=%v, QuizResults=%v, GroupInvites=%v, DeadlineReminder=%s",
-		settings.NewQuizzes, settings.QuizResults, settings.GroupInvites, settings.DeadlineReminder)
+	log.Printf("Updated settings before save: NewQuizzes=%v, QuizResults=%v, GroupInvites=%v, GroupKicked=%v, DeadlineReminder=%s",
+		settings.NewQuizzes, settings.QuizResults, settings.GroupInvites, settings.GroupKicked, settings.DeadlineReminder)
 
 	if err := s.settingsRepo.UpdateSettings(ctx, settings); err != nil {
 		log.Printf("Failed to update settings: %v", err)
@@ -327,6 +331,7 @@ func (s *UserService) settingsToProto(settings *repository.NotificationSettings)
 		NewQuizzes:       settings.NewQuizzes,
 		QuizResults:      settings.QuizResults,
 		GroupInvites:     settings.GroupInvites,
+		GroupKicked:      settings.GroupKicked,
 		DeadlineReminder: settings.DeadlineReminder,
 		UpdatedAt:        settings.UpdatedAt.Unix(),
 	}
@@ -403,6 +408,7 @@ func (s *UserService) GetNotificationSettingsBatch(ctx context.Context, req *pb.
 				NewQuizzes:       true,
 				QuizResults:      true,
 				GroupInvites:     true,
+				GroupKicked:      true,
 				DeadlineReminder: "24h",
 			}
 			continue

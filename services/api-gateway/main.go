@@ -163,6 +163,7 @@ func main() {
 	{
 		notificationsGroup.GET("", notificationHandler.GetNotifications)
 		notificationsGroup.PUT("/read", notificationHandler.MarkAsRead)
+		notificationsGroup.PUT("/read/all", notificationHandler.MarkAllAsRead)
 		notificationsGroup.DELETE("/delete", notificationHandler.DeleteNotification)
 	}
 

@@ -101,6 +101,20 @@ func (mr *MockNotificationRepoMockRecorder) GetNotifications(ctx, userID, limit,
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNotifications", reflect.TypeOf((*MockNotificationRepo)(nil).GetNotifications), ctx, userID, limit, offset)
 }
 
+// MarkAllAsRead mocks base method.
+func (m *MockNotificationRepo) MarkAllAsRead(ctx context.Context, userID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MarkAllAsRead", ctx, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MarkAllAsRead indicates an expected call of MarkAllAsRead.
+func (mr *MockNotificationRepoMockRecorder) MarkAllAsRead(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkAllAsRead", reflect.TypeOf((*MockNotificationRepo)(nil).MarkAllAsRead), ctx, userID)
+}
+
 // MarkAsRead mocks base method.
 func (m *MockNotificationRepo) MarkAsRead(ctx context.Context, notificationIDs []string, userID string) error {
 	m.ctrl.T.Helper()
@@ -221,6 +235,20 @@ func (m *MockEmailSender) SendGroupInvite(emailAddr, groupName, inviterName stri
 func (mr *MockEmailSenderMockRecorder) SendGroupInvite(emailAddr, groupName, inviterName, l any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendGroupInvite", reflect.TypeOf((*MockEmailSender)(nil).SendGroupInvite), emailAddr, groupName, inviterName, l)
+}
+
+// SendGroupKicked mocks base method.
+func (m *MockEmailSender) SendGroupKicked(emailAddr, groupName, kickerName string, l lang.Lang) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendGroupKicked", emailAddr, groupName, kickerName, l)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendGroupKicked indicates an expected call of SendGroupKicked.
+func (mr *MockEmailSenderMockRecorder) SendGroupKicked(emailAddr, groupName, kickerName, l any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendGroupKicked", reflect.TypeOf((*MockEmailSender)(nil).SendGroupKicked), emailAddr, groupName, kickerName, l)
 }
 
 // SendQuizCreated mocks base method.

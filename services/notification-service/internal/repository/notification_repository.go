@@ -19,6 +19,7 @@ type Notification struct {
 	IsRead          bool
 	CreatedAt       time.Time
 	RelatedEntityID string
+	RequiresAction  bool
 }
 
 type NotificationRepository struct {
@@ -40,8 +41,8 @@ func (r *NotificationRepository) CreateNotification(ctx context.Context, notific
 	}
 
 	query := `
-		INSERT INTO notifications (id, user_id, type, title, content, is_read, created_at, related_entity_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO notifications (id, user_id, type, title, content, is_read, created_at, related_entity_id, requires_action)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 
 	var relatedEntityID sql.NullString
@@ -58,6 +59,7 @@ func (r *NotificationRepository) CreateNotification(ctx context.Context, notific
 		notification.IsRead,
 		notification.CreatedAt,
 		relatedEntityID,
+		notification.RequiresAction,
 	)
 
 	if err != nil {
@@ -75,7 +77,7 @@ func (r *NotificationRepository) GetNotifications(ctx context.Context, userID st
 	}
 
 	query := `
-		SELECT id, user_id, type, title, content, is_read, created_at, related_entity_id
+		SELECT id, user_id, type, title, content, is_read, created_at, related_entity_id, requires_action
 		FROM notifications
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -92,7 +94,7 @@ func (r *NotificationRepository) GetNotifications(ctx context.Context, userID st
 	for rows.Next() {
 		n := &Notification{}
 		var relatedEntityID sql.NullString
-		if err := rows.Scan(&n.ID, &n.UserID, &n.Type, &n.Title, &n.Content, &n.IsRead, &n.CreatedAt, &relatedEntityID); err != nil {
+		if err := rows.Scan(&n.ID, &n.UserID, &n.Type, &n.Title, &n.Content, &n.IsRead, &n.CreatedAt, &relatedEntityID, &n.RequiresAction); err != nil {
 			return nil, 0, fmt.Errorf("failed to scan notification: %w", err)
 		}
 		if relatedEntityID.Valid {
@@ -116,11 +118,25 @@ func (r *NotificationRepository) MarkAsRead(ctx context.Context, notificationIDs
 	query := `
 		UPDATE notifications
 		SET is_read = true
-		WHERE id = ANY($1) AND user_id = $2
+		WHERE id = ANY($1) AND user_id = $2 AND requires_action = false
 	`
 
 	if _, err := r.db.ExecContext(ctx, query, pq.Array(notificationIDs), userID); err != nil {
 		return fmt.Errorf("failed to mark notifications as read: %w", err)
+	}
+
+	return nil
+}
+
+func (r *NotificationRepository) MarkAllAsRead(ctx context.Context, userID string) error {
+	query := `
+		UPDATE notifications
+		SET is_read = true
+		WHERE user_id = $1 AND is_read = false AND requires_action = false
+	`
+
+	if _, err := r.db.ExecContext(ctx, query, userID); err != nil {
+		return fmt.Errorf("failed to mark all notifications as read: %w", err)
 	}
 
 	return nil
