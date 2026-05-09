@@ -488,6 +488,11 @@ definitions:
       is_read:
         example: false
         type: boolean
+      related_entity_id:
+        description: 'For group_invite/group_kicked: group_id; for quiz_*: quiz instance
+          id'
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
       requires_action:
         example: false
         type: boolean
@@ -497,6 +502,7 @@ definitions:
       type:
         enum:
         - group_invite
+        - group_kicked
         - quiz_created
         - quiz_results
         - grade_changed
@@ -532,6 +538,9 @@ definitions:
         example: 24h
         type: string
       group_invites:
+        example: true
+        type: boolean
+      group_kicked:
         example: true
         type: boolean
       new_quizzes:
@@ -793,6 +802,9 @@ definitions:
         example: 24h
         type: string
       group_invites:
+        example: true
+        type: boolean
+      group_kicked:
         example: true
         type: boolean
       new_quizzes:

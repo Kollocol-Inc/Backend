@@ -2922,6 +2922,11 @@ const docTemplate = `{
                     "type": "boolean",
                     "example": false
                 },
+                "related_entity_id": {
+                    "description": "For group_invite/group_kicked: group_id; for quiz_*: quiz instance id",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
                 "requires_action": {
                     "type": "boolean",
                     "example": false
@@ -2934,6 +2939,7 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "group_invite",
+                        "group_kicked",
                         "quiz_created",
                         "quiz_results",
                         "grade_changed",
@@ -2981,6 +2987,10 @@ const docTemplate = `{
                     "example": "24h"
                 },
                 "group_invites": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "group_kicked": {
                     "type": "boolean",
                     "example": true
                 },
@@ -3334,6 +3344,10 @@ const docTemplate = `{
                     "example": "24h"
                 },
                 "group_invites": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "group_kicked": {
                     "type": "boolean",
                     "example": true
                 },
