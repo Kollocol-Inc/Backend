@@ -358,7 +358,8 @@ const docTemplate = `{
                     {
                         "enum": [
                             "my",
-                            "created"
+                            "created",
+                            "invitee"
                         ],
                         "type": "string",
                         "default": "my",

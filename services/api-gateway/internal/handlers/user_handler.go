@@ -369,7 +369,7 @@ func (h *UserHandler) CreateGroup(c *gin.Context) {
 // @Tags groups
 // @Produce json
 // @Security BearerAuth
-// @Param filter query string false "Filter by membership type" Enums(my,created) default(my)
+// @Param filter query string false "Filter by membership type" Enums(my,created,invitee) default(my)
 // @Success 200 {object} dto.GetGroupsResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
