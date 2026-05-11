@@ -650,7 +650,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, api_gateway:http_request_duration_bucket:rate5m{path=~\"$path\",method=~\"$method\"})",
+          "expr": "histogram_quantile(0.95, sum by (le, method, path) (rate(http_request_duration_seconds_bucket{job=\"api-gateway\",path=~\"$path\",method=~\"$method\"}[$__rate_interval])))",
           "legendFormat": "{{method}} {{path}}",
           "refId": "A"
         }
@@ -775,7 +775,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, api_gateway:http_request_duration_bucket:rate5m{path=~\"$path\",method=~\"$method\"})",
+          "expr": "histogram_quantile(0.95, sum by (le, method, path) (rate(http_request_duration_seconds_bucket{job=\"api-gateway\",path=~\"$path\",method=~\"$method\"}[$__range])))",
           "format": "table",
           "instant": true,
           "refId": "A"
